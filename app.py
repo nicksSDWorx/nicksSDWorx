@@ -112,22 +112,40 @@ def iter_doc_elements(doc: Document):
 
 def extract_employee_name(text: str) -> str | None:
     """
-    If the paragraph text represents a "Stamkaart van <Name>" header,
-    return the name.  Returns None for footers (which have a leading
-    timestamp) and any non-matching text.
+    Find "Stamkaart van <Name>" anywhere in the text and return the name.
+    Handles both standalone headers and footer-style lines with timestamps.
     """
     text = text.strip()
-    # Must START with "Stamkaart van" — footers have a timestamp first
-    m = re.match(r"stamkaart\s+van\s+(.+)", text, re.IGNORECASE)
+    # Search anywhere in the text (not just at the start)
+    m = re.search(r"stamkaart\s+van\s+(.+)", text, re.IGNORECASE)
     if m:
         name = m.group(1).strip()
-        # Reject if the remainder looks like a footer (contains digits
-        # that could be a page number right after the name, tab-separated)
+        # Strip trailing tab + page number (e.g. "Name\t2")
         if "\t" in name:
-            # e.g. "Name\t2" — the tab+number is a page number, strip it
             name = name.split("\t")[0].strip()
         return name if name else None
     return None
+
+
+def scan_section_headers(doc: Document) -> list[str]:
+    """
+    Scan Word section headers and footers for employee names.
+    Some documents put "Stamkaart van <Name>" in the page header.
+    """
+    names = []
+    for section in doc.sections:
+        for hf in [section.header, section.first_page_header,
+                    section.footer, section.first_page_footer]:
+            if hf is None:
+                continue
+            try:
+                for para in hf.paragraphs:
+                    name = extract_employee_name(para.text)
+                    if name:
+                        names.append(name)
+            except Exception:
+                continue
+    return names
 
 
 # ---------------------------------------------------------------------------
@@ -269,6 +287,7 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     """
     Walk the Word document in element order.
     Paragraphs set the current employee; every table is scanned for data.
+    Also checks section headers/footers and table cells for employee names.
     """
 
     def report(msg):
@@ -279,10 +298,17 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     report(f"Document openen: {docx_path}")
 
     doc = Document(docx_path)
+
+    # Pre-scan: check section headers/footers for employee names
+    header_names = scan_section_headers(doc)
+    if header_names:
+        logger.debug(f"Names found in section headers/footers: {header_names}")
+
     all_rows: list[dict] = []
     current_employee: str | None = None
     employee_count = 0
     table_idx = 0
+    employees_seen: set[str] = set()
 
     for elem_type, elem in iter_doc_elements(doc):
 
@@ -292,16 +318,38 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
                 continue
 
             name = extract_employee_name(text)
-            if name:
+            if name and name not in employees_seen:
                 current_employee = name
+                employees_seen.add(name)
                 employee_count += 1
                 report(f"Medewerker gevonden: {name}")
                 logger.debug(f"Employee set to: {name!r} (from paragraph: {text!r})")
+            elif name and name in employees_seen:
+                # Same name seen again (e.g. footer) — just update current
+                current_employee = name
 
         elif elem_type == "table":
             table_idx += 1
             nrows = len(elem.rows)
             logger.debug(f"Table #{table_idx}: {nrows} rows")
+
+            # Also look for "Stamkaart van" inside table cells
+            for row in elem.rows:
+                for cell in row.cells:
+                    cell_name = extract_employee_name(cell.text)
+                    if cell_name:
+                        if cell_name not in employees_seen:
+                            current_employee = cell_name
+                            employees_seen.add(cell_name)
+                            employee_count += 1
+                            report(f"Medewerker gevonden (in tabel): {cell_name}")
+                            logger.debug(f"Employee set from table cell: {cell_name!r}")
+                        else:
+                            current_employee = cell_name
+                        break  # one name per table is enough
+                else:
+                    continue
+                break
 
             if current_employee is None:
                 logger.debug(f"  Skipped (no employee set yet)")
