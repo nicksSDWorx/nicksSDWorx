@@ -4,9 +4,10 @@ Stamkaart Word naar Excel Converter
 Extracts employee contract and salary history from a Dutch HR Word
 document ("stamkaarten") and exports them to a structured Excel file.
 
-The document contains one big history table per employee with
-sub-sections (Contract, Rooster, OE/Functie, Salaris) separated
-by marker rows.
+Walks every element in document order.  Paragraphs containing
+"Stamkaart van <Name>" set the current employee.  EVERY table is
+scanned for Contract and Salaris sub-sections regardless of size
+or structure.
 
 Usage: Double-click the .exe or run `python app.py`
 """
@@ -77,7 +78,7 @@ def extract_date_from_text(text: str):
 
 
 def parse_salary(text: str):
-    """Parse a salary string like '2.389,44' or '2389.44' into a float."""
+    """Parse a salary string like '2.389,44' into a float."""
     if text is None:
         return None
     text = text.strip().replace(" ", "").replace("\u20ac", "")
@@ -106,48 +107,79 @@ def iter_doc_elements(doc: Document):
 
 
 # ---------------------------------------------------------------------------
-# Main parsing
+# Employee name detection
 # ---------------------------------------------------------------------------
 
-def is_employee_header(text: str) -> str | None:
+def extract_employee_name(text: str) -> str | None:
     """
-    Check if paragraph text is a "Stamkaart van <Name>" header.
-    Must START with "Stamkaart van" to exclude page footers that
-    contain timestamps before the text.
+    If the paragraph text represents a "Stamkaart van <Name>" header,
+    return the name.  Returns None for footers (which have a leading
+    timestamp) and any non-matching text.
     """
-    m = re.match(r"stamkaart\s+van\s+(.+)", text.strip(), re.IGNORECASE)
+    text = text.strip()
+    # Must START with "Stamkaart van" — footers have a timestamp first
+    m = re.match(r"stamkaart\s+van\s+(.+)", text, re.IGNORECASE)
     if m:
-        return m.group(1).strip()
+        name = m.group(1).strip()
+        # Reject if the remainder looks like a footer (contains digits
+        # that could be a page number right after the name, tab-separated)
+        if "\t" in name:
+            # e.g. "Name\t2" — the tab+number is a page number, strip it
+            name = name.split("\t")[0].strip()
+        return name if name else None
     return None
 
 
-def parse_history_table(table: Table, employee_name: str, report) -> list[dict]:
-    """
-    Parse the big combined history table for one employee.
+# ---------------------------------------------------------------------------
+# Table parsing — section detection within a table
+# ---------------------------------------------------------------------------
 
-    The table has sub-sections separated by marker rows:
-      - Rows 0..N: Contract mutaties (header row + data)
-      - "Rooster mutaties" marker row
-      - "OE/Functie mutaties" marker row
-      - "Salaris mutaties" marker row + salary data
+def _detect_section(cell0_low: str) -> str | None:
+    """
+    Given the lowercased text of cell[0] of a row, decide if this row
+    is a sub-section marker/header.  Returns:
+      "contract"  — contract header row
+      "rooster"   — rooster section (skip)
+      "oe"        — OE/functie section (skip)
+      "salary"    — salary header row
+      None        — not a section marker
+    """
+    # Contract header: contains "begin contract" or starts with "werkgever"
+    if "begin contract" in cell0_low or "werkgever" in cell0_low:
+        return "contract"
+
+    # Salary: contains "salaris" and ("mutatie" or "begindatum")
+    if "salaris" in cell0_low and ("mutatie" in cell0_low or "begindatum" in cell0_low):
+        return "salary"
+
+    # Rooster: contains "rooster"
+    if "rooster" in cell0_low:
+        return "rooster"
+
+    # OE/Functie: contains "functie" and "mutatie"
+    if "functie" in cell0_low and "mutatie" in cell0_low:
+        return "oe"
+
+    return None
+
+
+def parse_table(table: Table, employee_name: str) -> tuple[list[dict], int, int]:
+    """
+    Parse a single table, looking for contract and salary sub-sections.
+
+    Returns (rows, contract_count, salary_count).
     """
     rows_data = []
     for row in table.rows:
         cells = [cell.text for cell in row.cells]
         rows_data.append(cells)
 
-    if not rows_data:
-        return []
-
-    logger.debug(f"History table for {employee_name}: {len(rows_data)} rows")
-    for i, cells in enumerate(rows_data):
-        debug_cells = [c.replace(chr(10), "\\n").replace(chr(9), "\\t") for c in cells]
-        logger.debug(f"  Row {i}: {debug_cells}")
+    if len(rows_data) < 2:
+        return [], 0, 0
 
     result: list[dict] = []
-
-    # Walk through rows, tracking which sub-section we're in
-    section = "unknown"
+    section: str | None = None   # "contract", "salary", "rooster", "oe", or None
+    is_header_row = False        # True = the current row IS the section header
     contract_count = 0
     salary_count = 0
 
@@ -155,55 +187,36 @@ def parse_history_table(table: Table, employee_name: str, report) -> list[dict]:
         cell0 = cells[0].strip() if cells else ""
         cell0_low = cell0.lower()
 
-        # --- Detect sub-section markers ---
-
-        # Contract header row: contains "Begin contract" or "Werkgever"
-        if "begin contract" in cell0_low or "werkgever" in cell0_low:
-            section = "contract_header"
-            logger.debug(f"  Row {i}: CONTRACT HEADER detected")
+        # --- Check if this row is a section marker ---
+        detected = _detect_section(cell0_low)
+        if detected is not None:
+            section = detected
+            is_header_row = True
+            debug_cells = [c.replace(chr(10), "\\n").replace(chr(9), "\\t")[:60] for c in cells]
+            logger.debug(f"  Row {i}: section={section} header | {debug_cells}")
             continue
 
-        # Rooster mutaties marker
-        if cell0_low.startswith("rooster mutatie"):
-            section = "rooster"
-            logger.debug(f"  Row {i}: ROOSTER section start")
-            continue
+        # The row right after a header may also be a column-labels row
+        # (for rooster/OE sections).  Skip rows that contain "begindatum"
+        # or "einddatum" in cell0 when in a skip-section.
+        if section in ("rooster", "oe"):
+            if "begindatum" in cell0_low or "einddatum" in cell0_low:
+                continue
+            # Data rows in skipped sections — just skip them
+            if DATE_RE.search(cell0):
+                continue
+            # If no date, might be a new section marker we didn't catch
+            # Fall through to let _detect_section catch it next iteration
 
-        # OE/Functie mutaties marker
-        if "functie mutatie" in cell0_low:
-            section = "oe_functie"
-            logger.debug(f"  Row {i}: OE/FUNCTIE section start")
-            continue
-
-        # Salaris mutaties marker
-        if cell0_low.startswith("salaris mutatie"):
-            section = "salary_header"
-            logger.debug(f"  Row {i}: SALARY section start")
-            continue
-
-        # After the contract header, data rows follow
-        if section == "contract_header":
-            section = "contract"
-
-        # After the salary header, data rows follow
-        if section == "salary_header":
-            section = "salary"
-
-        # Sub-section header rows for rooster/OE (contain "Begindatum")
-        if section in ("rooster", "oe_functie") and "begindatum" in cell0_low:
-            # This is a column header row for the sub-section, skip it
-            continue
-
-        # --- Parse data rows ---
-
+        # --- Contract data rows ---
         if section == "contract":
-            # Cell[0] (or cell[1] for merged): "CompanyName" + "dd-mm-yyyy"
-            # Extract begin date from end of cell text
+            # cell[0] or cell[1] contains "CompanyName" + date smashed together
             begin = extract_date_from_text(cell0)
             if begin is None and len(cells) > 1:
                 begin = extract_date_from_text(cells[1])
             if begin is None:
-                continue  # not a data row
+                # Not a data row — might be a sub-header or empty row
+                continue
 
             einde = parse_date(cells[2].strip()) if len(cells) > 2 else None
             dv = cells[3].strip() if len(cells) > 3 and cells[3].strip() else None
@@ -219,16 +232,15 @@ def parse_history_table(table: Table, employee_name: str, report) -> list[dict]:
             })
             contract_count += 1
 
+        # --- Salary data rows ---
         elif section == "salary":
-            # Cell[0]: "dd-mm-yyyy\tdd-mm-yyyy" (tab-separated dates)
-            # Cell[1]: salary value
+            # cell[0] contains "dd-mm-yyyy\tdd-mm-yyyy" (tab-separated dates)
             dates_in_cell = DATE_RE.findall(cell0)
             if not dates_in_cell:
-                continue  # not a data row
+                continue
 
-            begindatum = parse_date(dates_in_cell[0]) if len(dates_in_cell) >= 1 else None
+            begindatum = parse_date(dates_in_cell[0])
             einddatum = parse_date(dates_in_cell[1]) if len(dates_in_cell) >= 2 else None
-
             sal_text = cells[1].strip() if len(cells) > 1 else ""
             salaris = parse_salary(sal_text)
 
@@ -246,38 +258,17 @@ def parse_history_table(table: Table, employee_name: str, report) -> list[dict]:
             })
             salary_count += 1
 
-    report(f"  {employee_name}: {contract_count} contractregel(s), "
-           f"{salary_count} salarisregel(s) gevonden.")
-
-    if contract_count == 0:
-        report(f"  WAARSCHUWING: Geen contractregels gevonden voor {employee_name}.")
-    if salary_count == 0:
-        report(f"  WAARSCHUWING: Geen salarisregels gevonden voor {employee_name}.")
-
-    return result
+    return result, contract_count, salary_count
 
 
-def is_history_table(table: Table) -> bool:
-    """
-    Check if a table is the big combined history table.
-    It contains contract data, rooster, OE/functie, and salary data.
-    We identify it by checking if any row contains "Salaris mutatie"
-    or "Begin contract" in cell[0].
-    """
-    for row in table.rows:
-        cell0 = row.cells[0].text.lower() if row.cells else ""
-        if "salaris mutatie" in cell0 or "begin contract" in cell0:
-            return True
-    return False
-
+# ---------------------------------------------------------------------------
+# Main processing
+# ---------------------------------------------------------------------------
 
 def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     """
-    Main processing function.
-
-    Walks through the Word document in element order:
-      - Paragraphs that START with "Stamkaart van" set the current employee.
-      - Tables that contain history data are parsed for contract + salary rows.
+    Walk the Word document in element order.
+    Paragraphs set the current employee; every table is scanned for data.
     """
 
     def report(msg):
@@ -291,6 +282,7 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     all_rows: list[dict] = []
     current_employee: str | None = None
     employee_count = 0
+    table_idx = 0
 
     for elem_type, elem in iter_doc_elements(doc):
 
@@ -299,22 +291,30 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
             if not text:
                 continue
 
-            name = is_employee_header(text)
+            name = extract_employee_name(text)
             if name:
                 current_employee = name
                 employee_count += 1
                 report(f"Medewerker gevonden: {name}")
+                logger.debug(f"Employee set to: {name!r} (from paragraph: {text!r})")
 
         elif elem_type == "table":
+            table_idx += 1
+            nrows = len(elem.rows)
+            logger.debug(f"Table #{table_idx}: {nrows} rows")
+
             if current_employee is None:
+                logger.debug(f"  Skipped (no employee set yet)")
                 continue
 
-            if not is_history_table(elem):
-                logger.debug("Skipping non-history table.")
-                continue
+            rows, cc, sc = parse_table(elem, current_employee)
 
-            rows = parse_history_table(elem, current_employee, report)
-            all_rows.extend(rows)
+            if rows:
+                all_rows.extend(rows)
+                report(f"  {current_employee}: {cc} contractregel(s), "
+                       f"{sc} salarisregel(s)")
+            else:
+                logger.debug(f"  No contract/salary data found in this table")
 
     report(f"\nTotaal: {len(all_rows)} rijen geëxtraheerd "
            f"voor {employee_count} medewerker(s).")
