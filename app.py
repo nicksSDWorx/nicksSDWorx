@@ -152,30 +152,37 @@ def scan_section_headers(doc: Document) -> list[str]:
 # Table parsing — section detection within a table
 # ---------------------------------------------------------------------------
 
-def _detect_section(cell0_low: str) -> str | None:
+def _detect_section(all_cells_text: str) -> str | None:
     """
-    Given the lowercased text of cell[0] of a row, decide if this row
-    is a sub-section marker/header.  Returns:
+    Given the combined lowercased text of ALL cells in a row, decide
+    if this row is a sub-section marker/header.  Returns:
       "contract"  — contract header row
       "rooster"   — rooster section (skip)
       "oe"        — OE/functie section (skip)
       "salary"    — salary header row
       None        — not a section marker
     """
-    # Contract header: contains "begin contract" or starts with "werkgever"
-    if "begin contract" in cell0_low or "werkgever" in cell0_low:
+    low = all_cells_text
+
+    # Contract header: contains "begin contract" or "werkgever"
+    if "begin contract" in low or "werkgever" in low:
         return "contract"
 
-    # Salary: contains "salaris" and ("mutatie" or "begindatum")
-    if "salaris" in cell0_low and ("mutatie" in cell0_low or "begindatum" in cell0_low):
+    # Salary: contains "salaris" combined with "mutatie" or "begindatum"
+    if "salaris" in low and ("mutatie" in low or "begindatum" in low):
+        return "salary"
+
+    # Also detect salary by just "salaris" as a standalone column header
+    # (in case the section header row is separate from the data table)
+    if "salaris" in low and "begindatum" in low:
         return "salary"
 
     # Rooster: contains "rooster"
-    if "rooster" in cell0_low:
+    if "rooster" in low:
         return "rooster"
 
-    # OE/Functie: contains "functie" and "mutatie"
-    if "functie" in cell0_low and "mutatie" in cell0_low:
+    # OE/Functie: contains "functie" and ("mutatie" or "eenheid")
+    if "functie" in low and ("mutatie" in low or "eenheid" in low):
         return "oe"
 
     return None
@@ -195,9 +202,13 @@ def parse_table(table: Table, employee_name: str) -> tuple[list[dict], int, int]
     if len(rows_data) < 2:
         return [], 0, 0
 
+    # Log ALL rows so we can diagnose detection failures
+    for i, cells in enumerate(rows_data):
+        debug_cells = [c.replace(chr(10), "\\n").replace(chr(9), "\\t")[:80] for c in cells]
+        logger.debug(f"  [{employee_name}] Row {i}: {debug_cells}")
+
     result: list[dict] = []
     section: str | None = None   # "contract", "salary", "rooster", "oe", or None
-    is_header_row = False        # True = the current row IS the section header
     contract_count = 0
     salary_count = 0
 
@@ -205,13 +216,14 @@ def parse_table(table: Table, employee_name: str) -> tuple[list[dict], int, int]
         cell0 = cells[0].strip() if cells else ""
         cell0_low = cell0.lower()
 
+        # Combine ALL cells for section detection (not just cell[0])
+        all_cells_low = " ".join(c.lower() for c in cells)
+
         # --- Check if this row is a section marker ---
-        detected = _detect_section(cell0_low)
+        detected = _detect_section(all_cells_low)
         if detected is not None:
             section = detected
-            is_header_row = True
-            debug_cells = [c.replace(chr(10), "\\n").replace(chr(9), "\\t")[:60] for c in cells]
-            logger.debug(f"  Row {i}: section={section} header | {debug_cells}")
+            logger.debug(f"  Row {i}: section -> {section}")
             continue
 
         # The row right after a header may also be a column-labels row
