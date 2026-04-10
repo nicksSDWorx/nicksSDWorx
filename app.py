@@ -1,10 +1,11 @@
 """
-Stamkaart PDF naar Excel Converter
+Stamkaart Word naar Excel Converter
 
-Extracts employee contract and salary history from Dutch HR PDF
-("stamkaarten") and exports them to a structured Excel file.
+Extracts employee contract and salary history from a Dutch HR Word
+document ("stamkaarten") and exports them to a structured Excel file.
 
-Uses pdfplumber's table extraction for reliable column parsing.
+Uses python-docx to walk through paragraphs and tables in document
+order, matching each table to the correct employee and section.
 
 Usage: Double-click the .exe or run `python app.py`
 """
@@ -17,7 +18,10 @@ import traceback
 import threading
 from datetime import datetime
 
-import pdfplumber
+from docx import Document
+from docx.table import Table
+from docx.text.paragraph import Paragraph
+
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
@@ -75,26 +79,15 @@ def parse_salary(text: str):
         return None
 
 
-def clean_cell(val) -> str:
-    """Normalize a table cell value to a string."""
-    if val is None:
-        return ""
-    return str(val).strip()
-
-
 def normalize(text: str) -> str:
-    """Lowercase + collapse whitespace for header matching."""
+    """Lowercase + collapse whitespace for matching."""
     return re.sub(r"\s+", " ", text.strip().lower())
 
 
-# ---------------------------------------------------------------------------
-# PDF extraction — page-by-page with table extraction
-# ---------------------------------------------------------------------------
-
-def find_header_index(header_cells: list[str], target: str) -> int | None:
+def find_col(header_cells: list[str], target: str) -> int | None:
     """
-    Find the column index in a header row whose normalized text contains
-    the target string.  Returns None if not found.
+    Find the column index whose normalized header text contains `target`.
+    Returns None if not found.
     """
     for i, cell in enumerate(header_cells):
         if target in normalize(cell):
@@ -102,17 +95,32 @@ def find_header_index(header_cells: list[str], target: str) -> int | None:
     return None
 
 
-def process_pdf(pdf_path: str, progress_callback=None) -> list[dict]:
+# ---------------------------------------------------------------------------
+# Word document parsing
+# ---------------------------------------------------------------------------
+
+def iter_doc_elements(doc: Document):
+    """
+    Yield paragraphs and tables in document order.
+    Returns tuples of ("paragraph", Paragraph) or ("table", Table).
+    """
+    for child in doc.element.body:
+        tag = child.tag.split("}")[-1]  # strip namespace
+        if tag == "p":
+            yield ("paragraph", Paragraph(child, doc))
+        elif tag == "tbl":
+            yield ("table", Table(child, doc))
+
+
+def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     """
     Main processing function.
 
-    Strategy:
-      1. Walk through the PDF page by page.
-      2. Use extract_text() to detect "Stamkaart van <Name>" markers and
-         section headers ("Contract mutaties", "Salaris mutaties").
-      3. Use extract_tables() to get structured table data from each page.
-      4. Match each table to a section by checking its header row for known
-         column names — this avoids all character-position guessing.
+    Walks through the Word document in element order:
+      - Paragraphs set the current employee (via "Stamkaart van") and
+        the current section ("Contract mutaties" / "Salaris mutaties").
+      - Tables are parsed according to the active section, using column
+        headers to find the right data.
     """
 
     def report(msg):
@@ -120,246 +128,162 @@ def process_pdf(pdf_path: str, progress_callback=None) -> list[dict]:
         if progress_callback:
             progress_callback(msg)
 
-    report(f"PDF openen: {pdf_path}")
+    report(f"Document openen: {docx_path}")
+
+    doc = Document(docx_path)
 
     all_rows: list[dict] = []
-    warnings: list[str] = []
     current_employee: str | None = None
+    current_section: str | None = None  # "contract" or "salary"
     employee_set: set[str] = set()
 
-    with pdfplumber.open(pdf_path) as pdf:
-        report(f"{len(pdf.pages)} pagina('s) gevonden.")
+    for elem_type, elem in iter_doc_elements(doc):
 
-        for page_num, page in enumerate(pdf.pages, start=1):
-            # --- Text: detect employees and sections ---
-            text = page.extract_text() or ""
-            logger.debug(
-                f"=== PAGE {page_num} RAW TEXT ===\n{text}\n{'=' * 60}"
-            )
+        if elem_type == "paragraph":
+            text = elem.text.strip()
+            if not text:
+                continue
 
-            # Find all "Stamkaart van <Name>" on this page.
-            # The LAST one seen before / around a table is the active employee.
-            for m in re.finditer(
-                r"stamkaart\s+van\s+(.+)", text, re.IGNORECASE
-            ):
-                name = m.group(1).strip()
-                current_employee = name
-                if name not in employee_set:
-                    employee_set.add(name)
-                    report(f"Medewerker gevonden: {name}")
+            logger.debug(f"Paragraph: {text!r}")
 
-            # --- Tables: extract structured data ---
-            tables = page.extract_tables() or []
-            logger.debug(
-                f"Page {page_num}: {len(tables)} table(s) found"
-            )
+            # Detect employee name
+            m = re.search(r"stamkaart\s+van\s+(.+)", text, re.IGNORECASE)
+            if m:
+                current_employee = m.group(1).strip()
+                current_section = None  # reset section for new employee
+                if current_employee not in employee_set:
+                    employee_set.add(current_employee)
+                    report(f"Medewerker gevonden: {current_employee}")
+                continue
 
-            for t_idx, table in enumerate(tables):
-                if not table or len(table) < 2:
-                    continue  # need at least a header + one data row
+            # Detect section headers
+            low = text.lower()
+            if "contract" in low and "mutatie" in low:
+                current_section = "contract"
+                logger.debug(f"  -> Section set to: contract")
+                continue
+            if "salaris" in low and "mutatie" in low:
+                current_section = "salary"
+                logger.debug(f"  -> Section set to: salary")
+                continue
 
-                # The first row is assumed to be column headers
-                raw_header = [clean_cell(c) for c in table[0]]
-                norm_header = [normalize(c) for c in raw_header]
-                logger.debug(
-                    f"  Table {t_idx} headers: {raw_header}"
-                )
+        elif elem_type == "table":
+            if current_employee is None:
+                logger.debug("Table found but no employee set yet, skipping.")
+                continue
 
-                # --- Try to identify this table as CONTRACT ---
-                col_begin_c = find_header_index(raw_header, "begin contract")
-                col_einde_c = find_header_index(raw_header, "einde contract")
-                col_dv = find_header_index(raw_header, "dienstverband")
+            table = elem
+            rows_data = []
+            for row in table.rows:
+                row_cells = [cell.text.strip() for cell in row.cells]
+                rows_data.append(row_cells)
 
-                is_contract_table = col_begin_c is not None
+            if len(rows_data) < 2:
+                logger.debug("Table with < 2 rows, skipping.")
+                continue
 
-                # --- Try to identify this table as SALARY ---
-                col_begin_s = find_header_index(raw_header, "begindatum")
-                col_einde_s = find_header_index(raw_header, "einddatum")
-                col_sal = find_header_index(raw_header, "salaris")
+            header = rows_data[0]
+            logger.debug(f"Table header: {header}")
 
-                is_salary_table = col_begin_s is not None and col_sal is not None
+            emp = current_employee
 
-                emp = current_employee or "Onbekend"
+            # --- Try to detect table type from column headers ---
+            col_begin_c = find_col(header, "begin contract")
+            col_einde_c = find_col(header, "einde contract")
+            col_dv = find_col(header, "dienstverband")
 
-                if is_contract_table:
-                    count = 0
-                    for row in table[1:]:
-                        cells = [clean_cell(c) for c in row]
-                        begin = parse_date(
-                            cells[col_begin_c] if col_begin_c < len(cells) else ""
-                        )
-                        if begin is None:
-                            continue  # skip non-data rows
-                        einde = parse_date(
-                            cells[col_einde_c] if col_einde_c is not None and col_einde_c < len(cells) else ""
-                        )
-                        dv = (
-                            cells[col_dv] if col_dv is not None and col_dv < len(cells) else None
-                        ) or None
+            col_begin_s = find_col(header, "begindatum")
+            col_einde_s = find_col(header, "einddatum")
+            col_sal = find_col(header, "salaris")
 
-                        all_rows.append({
-                            "Naam": emp,
-                            "Begin contract": begin,
-                            "Einde contract": einde,
-                            "Dienstverband": dv,
-                            "Begindatum": None,
-                            "Einddatum": None,
-                            "Salaris": None,
-                        })
-                        count += 1
-                    report(f"  {emp}: {count} contractregel(s) gevonden.")
+            is_contract = col_begin_c is not None
+            is_salary = col_begin_s is not None or col_sal is not None
 
-                elif is_salary_table:
-                    count = 0
-                    for row in table[1:]:
-                        cells = [clean_cell(c) for c in row]
-                        begin = parse_date(
-                            cells[col_begin_s] if col_begin_s < len(cells) else ""
-                        )
+            # If headers don't clearly identify the table, use the
+            # current_section set by the preceding paragraph.
+            if not is_contract and not is_salary:
+                if current_section == "contract":
+                    is_contract = True
+                elif current_section == "salary":
+                    is_salary = True
+                else:
+                    logger.debug(f"Unrecognised table, skipping: {header}")
+                    continue
+
+            if is_contract:
+                count = 0
+                for row_cells in rows_data[1:]:
+                    # Read begin contract
+                    begin_val = row_cells[col_begin_c] if col_begin_c is not None and col_begin_c < len(row_cells) else ""
+                    begin = parse_date(begin_val)
+                    if begin is None:
+                        # If no column index, try finding a date in any cell
+                        if col_begin_c is None:
+                            for c in row_cells:
+                                begin = parse_date(c)
+                                if begin:
+                                    break
                         if begin is None:
                             continue
-                        einde = parse_date(
-                            cells[col_einde_s] if col_einde_s is not None and col_einde_s < len(cells) else ""
-                        )
-                        salaris = parse_salary(
-                            cells[col_sal] if col_sal is not None and col_sal < len(cells) else ""
-                        )
 
-                        all_rows.append({
-                            "Naam": emp,
-                            "Begin contract": None,
-                            "Einde contract": None,
-                            "Dienstverband": None,
-                            "Begindatum": begin,
-                            "Einddatum": einde,
-                            "Salaris": salaris,
-                        })
-                        count += 1
-                    report(f"  {emp}: {count} salarisregel(s) gevonden.")
+                    einde_val = row_cells[col_einde_c] if col_einde_c is not None and col_einde_c < len(row_cells) else ""
+                    einde = parse_date(einde_val)
 
-                else:
-                    logger.debug(
-                        f"  Table {t_idx} on page {page_num} not recognised — "
-                        f"headers: {raw_header}"
-                    )
+                    dv_val = row_cells[col_dv] if col_dv is not None and col_dv < len(row_cells) else ""
+                    dv = dv_val.strip() or None
 
-    # --- Fallback: text-based parsing if no tables were extracted ---
-    if not all_rows:
-        report("Geen tabellen gevonden via tabelextractie. Probeer tekst-gebaseerde extractie...")
-        all_rows, extra_warnings = _text_based_fallback(pdf_path, progress_callback=report)
-        warnings.extend(extra_warnings)
+                    all_rows.append({
+                        "Naam": emp,
+                        "Begin contract": begin,
+                        "Einde contract": einde,
+                        "Dienstverband": dv,
+                        "Begindatum": None,
+                        "Einddatum": None,
+                        "Salaris": None,
+                    })
+                    count += 1
+                report(f"  {emp}: {count} contractregel(s) gevonden.")
 
-    report(f"\nTotaal: {len(all_rows)} rijen geëxtraheerd.")
+            elif is_salary:
+                count = 0
+                for row_cells in rows_data[1:]:
+                    begin_val = row_cells[col_begin_s] if col_begin_s is not None and col_begin_s < len(row_cells) else ""
+                    begin = parse_date(begin_val)
+                    if begin is None:
+                        if col_begin_s is None:
+                            for c in row_cells:
+                                begin = parse_date(c)
+                                if begin:
+                                    break
+                        if begin is None:
+                            continue
+
+                    einde_val = row_cells[col_einde_s] if col_einde_s is not None and col_einde_s < len(row_cells) else ""
+                    einde = parse_date(einde_val)
+
+                    sal_val = row_cells[col_sal] if col_sal is not None and col_sal < len(row_cells) else ""
+                    salaris = parse_salary(sal_val)
+
+                    all_rows.append({
+                        "Naam": emp,
+                        "Begin contract": None,
+                        "Einde contract": None,
+                        "Dienstverband": None,
+                        "Begindatum": begin,
+                        "Einddatum": einde,
+                        "Salaris": salaris,
+                    })
+                    count += 1
+                report(f"  {emp}: {count} salarisregel(s) gevonden.")
+
+    report(f"\nTotaal: {len(all_rows)} rijen geëxtraheerd "
+           f"voor {len(employee_set)} medewerker(s).")
 
     if not all_rows:
         report("WAARSCHUWING: Geen gegevens geëxtraheerd.")
         report(f"Controleer het logbestand voor details: {LOG_FILE}")
 
-    if warnings:
-        for w in warnings:
-            report(f"  {w}")
-
     return all_rows
-
-
-# ---------------------------------------------------------------------------
-# Fallback: text-based parsing (if extract_tables() yields nothing)
-# ---------------------------------------------------------------------------
-
-def _text_based_fallback(pdf_path: str, progress_callback=None) -> tuple[list[dict], list[str]]:
-    """
-    Fallback parser that works on raw extracted text line-by-line.
-    Used when pdfplumber's table detector finds no tables.
-    """
-    pages_text: list[str] = []
-    with pdfplumber.open(pdf_path) as pdf:
-        for page in pdf.pages:
-            pages_text.append(page.extract_text() or "")
-
-    full_text = "\n".join(pages_text)
-    lines = full_text.split("\n")
-
-    # Split into employee blocks
-    block_starts: list[tuple[int, str]] = []
-    for i, line in enumerate(lines):
-        m = re.search(r"stamkaart\s+van\s+(.+)", line, re.IGNORECASE)
-        if m:
-            block_starts.append((i, m.group(1).strip()))
-
-    if not block_starts:
-        return [], ["Geen 'Stamkaart van' gevonden in de PDF."]
-
-    all_rows: list[dict] = []
-    warnings: list[str] = []
-
-    for idx, (start, emp_name) in enumerate(block_starts):
-        end = block_starts[idx + 1][0] if idx + 1 < len(block_starts) else len(lines)
-        block_lines = lines[start:end]
-
-        if progress_callback:
-            progress_callback(f"  (tekst-fallback) Verwerken: {emp_name}")
-
-        # Identify sections within the block
-        section = None  # "contract" or "salary"
-        date_re = re.compile(r"\d{2}[-/]\d{2}[-/]\d{4}")
-
-        for line in block_lines:
-            low = line.lower()
-
-            # Detect section headers
-            if "contract" in low and "mutatie" in low:
-                section = "contract"
-                continue
-            if "salaris" in low and "mutatie" in low:
-                section = "salary"
-                continue
-
-            # Skip non-data lines (no dates)
-            if not date_re.search(line):
-                continue
-
-            # Split by 2+ spaces
-            parts = re.split(r"\s{2,}|\t", line.strip())
-            parts = [p.strip() for p in parts if p.strip()]
-
-            if section == "contract" and parts:
-                dates = [parse_date(p) for p in parts]
-                texts = [p for p, d in zip(parts, dates) if d is None]
-                dates_found = [d for d in dates if d is not None]
-                if dates_found:
-                    all_rows.append({
-                        "Naam": emp_name,
-                        "Begin contract": dates_found[0],
-                        "Einde contract": dates_found[1] if len(dates_found) >= 2 else None,
-                        "Dienstverband": texts[0] if texts else None,
-                        "Begindatum": None,
-                        "Einddatum": None,
-                        "Salaris": None,
-                    })
-
-            elif section == "salary" and parts:
-                dates_found = []
-                salary_val = None
-                for p in parts:
-                    d = parse_date(p)
-                    if d:
-                        dates_found.append(d)
-                    else:
-                        s = parse_salary(p)
-                        if s is not None:
-                            salary_val = s
-                if dates_found:
-                    all_rows.append({
-                        "Naam": emp_name,
-                        "Begin contract": None,
-                        "Einde contract": None,
-                        "Dienstverband": None,
-                        "Begindatum": dates_found[0],
-                        "Einddatum": dates_found[1] if len(dates_found) >= 2 else None,
-                        "Salaris": salary_val,
-                    })
-
-    return all_rows, warnings
 
 
 # ---------------------------------------------------------------------------
@@ -430,11 +354,11 @@ def write_excel(rows: list[dict], output_path: str):
 # ---------------------------------------------------------------------------
 
 class StamkaartApp:
-    """Dutch-language tkinter GUI for the PDF-to-Excel converter."""
+    """Dutch-language tkinter GUI for the Word-to-Excel converter."""
 
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Stamkaart PDF naar Excel")
+        self.root.title("Stamkaart Word naar Excel")
         self.root.geometry("700x520")
         self.root.resizable(True, True)
 
@@ -443,7 +367,7 @@ class StamkaartApp:
         except tk.TclError:
             pass
 
-        self.pdf_path = tk.StringVar()
+        self.docx_path = tk.StringVar()
         self.xlsx_path = tk.StringVar()
         self._build_ui()
 
@@ -453,18 +377,18 @@ class StamkaartApp:
 
         tk.Label(
             main,
-            text="Stamkaart PDF naar Excel Converter",
+            text="Stamkaart Word naar Excel Converter",
             font=("Segoe UI", 14, "bold"),
         ).pack(pady=(0, 15))
 
-        # PDF input
-        pdf_frame = tk.LabelFrame(main, text="Invoer", padx=10, pady=8)
-        pdf_frame.pack(fill=tk.X, pady=(0, 8))
-        tk.Label(pdf_frame, text="PDF bestand:").grid(row=0, column=0, sticky="w")
-        tk.Entry(pdf_frame, textvariable=self.pdf_path, width=55).grid(
+        # Word input
+        docx_frame = tk.LabelFrame(main, text="Invoer", padx=10, pady=8)
+        docx_frame.pack(fill=tk.X, pady=(0, 8))
+        tk.Label(docx_frame, text="Word bestand:").grid(row=0, column=0, sticky="w")
+        tk.Entry(docx_frame, textvariable=self.docx_path, width=55).grid(
             row=0, column=1, padx=5
         )
-        tk.Button(pdf_frame, text="Bladeren...", command=self._browse_pdf).grid(
+        tk.Button(docx_frame, text="Bladeren...", command=self._browse_docx).grid(
             row=0, column=2
         )
 
@@ -498,13 +422,16 @@ class StamkaartApp:
         )
         self.status_text.pack(fill=tk.BOTH, expand=True)
 
-    def _browse_pdf(self):
+    def _browse_docx(self):
         path = filedialog.askopenfilename(
-            title="Selecteer PDF bestand",
-            filetypes=[("PDF bestanden", "*.pdf"), ("Alle bestanden", "*.*")],
+            title="Selecteer Word bestand",
+            filetypes=[
+                ("Word bestanden", "*.docx"),
+                ("Alle bestanden", "*.*"),
+            ],
         )
         if path:
-            self.pdf_path.set(path)
+            self.docx_path.set(path)
             if not self.xlsx_path.get():
                 self.xlsx_path.set(os.path.splitext(path)[0] + "_export.xlsx")
 
@@ -526,14 +453,14 @@ class StamkaartApp:
         self.root.after(0, _update)
 
     def _run(self):
-        pdf = self.pdf_path.get().strip()
+        docx = self.docx_path.get().strip()
         xlsx = self.xlsx_path.get().strip()
 
-        if not pdf:
-            messagebox.showwarning("Waarschuwing", "Selecteer eerst een PDF bestand.")
+        if not docx:
+            messagebox.showwarning("Waarschuwing", "Selecteer eerst een Word bestand.")
             return
-        if not os.path.isfile(pdf):
-            messagebox.showerror("Fout", f"PDF bestand niet gevonden:\n{pdf}")
+        if not os.path.isfile(docx):
+            messagebox.showerror("Fout", f"Word bestand niet gevonden:\n{docx}")
             return
         if not xlsx:
             messagebox.showwarning("Waarschuwing", "Kies een locatie voor het Excel bestand.")
@@ -544,14 +471,14 @@ class StamkaartApp:
         self.status_text.config(state=tk.DISABLED)
 
         self.run_btn.config(state=tk.DISABLED, text="Bezig...")
-        threading.Thread(target=self._extract, args=(pdf, xlsx), daemon=True).start()
+        threading.Thread(target=self._extract, args=(docx, xlsx), daemon=True).start()
 
-    def _extract(self, pdf_path: str, xlsx_path: str):
+    def _extract(self, docx_path: str, xlsx_path: str):
         try:
-            rows = process_pdf(pdf_path, progress_callback=self._log)
+            rows = process_docx(docx_path, progress_callback=self._log)
 
             if not rows:
-                self._log("\nGeen gegevens gevonden in de PDF.")
+                self._log("\nGeen gegevens gevonden in het document.")
                 self._log(f"Controleer het debug logbestand: {LOG_FILE}")
                 self.root.after(0, lambda: messagebox.showwarning(
                     "Waarschuwing", "Geen gegevens gevonden. Controleer het logbestand.",

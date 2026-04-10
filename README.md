@@ -1,11 +1,11 @@
-# Stamkaart PDF naar Excel Converter
+# Stamkaart Word naar Excel Converter
 
-Extracts employee contract and salary history from Dutch HR PDF ("stamkaarten") into a structured Excel file.
+Extracts employee contract and salary history from a Dutch HR Word document ("stamkaarten") into a structured Excel file.
 
 ## Output format
 
-| Naam | Begin contract | Eind contract | Dienstverband | Dienstbetrekking | Begin salaris | Eind salaris | Salaris |
-|------|---------------|---------------|---------------|------------------|---------------|--------------|---------|
+| Naam | Begin contract | Einde contract | Dienstverband | Begindatum | Einddatum | Salaris |
+|------|---------------|----------------|---------------|------------|-----------|---------|
 
 - **Contract rows**: Naam + contract columns filled, salary columns empty
 - **Salary rows**: Naam + salary columns filled, contract columns empty
@@ -23,7 +23,7 @@ build.bat
 
 ### Option B: Manual steps
 ```cmd
-pip install pdfplumber openpyxl pyinstaller
+pip install python-docx openpyxl pyinstaller
 pyinstaller --onefile --windowed --name "StamkaartConverter" app.py
 ```
 
@@ -32,18 +32,18 @@ The .exe will be in `dist\StamkaartConverter.exe`.
 ## Usage
 
 1. Double-click `StamkaartConverter.exe`
-2. Click **Bladeren...** to select the input PDF
+2. Click **Bladeren...** to select the input Word (.docx) file
 3. Click **Bladeren...** to choose where to save the Excel file
 4. Click **Uitvoeren** to run the extraction
 5. Check the status area for progress
 
 ## Debugging
 
-If extraction fails or produces unexpected results, check the log file `stamkaart_debug.log` created next to the .exe. It contains the raw text extracted from each PDF page.
+If extraction fails or produces unexpected results, check the log file `stamkaart_debug.log` created next to the .exe. It logs every paragraph and table header encountered.
 
 ## Files
 
-- `app.py` — Main application (GUI + PDF parser + Excel export)
+- `app.py` — Main application (GUI + Word parser + Excel export)
 - `build.bat` — Windows build script
 - `requirements.txt` — Python dependencies
 - `Voorbeeld import historie.xlsx` — Example of the expected output format

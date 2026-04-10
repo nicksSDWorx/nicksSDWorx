@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  Build script for Stamkaart PDF naar Excel Converter
+REM  Build script for Stamkaart Word naar Excel Converter
 REM  Run this on a Windows machine with Python 3.10+ installed.
 REM ============================================================
 
@@ -9,7 +9,7 @@ echo.
 
 REM Install dependencies
 echo [1/2] Installing dependencies...
-pip install pdfplumber openpyxl pyinstaller
+pip install python-docx openpyxl pyinstaller
 if %ERRORLEVEL% neq 0 (
     echo FOUT: Dependencies konden niet worden geinstalleerd.
     pause
