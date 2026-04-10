@@ -4,8 +4,9 @@ Stamkaart Word naar Excel Converter
 Extracts employee contract and salary history from a Dutch HR Word
 document ("stamkaarten") and exports them to a structured Excel file.
 
-Uses python-docx to walk through paragraphs and tables in document
-order, matching each table to the correct employee and section.
+The document contains one big history table per employee with
+sub-sections (Contract, Rooster, OE/Functie, Salaris) separated
+by marker rows.
 
 Usage: Double-click the .exe or run `python app.py`
 """
@@ -49,8 +50,11 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
+DATE_RE = re.compile(r"\d{2}-\d{2}-\d{4}")
+
+
 def parse_date(text: str):
-    """Try to parse a date string into a datetime object."""
+    """Try to parse a date string (dd-mm-yyyy) into a datetime."""
     if text is None:
         return None
     text = text.strip()
@@ -61,6 +65,14 @@ def parse_date(text: str):
             return datetime.strptime(text, fmt)
         except ValueError:
             continue
+    return None
+
+
+def extract_date_from_text(text: str):
+    """Extract the first dd-mm-yyyy date found anywhere in the text."""
+    m = DATE_RE.search(text or "")
+    if m:
+        return parse_date(m.group())
     return None
 
 
@@ -79,37 +91,184 @@ def parse_salary(text: str):
         return None
 
 
-def normalize(text: str) -> str:
-    """Lowercase + collapse whitespace for matching."""
-    return re.sub(r"\s+", " ", text.strip().lower())
-
-
-def find_col(header_cells: list[str], target: str) -> int | None:
-    """
-    Find the column index whose normalized header text contains `target`.
-    Returns None if not found.
-    """
-    for i, cell in enumerate(header_cells):
-        if target in normalize(cell):
-            return i
-    return None
-
-
 # ---------------------------------------------------------------------------
-# Word document parsing
+# Document iteration
 # ---------------------------------------------------------------------------
 
 def iter_doc_elements(doc: Document):
-    """
-    Yield paragraphs and tables in document order.
-    Returns tuples of ("paragraph", Paragraph) or ("table", Table).
-    """
+    """Yield (type, element) in document order."""
     for child in doc.element.body:
-        tag = child.tag.split("}")[-1]  # strip namespace
+        tag = child.tag.split("}")[-1]
         if tag == "p":
             yield ("paragraph", Paragraph(child, doc))
         elif tag == "tbl":
             yield ("table", Table(child, doc))
+
+
+# ---------------------------------------------------------------------------
+# Main parsing
+# ---------------------------------------------------------------------------
+
+def is_employee_header(text: str) -> str | None:
+    """
+    Check if paragraph text is a "Stamkaart van <Name>" header.
+    Must START with "Stamkaart van" to exclude page footers that
+    contain timestamps before the text.
+    """
+    m = re.match(r"stamkaart\s+van\s+(.+)", text.strip(), re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return None
+
+
+def parse_history_table(table: Table, employee_name: str, report) -> list[dict]:
+    """
+    Parse the big combined history table for one employee.
+
+    The table has sub-sections separated by marker rows:
+      - Rows 0..N: Contract mutaties (header row + data)
+      - "Rooster mutaties" marker row
+      - "OE/Functie mutaties" marker row
+      - "Salaris mutaties" marker row + salary data
+    """
+    rows_data = []
+    for row in table.rows:
+        cells = [cell.text for cell in row.cells]
+        rows_data.append(cells)
+
+    if not rows_data:
+        return []
+
+    logger.debug(f"History table for {employee_name}: {len(rows_data)} rows")
+    for i, cells in enumerate(rows_data):
+        debug_cells = [c.replace(chr(10), "\\n").replace(chr(9), "\\t") for c in cells]
+        logger.debug(f"  Row {i}: {debug_cells}")
+
+    result: list[dict] = []
+
+    # Walk through rows, tracking which sub-section we're in
+    section = "unknown"
+    contract_count = 0
+    salary_count = 0
+
+    for i, cells in enumerate(rows_data):
+        cell0 = cells[0].strip() if cells else ""
+        cell0_low = cell0.lower()
+
+        # --- Detect sub-section markers ---
+
+        # Contract header row: contains "Begin contract" or "Werkgever"
+        if "begin contract" in cell0_low or "werkgever" in cell0_low:
+            section = "contract_header"
+            logger.debug(f"  Row {i}: CONTRACT HEADER detected")
+            continue
+
+        # Rooster mutaties marker
+        if cell0_low.startswith("rooster mutatie"):
+            section = "rooster"
+            logger.debug(f"  Row {i}: ROOSTER section start")
+            continue
+
+        # OE/Functie mutaties marker
+        if "functie mutatie" in cell0_low:
+            section = "oe_functie"
+            logger.debug(f"  Row {i}: OE/FUNCTIE section start")
+            continue
+
+        # Salaris mutaties marker
+        if cell0_low.startswith("salaris mutatie"):
+            section = "salary_header"
+            logger.debug(f"  Row {i}: SALARY section start")
+            continue
+
+        # After the contract header, data rows follow
+        if section == "contract_header":
+            section = "contract"
+
+        # After the salary header, data rows follow
+        if section == "salary_header":
+            section = "salary"
+
+        # Sub-section header rows for rooster/OE (contain "Begindatum")
+        if section in ("rooster", "oe_functie") and "begindatum" in cell0_low:
+            # This is a column header row for the sub-section, skip it
+            continue
+
+        # --- Parse data rows ---
+
+        if section == "contract":
+            # Cell[0] (or cell[1] for merged): "CompanyName" + "dd-mm-yyyy"
+            # Extract begin date from end of cell text
+            begin = extract_date_from_text(cell0)
+            if begin is None and len(cells) > 1:
+                begin = extract_date_from_text(cells[1])
+            if begin is None:
+                continue  # not a data row
+
+            einde = parse_date(cells[2].strip()) if len(cells) > 2 else None
+            dv = cells[3].strip() if len(cells) > 3 and cells[3].strip() else None
+
+            result.append({
+                "Naam": employee_name,
+                "Begin contract": begin,
+                "Einde contract": einde,
+                "Dienstverband": dv,
+                "Begindatum": None,
+                "Einddatum": None,
+                "Salaris": None,
+            })
+            contract_count += 1
+
+        elif section == "salary":
+            # Cell[0]: "dd-mm-yyyy\tdd-mm-yyyy" (tab-separated dates)
+            # Cell[1]: salary value
+            dates_in_cell = DATE_RE.findall(cell0)
+            if not dates_in_cell:
+                continue  # not a data row
+
+            begindatum = parse_date(dates_in_cell[0]) if len(dates_in_cell) >= 1 else None
+            einddatum = parse_date(dates_in_cell[1]) if len(dates_in_cell) >= 2 else None
+
+            sal_text = cells[1].strip() if len(cells) > 1 else ""
+            salaris = parse_salary(sal_text)
+
+            if begindatum is None:
+                continue
+
+            result.append({
+                "Naam": employee_name,
+                "Begin contract": None,
+                "Einde contract": None,
+                "Dienstverband": None,
+                "Begindatum": begindatum,
+                "Einddatum": einddatum,
+                "Salaris": salaris,
+            })
+            salary_count += 1
+
+    report(f"  {employee_name}: {contract_count} contractregel(s), "
+           f"{salary_count} salarisregel(s) gevonden.")
+
+    if contract_count == 0:
+        report(f"  WAARSCHUWING: Geen contractregels gevonden voor {employee_name}.")
+    if salary_count == 0:
+        report(f"  WAARSCHUWING: Geen salarisregels gevonden voor {employee_name}.")
+
+    return result
+
+
+def is_history_table(table: Table) -> bool:
+    """
+    Check if a table is the big combined history table.
+    It contains contract data, rooster, OE/functie, and salary data.
+    We identify it by checking if any row contains "Salaris mutatie"
+    or "Begin contract" in cell[0].
+    """
+    for row in table.rows:
+        cell0 = row.cells[0].text.lower() if row.cells else ""
+        if "salaris mutatie" in cell0 or "begin contract" in cell0:
+            return True
+    return False
 
 
 def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
@@ -117,10 +276,8 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     Main processing function.
 
     Walks through the Word document in element order:
-      - Paragraphs set the current employee (via "Stamkaart van") and
-        the current section ("Contract mutaties" / "Salaris mutaties").
-      - Tables are parsed according to the active section, using column
-        headers to find the right data.
+      - Paragraphs that START with "Stamkaart van" set the current employee.
+      - Tables that contain history data are parsed for contract + salary rows.
     """
 
     def report(msg):
@@ -131,11 +288,9 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
     report(f"Document openen: {docx_path}")
 
     doc = Document(docx_path)
-
     all_rows: list[dict] = []
     current_employee: str | None = None
-    current_section: str | None = None  # "contract" or "salary"
-    employee_set: set[str] = set()
+    employee_count = 0
 
     for elem_type, elem in iter_doc_elements(doc):
 
@@ -144,140 +299,25 @@ def process_docx(docx_path: str, progress_callback=None) -> list[dict]:
             if not text:
                 continue
 
-            logger.debug(f"Paragraph: {text!r}")
-
-            # Detect employee name
-            m = re.search(r"stamkaart\s+van\s+(.+)", text, re.IGNORECASE)
-            if m:
-                current_employee = m.group(1).strip()
-                current_section = None  # reset section for new employee
-                if current_employee not in employee_set:
-                    employee_set.add(current_employee)
-                    report(f"Medewerker gevonden: {current_employee}")
-                continue
-
-            # Detect section headers
-            low = text.lower()
-            if "contract" in low and "mutatie" in low:
-                current_section = "contract"
-                logger.debug(f"  -> Section set to: contract")
-                continue
-            if "salaris" in low and "mutatie" in low:
-                current_section = "salary"
-                logger.debug(f"  -> Section set to: salary")
-                continue
+            name = is_employee_header(text)
+            if name:
+                current_employee = name
+                employee_count += 1
+                report(f"Medewerker gevonden: {name}")
 
         elif elem_type == "table":
             if current_employee is None:
-                logger.debug("Table found but no employee set yet, skipping.")
                 continue
 
-            table = elem
-            rows_data = []
-            for row in table.rows:
-                row_cells = [cell.text.strip() for cell in row.cells]
-                rows_data.append(row_cells)
-
-            if len(rows_data) < 2:
-                logger.debug("Table with < 2 rows, skipping.")
+            if not is_history_table(elem):
+                logger.debug("Skipping non-history table.")
                 continue
 
-            header = rows_data[0]
-            logger.debug(f"Table header: {header}")
-
-            emp = current_employee
-
-            # --- Try to detect table type from column headers ---
-            col_begin_c = find_col(header, "begin contract")
-            col_einde_c = find_col(header, "einde contract")
-            col_dv = find_col(header, "dienstverband")
-
-            col_begin_s = find_col(header, "begindatum")
-            col_einde_s = find_col(header, "einddatum")
-            col_sal = find_col(header, "salaris")
-
-            is_contract = col_begin_c is not None
-            is_salary = col_begin_s is not None or col_sal is not None
-
-            # If headers don't clearly identify the table, use the
-            # current_section set by the preceding paragraph.
-            if not is_contract and not is_salary:
-                if current_section == "contract":
-                    is_contract = True
-                elif current_section == "salary":
-                    is_salary = True
-                else:
-                    logger.debug(f"Unrecognised table, skipping: {header}")
-                    continue
-
-            if is_contract:
-                count = 0
-                for row_cells in rows_data[1:]:
-                    # Read begin contract
-                    begin_val = row_cells[col_begin_c] if col_begin_c is not None and col_begin_c < len(row_cells) else ""
-                    begin = parse_date(begin_val)
-                    if begin is None:
-                        # If no column index, try finding a date in any cell
-                        if col_begin_c is None:
-                            for c in row_cells:
-                                begin = parse_date(c)
-                                if begin:
-                                    break
-                        if begin is None:
-                            continue
-
-                    einde_val = row_cells[col_einde_c] if col_einde_c is not None and col_einde_c < len(row_cells) else ""
-                    einde = parse_date(einde_val)
-
-                    dv_val = row_cells[col_dv] if col_dv is not None and col_dv < len(row_cells) else ""
-                    dv = dv_val.strip() or None
-
-                    all_rows.append({
-                        "Naam": emp,
-                        "Begin contract": begin,
-                        "Einde contract": einde,
-                        "Dienstverband": dv,
-                        "Begindatum": None,
-                        "Einddatum": None,
-                        "Salaris": None,
-                    })
-                    count += 1
-                report(f"  {emp}: {count} contractregel(s) gevonden.")
-
-            elif is_salary:
-                count = 0
-                for row_cells in rows_data[1:]:
-                    begin_val = row_cells[col_begin_s] if col_begin_s is not None and col_begin_s < len(row_cells) else ""
-                    begin = parse_date(begin_val)
-                    if begin is None:
-                        if col_begin_s is None:
-                            for c in row_cells:
-                                begin = parse_date(c)
-                                if begin:
-                                    break
-                        if begin is None:
-                            continue
-
-                    einde_val = row_cells[col_einde_s] if col_einde_s is not None and col_einde_s < len(row_cells) else ""
-                    einde = parse_date(einde_val)
-
-                    sal_val = row_cells[col_sal] if col_sal is not None and col_sal < len(row_cells) else ""
-                    salaris = parse_salary(sal_val)
-
-                    all_rows.append({
-                        "Naam": emp,
-                        "Begin contract": None,
-                        "Einde contract": None,
-                        "Dienstverband": None,
-                        "Begindatum": begin,
-                        "Einddatum": einde,
-                        "Salaris": salaris,
-                    })
-                    count += 1
-                report(f"  {emp}: {count} salarisregel(s) gevonden.")
+            rows = parse_history_table(elem, current_employee, report)
+            all_rows.extend(rows)
 
     report(f"\nTotaal: {len(all_rows)} rijen geëxtraheerd "
-           f"voor {len(employee_set)} medewerker(s).")
+           f"voor {employee_count} medewerker(s).")
 
     if not all_rows:
         report("WAARSCHUWING: Geen gegevens geëxtraheerd.")
@@ -425,10 +465,7 @@ class StamkaartApp:
     def _browse_docx(self):
         path = filedialog.askopenfilename(
             title="Selecteer Word bestand",
-            filetypes=[
-                ("Word bestanden", "*.docx"),
-                ("Alle bestanden", "*.*"),
-            ],
+            filetypes=[("Word bestanden", "*.docx"), ("Alle bestanden", "*.*")],
         )
         if path:
             self.docx_path.set(path)
