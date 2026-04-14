@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 )
 
 //go:embed bundle.zip
@@ -78,13 +79,87 @@ func run() error {
 	env = append(env, "TK_LIBRARY="+filepath.Join(installDir, "tcl", "tk8.6"))
 	env = append(env, "PYTHONDONTWRITEBYTECODE=1")
 	env = append(env, "PYTHONNOUSERSITE=1")
+	// Prepend the install dir to PATH so dependent DLLs (zlib, openssl, etc.)
+	// resolve from the bundle even if the system has different versions.
+	env = append(env, prependPath(os.Getenv("PATH"), installDir, filepath.Join(installDir, "DLLs")))
 	cmd.Env = env
+
+	// Capture startup output to a log file so we can diagnose early crashes.
+	logPath := filepath.Join(installDir, "launch.log")
+	logFile, logErr := os.Create(logPath)
+	if logErr == nil {
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
+		defer logFile.Close()
+	}
+
 	hidePythonConsole(cmd)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("launch python: %w", err)
 	}
-	// Exit immediately; Python runs detached with its own Tk window.
-	return nil
+
+	// Wait briefly to catch immediate startup failures (missing DLLs,
+	// PYTHONHOME wrong, etc.). Tkinter's mainloop keeps the process alive
+	// forever once it starts, so any early exit means something broke.
+	errCh := make(chan error, 1)
+	go func() { errCh <- cmd.Wait() }()
+	select {
+	case err := <-errCh:
+		// Python exited within the grace period — show the tail of the log.
+		tail, _ := readTail(logPath, 4000)
+		msg := "Python exited immediately."
+		if err != nil {
+			msg += "\n\nExit status: " + err.Error()
+		}
+		if tail != "" {
+			msg += "\n\nOutput:\n" + tail
+		} else {
+			msg += "\n\nLog file: " + logPath
+		}
+		return fmt.Errorf("%s", msg)
+	case <-time.After(1500 * time.Millisecond):
+		// Still running — assume the GUI is up. Detach.
+		return nil
+	}
+}
+
+func prependPath(existing string, dirs ...string) string {
+	sep := string(os.PathListSeparator)
+	joined := ""
+	for _, d := range dirs {
+		if joined != "" {
+			joined += sep
+		}
+		joined += d
+	}
+	if existing != "" {
+		joined += sep + existing
+	}
+	return "PATH=" + joined
+}
+
+func readTail(path string, maxBytes int64) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	start := info.Size() - maxBytes
+	if start < 0 {
+		start = 0
+	}
+	if _, err := f.Seek(start, 0); err != nil {
+		return "", err
+	}
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
 }
 
 func cleanPythonEnv(env []string) []string {
@@ -96,7 +171,8 @@ func cleanPythonEnv(env []string) []string {
 			startsWithI(kv, "PYTHONSTARTUP="),
 			startsWithI(kv, "PYTHONUSERBASE="),
 			startsWithI(kv, "TCL_LIBRARY="),
-			startsWithI(kv, "TK_LIBRARY="):
+			startsWithI(kv, "TK_LIBRARY="),
+			startsWithI(kv, "PATH="):
 			continue
 		}
 		out = append(out, kv)

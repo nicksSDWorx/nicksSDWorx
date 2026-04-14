@@ -25,6 +25,11 @@ executable is unsigned — click **More info → Run anyway**.
 everything needed to run the app offline:
 
 - `python.exe` / `pythonw.exe` + `python311.dll` (conda-forge Windows build)
+- MSVC runtime DLLs (`vcruntime140.dll`, `vcruntime140_1.dll`) so the
+  target machine doesn't need a VC++ Redistributable installed
+- Runtime DLLs for Python's stdlib (`zlib.dll`, `libcrypto-3-x64.dll`,
+  `libssl-3-x64.dll`, `ffi-8.dll`, `libbz2.dll`, `libexpat.dll`,
+  `liblzma.dll`, `sqlite3.dll`)
 - Python standard library (trimmed: idlelib / test / distutils removed)
 - Tcl/Tk 8.6 runtime for the Tkinter GUI
 - `pypdf` 6.10 (pure Python; uses its built-in crypto fallback so no
@@ -37,10 +42,21 @@ On launch the wrapper:
 2. Ensures `%LOCALAPPDATA%\PdfMerger\<hash>\` exists and contains a
    `.ready` marker; if not, extracts the zip there.
 3. Spawns `pythonw.exe pdf_merger.py` with `PYTHONHOME`, `PYTHONPATH`,
-   `TCL_LIBRARY`, and `TK_LIBRARY` pointed at the install directory so the
-   embedded Python can't pick up any system-installed Python.
-4. Exits immediately — the app runs as a detached Tkinter window with no
-   console.
+   `TCL_LIBRARY`, `TK_LIBRARY`, and a scrubbed `PATH` that points only at
+   the install directory — so the embedded Python can't pick up any
+   system-installed Python or mismatched DLLs.
+4. Redirects stdout/stderr to `launch.log` inside the install dir and
+   waits 1.5 s. If Python exits within that window (missing DLL, wrong
+   version, etc.), the launcher pops up a Windows MessageBox showing the
+   tail of the log. Otherwise it detaches — the app runs as a standalone
+   Tkinter window with no console.
+
+## Troubleshooting
+
+If `pdf_merger.exe` refuses to start, check
+`%LOCALAPPDATA%\PdfMerger\<hash>\launch.log` for the Python stderr output.
+Deleting the entire `%LOCALAPPDATA%\PdfMerger\` folder forces a clean
+re-extraction on the next launch.
 
 ## Building from source
 
