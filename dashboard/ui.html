@@ -20,17 +20,18 @@
     --text-dim: #9aa5b1;      /* slate tint, echoes the sdworx wordmark */
     --text-faint: #6a7280;
 
-    /* Brand accents */
-    --brand-red:   #CC2834;
-    --brand-orange:#E8A33D;
-    --brand-slate: #6B7D91;
-    --brand-navy:  #2D3E50;
+    /* Official SD Worx brand palette (exact hex from the Primary Brand
+       logo vector files — do not approximate). */
+    --brand-red:    #ED1A3A;
+    --brand-yellow: #FDB913;
+    --brand-blue:   #5B85AB;
+    --brand-navy:   #313D4F;
 
     --accent: var(--brand-red);
-    --accent-2: var(--brand-orange);
-    --accent-3: var(--brand-slate);
-    --accent-dim: rgba(204, 40, 52, 0.20);
-    --accent-dim-2: rgba(232, 163, 61, 0.18);
+    --accent-2: var(--brand-yellow);
+    --accent-3: var(--brand-blue);
+    --accent-dim:   rgba(237, 26, 58, 0.22);
+    --accent-dim-2: rgba(253, 185, 19, 0.18);
 
     /* Semantic (not brand) */
     --ok:      #4ade80;
@@ -59,17 +60,19 @@
   ::-webkit-scrollbar-thumb:hover { background: #333; }
 
   /* ---------- Subtle SD Worx watermark ---------- */
+  /* The horizontal brand logo has aspect-ratio 493.228 / 419.528 ≈ 1.176.
+     Size by height and let width follow so it never crops or distorts. */
   .bg-watermark {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width:  min(72vh, 72vw, 640px);
-    height: min(72vh, 72vw, 640px);
+    height: min(62vh, 72vw / 1.176, 520px);
+    aspect-ratio: 493.228 / 419.528;
     pointer-events: none;
     user-select: none;
     z-index: 0;
-    opacity: 0.07;
+    opacity: 0.09;
   }
   .bg-watermark svg {
     width: 100%;
@@ -84,8 +87,8 @@
     pointer-events: none;
     z-index: 0;
     background:
-      radial-gradient(900px 700px at 50% 50%, rgba(204, 40, 52, 0.035), transparent 60%),
-      radial-gradient(700px 500px at 50% 90%, rgba(232, 163, 61, 0.025), transparent 60%);
+      radial-gradient(900px 700px at 50% 50%, rgba(237, 26, 58, 0.035), transparent 60%),
+      radial-gradient(700px 500px at 50% 90%, rgba(253, 185, 19, 0.025), transparent 60%);
   }
 
   /* ---------- App shell ---------- */
@@ -132,7 +135,7 @@
   .nav-btn.active {
     color: var(--accent);
     background: var(--accent-dim);
-    border-color: rgba(204, 40, 52, 0.32);
+    border-color: rgba(237, 26, 58, 0.32);
   }
   .nav-btn .tip {
     position: absolute;
@@ -270,11 +273,11 @@
     color: #fff;
     border-color: var(--accent);
     font-weight: 600;
-    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 12px rgba(204,40,52,0.25);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 12px rgba(237,26,58,0.25);
   }
   .btn.primary:hover {
     filter: brightness(1.08);
-    box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px rgba(204,40,52,0.35);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px rgba(237,26,58,0.35);
   }
   .btn.danger {
     color: var(--danger);
@@ -324,21 +327,21 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(204, 40, 52, 0.12), rgba(232, 163, 61, 0.06) 55%, transparent 80%);
+    background: linear-gradient(135deg, rgba(237, 26, 58, 0.12), rgba(253, 185, 19, 0.06) 55%, transparent 80%);
     opacity: 0;
     transition: 180ms;
     pointer-events: none;
   }
   .card:hover {
     transform: translateY(-1px);
-    border-color: rgba(204, 40, 52, 0.38);
+    border-color: rgba(237, 26, 58, 0.38);
     background: var(--card-hover);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(204, 40, 52, 0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(237, 26, 58, 0.08);
   }
   .card:hover::before { opacity: 1; }
   .card:hover .icon {
-    color: var(--brand-orange);
-    border-color: rgba(232, 163, 61, 0.35);
+    color: var(--brand-yellow);
+    border-color: rgba(253, 185, 19, 0.35);
   }
 
   .card .head {
@@ -402,7 +405,7 @@
   .empty p { margin: 0 0 16px 0; font-size: 13px; }
   .empty .icon-big {
     font-size: 32px;
-    color: var(--brand-orange);
+    color: var(--brand-yellow);
     letter-spacing: 4px;
   }
 
@@ -434,7 +437,7 @@
     color: var(--text-dim);
   }
   .repo-meta b { color: var(--text); font-weight: 500; }
-  .repo-meta .mono { color: var(--brand-orange); }
+  .repo-meta .mono { color: var(--brand-yellow); }
 
   .log {
     background: #070707;
@@ -452,7 +455,7 @@
   }
   .log .ok { color: var(--ok); }
   .log .err { color: var(--danger); }
-  .log .info { color: var(--brand-orange); }
+  .log .info { color: var(--brand-yellow); }
 
   /* ---------- Settings ---------- */
   table.handlers {
@@ -514,8 +517,8 @@
     transition: 150ms;
   }
   .chip:hover {
-    color: var(--brand-orange);
-    border-color: rgba(232, 163, 61, 0.35);
+    color: var(--brand-yellow);
+    border-color: rgba(253, 185, 19, 0.35);
     background: var(--accent-dim-2);
   }
 
@@ -576,8 +579,8 @@
   .console-tab:hover { color: var(--text); border-color: var(--border-strong); }
   .console-tab.active {
     color: var(--text);
-    border-color: rgba(204, 40, 52, 0.45);
-    background: rgba(204, 40, 52, 0.10);
+    border-color: rgba(237, 26, 58, 0.45);
+    background: rgba(237, 26, 58, 0.10);
   }
   .console-tab .x {
     opacity: 0.5;
@@ -592,8 +595,8 @@
   .status-dot {
     width: 8px; height: 8px;
     border-radius: 50%;
-    background: var(--brand-orange);
-    box-shadow: 0 0 6px var(--brand-orange);
+    background: var(--brand-yellow);
+    box-shadow: 0 0 6px var(--brand-yellow);
     flex-shrink: 0;
     animation: pulse 1.4s ease-in-out infinite;
   }
@@ -622,7 +625,7 @@
     white-space: pre-wrap;
     word-break: break-all;
   }
-  .console-body .prompt { color: var(--brand-orange); }
+  .console-body .prompt { color: var(--brand-yellow); }
   .console-body .exit-ok    { color: var(--ok); }
   .console-body .exit-error { color: var(--danger); }
   .console-body .empty-hint {
@@ -665,19 +668,25 @@
 </style>
 </head>
 <body>
-  <!-- SD Worx brand watermark, centered on screen. Geometry shared with the
-       sidebar badge below — same viewBox, same rotation, same rectangles. -->
+  <!-- Official SD Worx Primary Brand Logo (horizontal, full-colour, white
+       wordmark — the variant specified for dark backgrounds). Path data
+       is a verbatim extraction from the CMYK PDF in
+       Primary_Brand_logo_-_CMYK/ via PyMuPDF; fills are the exact brand
+       hex values straight out of the source file. Do not approximate. -->
   <div class="bg-vignette" aria-hidden="true"></div>
   <div class="bg-watermark" aria-hidden="true">
-    <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 493.228 419.528"
          preserveAspectRatio="xMidYMid meet">
-      <g transform="rotate(-12 100 100)">
-        <!-- Slate: short, mid-height -->
-        <rect x="48"  y="76" width="18" height="54"  rx="2" fill="#6B7D91"/>
-        <!-- Red: tall, extends lowest -->
-        <rect x="91"  y="24" width="18" height="142" rx="2" fill="#CC2834"/>
-        <!-- Orange: tallest, starts at top -->
-        <rect x="134" y="10" width="18" height="148" rx="2" fill="#E8A33D"/>
+      <defs>
+        <clipPath id="sdworx-wm-clip">
+          <path transform="matrix(1,0,0,-1,0,419.528)" d="M0 419.528H493.228V0H0Z"/>
+        </clipPath>
+      </defs>
+      <g clip-path="url(#sdworx-wm-clip)">
+        <path transform="matrix(1,0,0,-1,402.1075,216.49452)" d="M0 0 14.11 20.012H4.916L-.909 11.187-1.709 9.894C-2.656 8.368-3.631 6.795-4.598 5.079-5.779 7.066-6.972 9.037-8.36 11.119L-14.26 20.012H-23.693L-9.677-.244-24.363-21.333H-15.004L-9.018-12.01C-8.668-11.447-8.323-10.897-7.982-10.355-6.985-8.766-6.037-7.256-5.121-5.642-3.813-7.867-2.581-9.915-1.153-12.019L4.914-21.333H14.507ZM-28.69 20.928C-33.375 20.928-37.557 17.992-39.715 13.318L-39.927 20.012H-47.03V-21.333H-38.744V.672C-38.744 1.885-38.58 3.035-38.42 3.993-37.428 9.449-33.772 12.975-29.106 12.975-28.183 12.975-27.47 12.904-26.721 12.737L-26.087 12.596V20.563L-26.481 20.662C-27.245 20.853-27.864 20.928-28.69 20.928M-73.324 20.928C-61.408 20.928-53.401 12.386-53.401-.327-53.401-15.47-63.742-22.249-73.99-22.249-85.672-22.249-93.83-13.508-93.83-.993-93.83 12.119-85.589 20.928-73.324 20.928M-73.491 14.391C-81.702 14.391-85.378 6.79-85.378-.743-85.378-9.417-80.449-15.712-73.658-15.712-66.866-15.712-61.937-9.347-61.937-.577-61.937 6.632-65.552 14.391-73.491 14.391M-102.032 20.012-107.885-.602C-108.896-4.203-109.915-8.022-110.642-11.832-111.469-8.38-112.488-4.729-113.798-.507L-120.157 20.012H-127.083L-133.781-.932C-134.904-4.581-136.059-8.336-136.946-11.912-137.661-8.365-138.592-4.775-139.569-1.006L-145.036 20.012H-153.634L-141.274-20.963-141.163-21.333H-133.741L-127.125-1.822C-126.004 1.606-124.846 5.343-123.87 9.611-122.976 5.719-121.944 2.202-120.703-1.736L-114.426-21.333H-107.005L-93.679 20.012ZM-165.173-21.333H-172.435L-172.719-15.36C-175.481-19.643-180.502-22.248-186.178-22.248-196.468-22.248-203.936-13.415-203.936-1.244-203.978 5.651-201.777 11.689-197.737 15.754-194.421 19.091-190.021 20.928-185.345 20.928-178.634 20.928-175.106 17.738-173.542 15.709V34.33H-165.173ZM-173.15-.382C-173.142 .994-172.785 14.141-183.93 14.141-190.841 14.141-195.484 8.092-195.484-.91-195.484-7.546-192.501-15.295-184.096-15.295-181.097-15.295-173.235-14.252-173.15-.382M-219.053 3.073C-224.118 5.004-226.378 6.377-226.378 9.415-226.378 12.391-223.877 14.391-220.154 14.391-216.325 14.391-213.519 12.981-212.188 12.14L-211.631 11.788-209.448 18.141-209.813 18.357C-212.529 19.967-216.332 20.928-219.987 20.928-228.482 20.928-234.414 15.851-234.414 8.583-234.414 3.363-230.609-.751-223.415-3.313-218.133-5.264-216.261-7.076-216.261-10.236-216.261-13.665-218.992-15.712-223.568-15.712-227.054-15.712-230.788-14.291-232.943-12.882L-233.51-12.511-235.685-19.133-235.323-19.346C-232.276-21.138-228.053-22.165-223.734-22.165-214.262-22.165-208.142-17.221-208.142-9.571-208.142-3.621-211.405 .16-219.053 3.073" fill="#ffffff"/>
+        <path transform="matrix(1,0,0,-1,122.8691,237.59252)" d="M0 0 23.771 81.451H37.814L14.034 0Z" fill="#fdb913"/>
+        <path transform="matrix(1,0,0,-1,112.4919,263.38655)" d="M0 0 9.674 81.354H-3.903L-13.569 0Z" fill="#ed1a3a"/>
+        <path transform="matrix(1,0,0,-1,97.2978,237.59252)"  d="M0 0-7.652 41.177H-20.684L-13.104 0Z"    fill="#5b85ab"/>
       </g>
     </svg>
   </div>
@@ -685,13 +694,14 @@
   <div class="app">
     <aside class="sidebar">
       <div class="logo" title="SD Worx">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+        <!-- Same official paths, cropped viewBox so only the three-bar
+             beeldmerk is visible (the wordmark sits around x=167..417
+             and is clipped away by this viewBox). -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="72 150 100 125"
              preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <g transform="rotate(-12 100 100)">
-            <rect x="48"  y="76" width="18" height="54"  rx="2" fill="#6B7D91"/>
-            <rect x="91"  y="24" width="18" height="142" rx="2" fill="#CC2834"/>
-            <rect x="134" y="10" width="18" height="148" rx="2" fill="#E8A33D"/>
-          </g>
+          <path transform="matrix(1,0,0,-1,122.8691,237.59252)" d="M0 0 23.771 81.451H37.814L14.034 0Z" fill="#fdb913"/>
+          <path transform="matrix(1,0,0,-1,112.4919,263.38655)" d="M0 0 9.674 81.354H-3.903L-13.569 0Z" fill="#ed1a3a"/>
+          <path transform="matrix(1,0,0,-1,97.2978,237.59252)"  d="M0 0-7.652 41.177H-20.684L-13.104 0Z"    fill="#5b85ab"/>
         </svg>
       </div>
       <button class="nav-btn active" data-page="dashboard" title="Dashboard">
