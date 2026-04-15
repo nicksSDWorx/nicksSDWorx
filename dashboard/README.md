@@ -20,15 +20,25 @@ dashboard/
 
 ## Requirements
 
-- **Python 3.10+** on Windows (the app also runs on macOS/Linux for development)
-- **PyWebView** — the only external dependency:
+- **Python 3.10, 3.11, 3.12 or 3.13** on Windows.
+  **Python 3.14 is NOT supported yet** — PyWebView depends on `pythonnet`,
+  which currently has no pre-built wheels for 3.14. Install 3.12 or 3.13
+  from <https://www.python.org/> if that's your case (the provided
+  `build.bat` / `run.bat` will automatically pick it up via the `py`
+  launcher).
+- **PyWebView** — the only external Python dependency. Installed
+  automatically by `build.bat` / `run.bat`, or manually:
 
   ```powershell
-  pip install pywebview
+  pip install --only-binary=pythonnet "pythonnet>=3.0" pywebview
   ```
 
-  On Windows, PyWebView uses the system WebView2 runtime. It ships with
-  Windows 11 and recent Windows 10 builds; otherwise install it once from
+  The `--only-binary=pythonnet` flag prevents pip from silently falling
+  back to the legacy `pythonnet 2.5.2` source build, which requires NuGet
+  and fails on modern Python.
+
+- **WebView2 runtime** on Windows. It ships with Windows 11 and recent
+  Windows 10 builds; otherwise install once from
   <https://developer.microsoft.com/microsoft-edge/webview2/>.
 
 All other functionality (settings, GitHub sync, process launching) uses only
@@ -106,6 +116,9 @@ synced tools survive between runs.
 
 ## Troubleshooting
 
+- **`Failed building wheel for pythonnet` during install** — you're on
+  Python 3.14. Install Python 3.12 or 3.13 alongside it; `build.bat`
+  will auto-select it via the `py` launcher.
 - **Nothing happens when clicking a card** — open **Settings** and make sure
   the file extension has a handler configured.
 - **Sync fails with HTTP 403** — GitHub rate limits unauthenticated API
