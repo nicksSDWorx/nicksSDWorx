@@ -996,21 +996,35 @@
   }
 
   // --- boot ---
-  whenReady().then(function () {
+  // Wire the UI immediately so navigation, tabs, search and form
+  // interactions work even before the Python API is injected by
+  // PyWebView. Data-loading calls are deferred to whenReady().
+  function boot() {
     wire();
-    var api = pyApi();
-    return Promise.all([
-      api.get_settings().then(function (s) {
-        state.settings = s || { handlers: {} };
-        renderHandlers();
-      }),
-      api.get_repo_info().then(function (info) {
-        state.repo = info;
-        renderRepoInfo();
-      }),
-      refreshTools(),
-    ]);
-  });
+    // Render an initial empty state so the dashboard is never blank.
+    renderTools();
+
+    whenReady().then(function () {
+      var api = pyApi();
+      return Promise.all([
+        api.get_settings().then(function (s) {
+          state.settings = s || { handlers: {} };
+          renderHandlers();
+        }),
+        api.get_repo_info().then(function (info) {
+          state.repo = info;
+          renderRepoInfo();
+        }),
+        refreshTools(),
+      ]);
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 </body>

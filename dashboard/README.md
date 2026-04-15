@@ -37,10 +37,17 @@ the Python standard library (`urllib`, `subprocess`, `threading`, `json`,
 
 ## Running from source
 
+Double-click **`run.bat`**, or from a terminal:
+
 ```powershell
 cd dashboard
 python dashboard.py
 ```
+
+> Do **not** open `ui.html` in a browser directly — it has no access to
+> the Python backend and therefore no tools, sync or launching. The app
+> must be started through `dashboard.py` (or the built exe) so that
+> PyWebView injects its `window.pywebview.api` bridge.
 
 On first launch:
 
@@ -73,10 +80,15 @@ Edit the `BRANCH` constant near the top of `dashboard.py`:
 BRANCH = "main"
 ```
 
-## Building a standalone `.exe` with PyInstaller
+## Building a standalone `.exe`
+
+The quick way — double-click **`build.bat`**. It installs `pywebview` and
+`pyinstaller` if needed, then produces `dist\DashboardAIWorx.exe`.
+
+Manual equivalent:
 
 ```powershell
-pip install pyinstaller
+pip install pywebview pyinstaller
 pyinstaller ^
   --name DashboardAIWorx ^
   --noconsole ^
@@ -85,9 +97,10 @@ pyinstaller ^
   dashboard.py
 ```
 
-The resulting binary will be in `dist/DashboardAIWorx.exe`. Drop it next to
-an empty folder; `settings.json` and `repo/` will be created beside the
-executable on first run.
+The resulting binary lives in `dist\DashboardAIWorx.exe`. It is fully
+self-contained — drop it anywhere. `settings.json` and `repo/` are created
+**beside the exe** (not inside the temp bundle), so your configuration and
+synced tools survive between runs.
 
 > Note: on macOS/Linux replace `;` with `:` in the `--add-data` argument.
 

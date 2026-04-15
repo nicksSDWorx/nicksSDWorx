@@ -22,10 +22,19 @@ import webview
 # Constants
 # ---------------------------------------------------------------------------
 
-APP_DIR = Path(__file__).resolve().parent
+# When frozen by PyInstaller (--onefile), sys.executable is the exe
+# (where user data should live) and sys._MEIPASS is the extracted bundle
+# dir (where ui.html lives). In dev both are the script's directory.
+if getattr(sys, "frozen", False):
+    APP_DIR = Path(sys.executable).resolve().parent
+    BUNDLE_DIR = Path(getattr(sys, "_MEIPASS", APP_DIR))
+else:
+    APP_DIR = Path(__file__).resolve().parent
+    BUNDLE_DIR = APP_DIR
+
 REPO_DIR = APP_DIR / "repo"
 SETTINGS_PATH = APP_DIR / "settings.json"
-UI_PATH = APP_DIR / "ui.html"
+UI_PATH = BUNDLE_DIR / "ui.html"
 
 GITHUB_OWNER = "nicksSDWorx"
 GITHUB_REPO = "Dashboard-AI-Worx"
@@ -456,10 +465,16 @@ def main() -> None:
     # Make sure settings.json is created before the UI mounts.
     load_settings()
 
+    # Load the HTML content directly so that the window always opens
+    # inside the PyWebView native webview — never as a file:// URL in an
+    # external browser (which can happen on odd path configurations).
+    with open(UI_PATH, "r", encoding="utf-8") as fh:
+        html_content = fh.read()
+
     api = Api()
     webview.create_window(
         title="Dashboard AI Worx",
-        url=str(UI_PATH),
+        html=html_content,
         js_api=api,
         width=1280,
         height=820,
