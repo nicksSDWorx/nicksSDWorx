@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+settings.json
+repo/
+.browser_profile/
+build/
+dist/
+*.spec

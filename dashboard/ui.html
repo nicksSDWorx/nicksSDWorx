@@ -650,18 +650,51 @@
     }, 3500);
   }
 
-  function pyApi() {
-    return (window.pywebview && window.pywebview.api) ? window.pywebview.api : null;
-  }
+  // ---------------------------------------------------------------
+  // Python bridge — fetch()-based RPC to the local HTTP server spawned
+  // by dashboard.py. The token parameter was baked into the URL by the
+  // server so we read it back from window.location and forward it with
+  // every call.
+  // ---------------------------------------------------------------
+  var AUTH_TOKEN = (function () {
+    var m = /[?&]token=([^&]+)/.exec(window.location.search || "");
+    return m ? decodeURIComponent(m[1]) : "";
+  })();
 
-  function whenReady() {
-    return new Promise(function (resolve) {
-      if (pyApi()) { resolve(); return; }
-      var id = setInterval(function () {
-        if (pyApi()) { clearInterval(id); resolve(); }
-      }, 40);
+  function rpc(method, args) {
+    return fetch("/api/" + encodeURIComponent(method), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Auth": AUTH_TOKEN,
+      },
+      body: JSON.stringify(args || []),
+      cache: "no-store",
+    }).then(function (r) {
+      if (!r.ok) {
+        return r.json().then(
+          function (j) { return Promise.reject(new Error(j && j.error ? j.error : r.statusText)); },
+          function ()  { return Promise.reject(new Error("HTTP " + r.status)); }
+        );
+      }
+      return r.json();
     });
   }
+
+  // Proxy so existing call sites (api.get_tools(), api.launch_tool(path), ...)
+  // keep working without rewrites.
+  var API = new Proxy({}, {
+    get: function (_, name) {
+      if (typeof name !== "string") return undefined;
+      return function () {
+        var args = Array.prototype.slice.call(arguments);
+        return rpc(name, args);
+      };
+    }
+  });
+
+  function pyApi() { return API; }
+  function whenReady() { return Promise.resolve(); }
 
   // --- navigation ---
   function showPage(name) {
