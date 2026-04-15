@@ -820,6 +820,7 @@
       <div class="console-tabs" id="consoleTabs"></div>
       <div class="console-actions">
         <span class="console-meta" id="consoleMeta"></span>
+        <button class="btn" id="consoleExternal" title="Start deze tool in een nieuw console-venster" style="padding:5px 12px;font-size:12px;">Open in venster</button>
         <button class="btn danger" id="consoleStop" style="padding:5px 12px;font-size:12px;">Stop</button>
         <button class="btn" id="consoleClose" style="padding:5px 12px;font-size:12px;">Sluit</button>
       </div>
@@ -1136,12 +1137,40 @@
       }
     }
 
+    // Auto-fallback heuristic: if a tool exits quickly with a non-zero
+    // exit code and the user didn't stop it themselves, re-launch it in
+    // a real console window. Many tools can't operate without a real
+    // TTY (interactive prompts, colour detection, Windows console APIs,
+    // etc.) and this saves the user having to diagnose it.
+    var AUTO_FALLBACK_EXIT_WINDOW_SEC = 3.0;
+    function maybeAutoFallback(job, res) {
+      if (res.running) return;
+      if (res.exit_code === 0) return;
+      if (res.stopped_by_user) return;
+      if (res.relaunched_externally) return;
+      if ((res.elapsed || 0) > AUTO_FALLBACK_EXIT_WINDOW_SEC) return;
+
+      var api = pyApi();
+      if (!api) return;
+      // Mark locally so we never retry twice from the UI side.
+      state.status[job.id].autoFallbackDone = true;
+      api.relaunch_externally(job.id).then(function (r) {
+        if (r && r.ok) {
+          toast(
+            '"' + job.name + '" werkte niet in het dashboard — geopend in nieuw venster.',
+            "warn"
+          );
+        }
+      });
+    }
+
     function poll() {
       var api = pyApi();
       if (!api || !state.jobs.length) return;
       state.jobs.forEach(function (job) {
-        var st = state.status[job.id];
-        var since = st ? st.nextOffset : 0;
+        var prev = state.status[job.id];
+        var since = prev ? prev.nextOffset : 0;
+        var wasRunning = prev ? prev.running !== false : true;
         api.get_job(job.id, since).then(function (res) {
           if (!res || !res.ok) return;
           var cur = state.status[job.id] || { lines: [], nextOffset: 0 };
@@ -1149,10 +1178,17 @@
           cur.exit_code = res.exit_code;
           cur.elapsed = res.elapsed;
           cur.nextOffset = res.next_offset;
+          cur.stopped_by_user = res.stopped_by_user;
+          cur.relaunched_externally = res.relaunched_externally;
           state.status[job.id] = cur;
           if (res.log && res.log.length) appendLog(job.id, res.log);
           renderTabs();
           if (state.active === job.id) renderMeta();
+
+          // Just-finished transition triggers the auto-fallback check.
+          if (wasRunning && !res.running && !cur.autoFallbackDone) {
+            maybeAutoFallback(job, res);
+          }
         });
       });
       // Stop polling once nothing is running.
@@ -1232,9 +1268,31 @@
       });
     }
 
+    function openActiveExternally() {
+      if (!state.active) return;
+      var api = pyApi();
+      if (!api) return;
+      var jobName = (state.jobs.find(function (j) { return j.id === state.active; }) || {}).name || "tool";
+      // If the headless job is still running, stop it first so we don't
+      // end up with two copies fighting over resources.
+      var st = state.status[state.active];
+      var pre = (st && st.running) ? api.stop_job(state.active) : Promise.resolve({ ok: true });
+      pre.then(function () {
+        return api.relaunch_externally(state.active);
+      }).then(function (res) {
+        if (res && res.ok) {
+          toast('"' + jobName + '" geopend in nieuw venster.');
+          ensurePolling();
+        } else {
+          toast((res && res.error) || "Kon niet openen in nieuw venster.", "error");
+        }
+      });
+    }
+
     function wire() {
       $("#consoleStop").addEventListener("click", stopActive);
       $("#consoleClose").addEventListener("click", close);
+      $("#consoleExternal").addEventListener("click", openActiveExternally);
     }
 
     return { open: open, close: close, wire: wire };

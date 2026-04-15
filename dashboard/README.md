@@ -91,6 +91,17 @@ output into an embedded console panel that slides up from the bottom:
 - **×** on a tab stops the job (if still running) and closes the tab.
 - **Sluit** hides the panel; running jobs keep running and polling
   resumes next time the panel is opened.
+- **Open in venster** re-runs the current tab's command in a fresh
+  console window (CREATE_NEW_CONSOLE on Windows). Useful for tools
+  that need a real TTY (interactive prompts, colour output, Windows
+  console APIs).
+
+### Automatic fallback
+
+If a tool exits with a non-zero exit code within 3 seconds and the
+user didn't press Stop, the dashboard automatically relaunches it
+in a new console window and shows a toast. This catches tools that
+simply can't run headless — without forcing you to click anything.
 
 > GUI applications (`.exe` that open their own window) still show their
 > own window — that's controlled by the app itself, not by the launcher.

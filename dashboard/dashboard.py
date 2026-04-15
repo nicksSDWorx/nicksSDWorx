@@ -438,6 +438,7 @@ class JobRunner:
             "id": job_id,
             "name": name,
             "cmd": " ".join(cmd),
+            "cmd_list": list(cmd),   # kept for relaunch_externally
             "cwd": cwd,
             "proc": proc,
             "log": [f"$ {' '.join(cmd)}"],
@@ -445,7 +446,9 @@ class JobRunner:
             "finished_at": None,
             "running": True,
             "exit_code": None,
-            "truncated": 0,  # lines dropped due to MAX_LINES_PER_JOB
+            "truncated": 0,              # lines dropped due to MAX_LINES_PER_JOB
+            "stopped_by_user": False,    # differentiates kill-by-user from crashes
+            "relaunched_externally": False,
         }
         with self._lock:
             self._jobs[job_id] = state
@@ -481,6 +484,8 @@ class JobRunner:
     def stop(self, job_id: str) -> dict:
         with self._lock:
             state = self._jobs.get(job_id)
+            if state:
+                state["stopped_by_user"] = True
         if not state:
             return {"ok": False, "error": "Onbekende job."}
         proc: subprocess.Popen = state["proc"]
@@ -501,6 +506,47 @@ class JobRunner:
                     pass
 
         threading.Thread(target=_kill_guard, daemon=True).start()
+        return {"ok": True}
+
+    # ---- external fallback ---------------------------------------------
+
+    def relaunch_externally(self, job_id: str) -> dict:
+        """Re-run the job's command in a new, visible console window.
+
+        Used as a fallback when a tool doesn't work inside the embedded
+        console (e.g. needs a real TTY, prompts for input, relies on
+        console colour, or crashes immediately because it can't detect
+        stdin/stdout). On Windows the child gets its own cmd.exe window
+        via CREATE_NEW_CONSOLE; on other OSes it inherits stdio.
+        """
+        with self._lock:
+            state = self._jobs.get(job_id)
+        if not state:
+            return {"ok": False, "error": "Onbekende job."}
+
+        cmd = list(state.get("cmd_list") or [])
+        cwd = state.get("cwd") or None
+        if not cmd:
+            return {"ok": False, "error": "Geen commando beschikbaar."}
+
+        popen_kwargs: dict = {"cwd": cwd}
+        if os.name == "nt":
+            # CREATE_NEW_CONSOLE pops a fresh cmd.exe window so the tool
+            # gets a real console (vs. our captured pipes).
+            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        # On POSIX we simply inherit stdio — the dashboard may be launched
+        # from a terminal; if not, output is lost, but the tool still runs.
+
+        try:
+            subprocess.Popen(cmd, **popen_kwargs)
+        except FileNotFoundError:
+            return {"ok": False, "error": "Launcher niet gevonden op PATH."}
+        except OSError as exc:
+            return {"ok": False, "error": f"Kan niet openen in nieuw venster: {exc}"}
+
+        with self._lock:
+            state["relaunched_externally"] = True
+            state["log"].append("[tool opnieuw gestart in nieuw venster]")
         return {"ok": True}
 
     # ---- queries --------------------------------------------------------
@@ -528,6 +574,8 @@ class JobRunner:
                 "log": log_slice,
                 "next_offset": next_offset,
                 "truncated": state["truncated"],
+                "stopped_by_user": state["stopped_by_user"],
+                "relaunched_externally": state["relaunched_externally"],
             }
 
     def list_all(self) -> list[dict]:
@@ -660,6 +708,9 @@ class Api:
 
     def stop_job(self, job_id: str) -> dict:
         return self.jobs.stop(job_id)
+
+    def relaunch_externally(self, job_id: str) -> dict:
+        return self.jobs.relaunch_externally(job_id)
 
     def list_jobs(self) -> dict:
         return {"jobs": self.jobs.list_all()}
