@@ -76,6 +76,26 @@ synced tools survive between runs.
 
 > On macOS/Linux replace `;` with `:` in the `--add-data` argument.
 
+## Running tools in the dashboard
+
+Clicking a tool card no longer pops up a separate console window.
+Instead the dashboard captures stdout/stderr via a pipe and streams the
+output into an embedded console panel that slides up from the bottom:
+
+- Each launch gets its own tab. Launching another tool adds a tab — the
+  existing tool keeps running.
+- A pulsing orange dot indicates a running job; green means exit 0;
+  red means a non-zero exit code.
+- **Stop** sends SIGTERM (Windows: TerminateProcess) and, if the child
+  ignores it, SIGKILL after a 2s grace.
+- **×** on a tab stops the job (if still running) and closes the tab.
+- **Sluit** hides the panel; running jobs keep running and polling
+  resumes next time the panel is opened.
+
+> GUI applications (`.exe` that open their own window) still show their
+> own window — that's controlled by the app itself, not by the launcher.
+> What changed is that no *extra* empty console appears behind them.
+
 ## Configuring handlers
 
 The **Settings** tab lists all configured extension handlers. Three
