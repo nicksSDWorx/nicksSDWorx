@@ -9,19 +9,34 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
+    /* SD Worx brand palette on dark mode */
     --bg: #0d0d0d;
     --surface: #161616;
     --card: #1c1c1c;
     --card-hover: #1f1f1f;
     --border: #2a2a2a;
     --border-strong: #3a3a3a;
-    --text: #e8e8e8;
-    --text-dim: #9a9a9a;
-    --text-faint: #6a6a6a;
-    --accent: #4ade80;
-    --accent-dim: rgba(74, 222, 128, 0.18);
-    --danger: #f87171;
+    --text: #ececec;
+    --text-dim: #9aa5b1;      /* slate tint, echoes the sdworx wordmark */
+    --text-faint: #6a7280;
+
+    /* Brand accents */
+    --brand-red:   #CC2834;
+    --brand-orange:#E8A33D;
+    --brand-slate: #6B7D91;
+    --brand-navy:  #2D3E50;
+
+    --accent: var(--brand-red);
+    --accent-2: var(--brand-orange);
+    --accent-3: var(--brand-slate);
+    --accent-dim: rgba(204, 40, 52, 0.20);
+    --accent-dim-2: rgba(232, 163, 61, 0.18);
+
+    /* Semantic (not brand) */
+    --ok:      #4ade80;
+    --danger:  #f87171;
     --warning: #fbbf24;
+
     --radius: 10px;
     --radius-sm: 6px;
   }
@@ -43,15 +58,45 @@
   ::-webkit-scrollbar-thumb { background: #262626; border-radius: 10px; }
   ::-webkit-scrollbar-thumb:hover { background: #333; }
 
+  /* ---------- Subtle SD Worx watermark ---------- */
+  .bg-watermark {
+    position: fixed;
+    top: 50%;
+    right: -6vh;
+    transform: translateY(-48%);
+    height: 118vh;
+    width: auto;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+    opacity: 0.055;
+    filter: blur(0.4px) saturate(115%);
+  }
+  .bg-watermark svg { height: 100%; width: auto; display: block; }
+
+  /* Add a soft vignette so the watermark fades out a bit into the corner. */
+  .bg-vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(1200px 800px at 100% 50%, rgba(204,40,52,0.045), transparent 60%),
+      radial-gradient(900px 700px at 0% 100%, rgba(107,125,145,0.04), transparent 55%);
+  }
+
   /* ---------- App shell ---------- */
   .app {
     display: grid;
     grid-template-columns: 64px 1fr;
     height: 100vh;
+    position: relative;
+    z-index: 1;
   }
 
   .sidebar {
-    background: #0a0a0a;
+    background: rgba(10, 10, 10, 0.92);
+    backdrop-filter: blur(4px);
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
@@ -63,13 +108,11 @@
     width: 40px; height: 40px;
     display: flex; align-items: center; justify-content: center;
     border-radius: var(--radius-sm);
-    background: linear-gradient(135deg, var(--accent), #22c55e);
-    color: #08150d;
-    font-weight: 700;
-    font-family: "DM Mono", monospace;
+    background: #101010;
+    border: 1px solid var(--border);
     margin-bottom: 18px;
-    box-shadow: 0 0 0 1px rgba(74,222,128,0.3);
   }
+  .sidebar .logo svg { width: 26px; height: 26px; display: block; }
   .nav-btn {
     width: 44px; height: 44px;
     display: flex; align-items: center; justify-content: center;
@@ -86,7 +129,7 @@
   .nav-btn.active {
     color: var(--accent);
     background: var(--accent-dim);
-    border-color: rgba(74,222,128,0.25);
+    border-color: rgba(204, 40, 52, 0.32);
   }
   .nav-btn .tip {
     position: absolute;
@@ -115,7 +158,10 @@
   .topbar {
     padding: 22px 32px 0 32px;
     border-bottom: 1px solid var(--border);
-    background: var(--bg);
+    background: rgba(13, 13, 13, 0.78);
+    backdrop-filter: blur(6px);
+    position: relative;
+    z-index: 2;
   }
   .topbar h1 {
     font-size: 20px;
@@ -218,11 +264,15 @@
   .btn:hover { border-color: var(--border-strong); background: #1d1d1d; }
   .btn.primary {
     background: var(--accent);
-    color: #07120a;
+    color: #fff;
     border-color: var(--accent);
     font-weight: 600;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 4px 12px rgba(204,40,52,0.25);
   }
-  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.primary:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.12) inset, 0 6px 16px rgba(204,40,52,0.35);
+  }
   .btn.danger {
     color: var(--danger);
     border-color: #402222;
@@ -254,7 +304,7 @@
 
   .card {
     position: relative;
-    background: var(--card);
+    background: rgba(28, 28, 28, 0.85);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 16px;
@@ -265,22 +315,28 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
+    backdrop-filter: blur(2px);
   }
   .card::before {
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, rgba(74,222,128,0.10), transparent 60%);
+    background: linear-gradient(135deg, rgba(204, 40, 52, 0.12), rgba(232, 163, 61, 0.06) 55%, transparent 80%);
     opacity: 0;
     transition: 180ms;
     pointer-events: none;
   }
   .card:hover {
     transform: translateY(-1px);
-    border-color: var(--border-strong);
+    border-color: rgba(204, 40, 52, 0.38);
     background: var(--card-hover);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(204, 40, 52, 0.08);
   }
   .card:hover::before { opacity: 1; }
+  .card:hover .icon {
+    color: var(--brand-orange);
+    border-color: rgba(232, 163, 61, 0.35);
+  }
 
   .card .head {
     display: flex;
@@ -342,17 +398,19 @@
   }
   .empty p { margin: 0 0 16px 0; font-size: 13px; }
   .empty .icon-big {
-    font-size: 28px;
-    color: var(--accent);
+    font-size: 32px;
+    color: var(--brand-orange);
+    letter-spacing: 4px;
   }
 
   /* ---------- GitHub panel ---------- */
   .panel {
-    background: var(--surface);
+    background: rgba(22, 22, 22, 0.85);
     border: 1px solid var(--border);
     border-radius: var(--radius);
     padding: 20px;
     margin-bottom: 18px;
+    backdrop-filter: blur(2px);
   }
   .panel h3 {
     margin: 0 0 4px 0;
@@ -373,7 +431,7 @@
     color: var(--text-dim);
   }
   .repo-meta b { color: var(--text); font-weight: 500; }
-  .repo-meta .mono { color: var(--accent); }
+  .repo-meta .mono { color: var(--brand-orange); }
 
   .log {
     background: #070707;
@@ -389,8 +447,9 @@
     white-space: pre-wrap;
     word-break: break-all;
   }
-  .log .ok { color: var(--accent); }
+  .log .ok { color: var(--ok); }
   .log .err { color: var(--danger); }
+  .log .info { color: var(--brand-orange); }
 
   /* ---------- Settings ---------- */
   table.handlers {
@@ -452,9 +511,9 @@
     transition: 150ms;
   }
   .chip:hover {
-    color: var(--accent);
-    border-color: rgba(74,222,128,0.35);
-    background: var(--accent-dim);
+    color: var(--brand-orange);
+    border-color: rgba(232, 163, 61, 0.35);
+    background: var(--accent-dim-2);
   }
 
   /* ---------- Toasts ---------- */
@@ -471,7 +530,7 @@
   .toast {
     background: #1a1a1a;
     border: 1px solid var(--border);
-    border-left: 3px solid var(--accent);
+    border-left: 3px solid var(--ok);
     padding: 10px 14px;
     border-radius: var(--radius-sm);
     font-size: 13px;
@@ -489,9 +548,29 @@
 </style>
 </head>
 <body>
+  <!-- Subtle SD Worx brand watermark behind the whole app -->
+  <div class="bg-watermark" aria-hidden="true">
+    <svg viewBox="0 0 120 130" xmlns="http://www.w3.org/2000/svg">
+      <g transform="rotate(-9 60 65)">
+        <rect x="15"  y="60" width="11" height="34" rx="1.5" fill="#6B7D91"/>
+        <rect x="47"  y="26" width="13" height="72" rx="1.5" fill="#CC2834"/>
+        <rect x="80"  y="8"  width="13" height="84" rx="1.5" fill="#E8A33D"/>
+      </g>
+    </svg>
+  </div>
+  <div class="bg-vignette" aria-hidden="true"></div>
+
   <div class="app">
     <aside class="sidebar">
-      <div class="logo">AI</div>
+      <div class="logo" title="SD Worx">
+        <svg viewBox="0 0 48 52" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <g transform="rotate(-9 24 26)">
+            <rect x="6"  y="24" width="5" height="16" rx="1" fill="#6B7D91"/>
+            <rect x="19" y="10" width="6" height="32" rx="1" fill="#CC2834"/>
+            <rect x="32" y="2"  width="6" height="38" rx="1" fill="#E8A33D"/>
+          </g>
+        </svg>
+      </div>
       <button class="nav-btn active" data-page="dashboard" title="Dashboard">
         <span>&#x25A3;</span><span class="tip">Dashboard</span>
       </button>
