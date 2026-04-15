@@ -553,6 +553,18 @@
         <!-- Settings page -->
         <div class="page" id="page-settings">
           <div class="panel">
+            <h3>Netwerk</h3>
+            <p class="hint">Schakel SSL-verificatie uit als je achter een corporate proxy zit die HTTPS inspecteert met een eigen root-CA. De GitHub sync werkt dan ook als de bedrijfs-CA niet in de Windows store staat.</p>
+            <div class="row" style="margin-bottom:0;">
+              <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;">
+                <input type="checkbox" id="sslVerify" checked style="width:16px;height:16px;accent-color:var(--accent);">
+                <span>SSL-certificaten verifi&euml;ren</span>
+              </label>
+              <span class="mono" id="sslHint" style="color:var(--text-faint);font-size:12px;"></span>
+            </div>
+          </div>
+
+          <div class="panel">
             <h3>Extension handlers</h3>
             <p class="hint">Koppel bestandsextensies aan launchers. Wijzigingen worden direct opgeslagen in <code>settings.json</code>.</p>
             <table class="handlers" id="handlersTable">
@@ -810,6 +822,14 @@
   }
 
   // --- settings rendering ---
+  function renderNetworkSettings() {
+    var verify = state.settings.ssl_verify !== false; // default true
+    var cb = $("#sslVerify");
+    if (cb) cb.checked = verify;
+    var hint = $("#sslHint");
+    if (hint) hint.textContent = verify ? "veilig (aanbevolen)" : "verificatie UIT";
+  }
+
   function renderHandlers() {
     var tbody = $("#handlersTable tbody");
     var handlers = state.settings.handlers || {};
@@ -1021,6 +1041,21 @@
       startSync();
     });
 
+    $("#sslVerify").addEventListener("change", function (e) {
+      var enabled = !!e.target.checked;
+      var api = pyApi();
+      if (!api) return;
+      api.set_ssl_verify(enabled).then(function (res) {
+        if (res && res.ok) {
+          state.settings.ssl_verify = res.ssl_verify;
+          $("#sslHint").textContent = res.ssl_verify
+            ? "veilig (aanbevolen)"
+            : "verificatie UIT";
+          toast(res.ssl_verify ? "SSL-verificatie aan." : "SSL-verificatie uit.");
+        }
+      });
+    });
+
     $("#saveHandlerBtn").addEventListener("click", saveHandler);
     $("#hExt").addEventListener("keydown", function (e) { if (e.key === "Enter") saveHandler(); });
     $("#hLauncher").addEventListener("keydown", function (e) { if (e.key === "Enter") saveHandler(); });
@@ -1043,6 +1078,7 @@
         api.get_settings().then(function (s) {
           state.settings = s || { handlers: {} };
           renderHandlers();
+          renderNetworkSettings();
         }),
         api.get_repo_info().then(function (info) {
           state.repo = info;

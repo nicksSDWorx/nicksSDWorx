@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import threading
@@ -61,7 +62,11 @@ DEFAULT_SETTINGS = {
         ".bat": {"launcher": "direct",     "args": [],                                        "label": "Batch file"},
         ".ps1": {"launcher": "powershell", "args": ["-ExecutionPolicy", "Bypass", "-File"],  "label": "PowerShell"},
         ".js":  {"launcher": "node",       "args": [],                                        "label": "Node.js script"},
-    }
+    },
+    # Set to false if you sit behind a corporate SSL-inspecting proxy
+    # whose root CA can't be found even after auto-importing the
+    # Windows certificate store. Disables HTTPS verification entirely.
+    "ssl_verify": True,
 }
 
 CATEGORY_FALLBACK = "Algemeen"
@@ -90,6 +95,54 @@ def load_settings() -> dict:
 def save_settings(data: dict) -> None:
     with open(SETTINGS_PATH, "w", encoding="utf-8") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# SSL context (corporate-proxy friendly)
+# ---------------------------------------------------------------------------
+
+def build_ssl_context(verify: bool = True) -> ssl.SSLContext:
+    """Create an SSL context that trusts both the Python CA bundle AND
+    every certificate in the Windows ROOT/CA stores.
+
+    On corporate networks (SD Worx, banks, government, etc.) an HTTPS
+    inspecting proxy signs traffic with a private root CA that IT
+    pushed to every employee's Windows certificate store. Python's
+    default ``load_default_certs()`` only imports certs whose trust
+    flags include ``SERVER_AUTH``; some corporate roots get filtered
+    out by that check, producing
+    ``CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate``.
+
+    We sidestep that by enumerating the stores manually and adding
+    everything OpenSSL will accept — it still won't use a cert for the
+    wrong purpose, because the X.509 EKU extension on each certificate
+    is checked at handshake time.
+    """
+    if not verify:
+        ctx = ssl._create_unverified_context()  # noqa: SLF001 — intentional
+        return ctx
+
+    ctx = ssl.create_default_context()
+    if os.name == "nt":
+        imported = 0
+        for store in ("ROOT", "CA", "MY"):
+            try:
+                certs = ssl.enum_certificates(store)
+            except (OSError, AttributeError):
+                continue
+            for cert_bytes, encoding, _trust in certs:
+                if encoding != "x509_asn":
+                    continue
+                try:
+                    ctx.load_verify_locations(cadata=cert_bytes)
+                    imported += 1
+                except ssl.SSLError:
+                    # Not a CA cert, or duplicate — fine.
+                    pass
+        # Leave a breadcrumb; handy when diagnosing SSL issues.
+        if imported:
+            os.environ.setdefault("DASHBOARD_WINCERTS_IMPORTED", str(imported))
+    return ctx
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +272,11 @@ def discover_tools() -> dict:
 # ---------------------------------------------------------------------------
 
 class GitHubSync:
-    def __init__(self):
+    def __init__(self, settings_provider):
+        # settings_provider is a zero-arg callable that returns the live
+        # settings dict, so toggling ssl_verify in settings.json takes
+        # effect without restarting the app.
+        self._settings_provider = settings_provider
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
         self._log: list[str] = []
@@ -227,6 +284,7 @@ class GitHubSync:
         self._done = False
         self._success = False
         self._started_at = 0.0
+        self._ssl_ctx: ssl.SSLContext | None = None
 
     def _append(self, line: str) -> None:
         with self._lock:
@@ -259,7 +317,7 @@ class GitHubSync:
             "User-Agent": "Dashboard-AI-Worx/1.0",
             "Accept": accept or "application/vnd.github+json",
         })
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=self._ssl_ctx) as resp:
             return resp.read()
 
     def _list_tree(self) -> list[dict]:
@@ -281,6 +339,15 @@ class GitHubSync:
     def _run(self) -> None:
         ok = False
         try:
+            settings = self._settings_provider() or {}
+            verify = bool(settings.get("ssl_verify", True))
+            self._ssl_ctx = build_ssl_context(verify=verify)
+            imported = os.environ.get("DASHBOARD_WINCERTS_IMPORTED")
+            if verify and imported:
+                self._append(f"SSL: {imported} certs uit Windows store geladen.")
+            elif not verify:
+                self._append("SSL: verificatie UIT (ssl_verify: false in settings.json).")
+
             self._append(f"Start sync {GITHUB_OWNER}/{GITHUB_REPO}@{BRANCH}")
             if REPO_DIR.exists():
                 self._append("Oude repo/ map opruimen...")
@@ -316,7 +383,13 @@ class GitHubSync:
         except urllib.error.HTTPError as exc:
             self._append(f"FOUT: HTTP {exc.code} — {exc.reason}")
         except urllib.error.URLError as exc:
-            self._append(f"FOUT: kan GitHub niet bereiken ({exc.reason}).")
+            reason = str(exc.reason)
+            self._append(f"FOUT: kan GitHub niet bereiken ({reason}).")
+            if "CERTIFICATE_VERIFY_FAILED" in reason or "SSL" in reason.upper():
+                self._append(
+                    "! Corporate SSL-proxy gedetecteerd. Zet in settings.json "
+                    "\"ssl_verify\": false en probeer opnieuw."
+                )
         except Exception as exc:  # noqa: BLE001
             self._append(f"FOUT: {exc}")
         finally:
@@ -333,7 +406,7 @@ class GitHubSync:
 class Api:
     def __init__(self):
         self.settings = load_settings()
-        self.sync = GitHubSync()
+        self.sync = GitHubSync(settings_provider=lambda: self.settings)
 
     def get_tools(self) -> dict:
         return discover_tools()
@@ -372,6 +445,11 @@ class Api:
         }
         save_settings(self.settings)
         return {"ok": True, "handlers": self.settings["handlers"]}
+
+    def set_ssl_verify(self, enabled: bool) -> dict:
+        self.settings["ssl_verify"] = bool(enabled)
+        save_settings(self.settings)
+        return {"ok": True, "ssl_verify": self.settings["ssl_verify"]}
 
     def delete_handler(self, extension: str) -> dict:
         ext = (extension or "").strip().lower()

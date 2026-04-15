@@ -108,3 +108,10 @@ BRANCH = "main"
 - **Sync fails with HTTP 403** — GitHub rate-limits unauthenticated API
   requests to 60/hour per IP. Wait an hour or add a personal access
   token to `dashboard.py`.
+- **Sync fails with `CERTIFICATE_VERIFY_FAILED` / `unable to get local
+  issuer certificate`** — you're behind a corporate SSL-inspecting
+  proxy. The app already auto-imports every certificate from the
+  Windows `ROOT` / `CA` stores on each sync, which fixes most cases.
+  If it still fails, open **Settings** and untick *"SSL-certificaten
+  verifiëren"*. This sets `"ssl_verify": false` in `settings.json` and
+  skips HTTPS verification for the GitHub sync.
