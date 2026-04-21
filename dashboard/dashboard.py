@@ -400,199 +400,6 @@ class GitHubSync:
 
 
 # ---------------------------------------------------------------------------
-# In-dashboard job runner
-# ---------------------------------------------------------------------------
-
-MAX_LINES_PER_JOB = 5000  # cap per-job log memory; keep the tail when exceeded
-
-
-class JobRunner:
-    """Runs child processes with captured stdout/stderr so output can be
-    streamed to the UI instead of opening a new console window."""
-
-    def __init__(self):
-        self._jobs: dict[str, dict] = {}
-        self._lock = threading.Lock()
-
-    # ---- lifecycle ------------------------------------------------------
-
-    def start(self, cmd: list[str], cwd: str, name: str) -> str:
-        popen_kwargs = {
-            "cwd": cwd,
-            "stdout": subprocess.PIPE,
-            "stderr": subprocess.STDOUT,
-            "stdin": subprocess.DEVNULL,
-            "bufsize": 1,              # line-buffered
-            "text": True,
-            "encoding": "utf-8",
-            "errors": "replace",
-        }
-        if os.name == "nt":
-            # CREATE_NO_WINDOW hides the would-be console of the child so
-            # the only visible output is our captured stream.
-            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-
-        proc = subprocess.Popen(cmd, **popen_kwargs)
-        job_id = os.urandom(8).hex()
-        state = {
-            "id": job_id,
-            "name": name,
-            "cmd": " ".join(cmd),
-            "cmd_list": list(cmd),   # kept for relaunch_externally
-            "cwd": cwd,
-            "proc": proc,
-            "log": [f"$ {' '.join(cmd)}"],
-            "started_at": time.time(),
-            "finished_at": None,
-            "running": True,
-            "exit_code": None,
-            "truncated": 0,              # lines dropped due to MAX_LINES_PER_JOB
-            "stopped_by_user": False,    # differentiates kill-by-user from crashes
-            "relaunched_externally": False,
-        }
-        with self._lock:
-            self._jobs[job_id] = state
-        threading.Thread(target=self._read_loop, args=(state,), daemon=True).start()
-        return job_id
-
-    def _read_loop(self, state: dict) -> None:
-        proc: subprocess.Popen = state["proc"]
-        try:
-            assert proc.stdout is not None
-            for raw in proc.stdout:
-                line = raw.rstrip("\r\n")
-                with self._lock:
-                    state["log"].append(line)
-                    overflow = len(state["log"]) - MAX_LINES_PER_JOB
-                    if overflow > 0:
-                        state["log"] = state["log"][overflow:]
-                        state["truncated"] += overflow
-        except Exception as exc:  # noqa: BLE001
-            with self._lock:
-                state["log"].append(f"[reader error: {exc}]")
-        finally:
-            try:
-                rc = proc.wait()
-            except Exception:  # noqa: BLE001
-                rc = -1
-            with self._lock:
-                state["running"] = False
-                state["exit_code"] = rc
-                state["finished_at"] = time.time()
-                state["log"].append(f"[proces beëindigd, exit code {rc}]")
-
-    def stop(self, job_id: str) -> dict:
-        with self._lock:
-            state = self._jobs.get(job_id)
-            if state:
-                state["stopped_by_user"] = True
-        if not state:
-            return {"ok": False, "error": "Onbekende job."}
-        proc: subprocess.Popen = state["proc"]
-        if proc.poll() is not None:
-            return {"ok": True, "already_done": True}
-        try:
-            proc.terminate()
-        except OSError as exc:
-            return {"ok": False, "error": str(exc)}
-
-        # If it doesn't respond to terminate, kill it after a grace period.
-        def _kill_guard():
-            time.sleep(2.0)
-            if proc.poll() is None:
-                try:
-                    proc.kill()
-                except OSError:
-                    pass
-
-        threading.Thread(target=_kill_guard, daemon=True).start()
-        return {"ok": True}
-
-    # ---- external fallback ---------------------------------------------
-
-    def relaunch_externally(self, job_id: str) -> dict:
-        """Re-run the job's command in a new, visible console window.
-
-        Used as a fallback when a tool doesn't work inside the embedded
-        console (e.g. needs a real TTY, prompts for input, relies on
-        console colour, or crashes immediately because it can't detect
-        stdin/stdout). On Windows the child gets its own cmd.exe window
-        via CREATE_NEW_CONSOLE; on other OSes it inherits stdio.
-        """
-        with self._lock:
-            state = self._jobs.get(job_id)
-        if not state:
-            return {"ok": False, "error": "Onbekende job."}
-
-        cmd = list(state.get("cmd_list") or [])
-        cwd = state.get("cwd") or None
-        if not cmd:
-            return {"ok": False, "error": "Geen commando beschikbaar."}
-
-        popen_kwargs: dict = {"cwd": cwd}
-        if os.name == "nt":
-            # CREATE_NEW_CONSOLE pops a fresh cmd.exe window so the tool
-            # gets a real console (vs. our captured pipes).
-            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-        # On POSIX we simply inherit stdio — the dashboard may be launched
-        # from a terminal; if not, output is lost, but the tool still runs.
-
-        try:
-            subprocess.Popen(cmd, **popen_kwargs)
-        except FileNotFoundError:
-            return {"ok": False, "error": "Launcher niet gevonden op PATH."}
-        except OSError as exc:
-            return {"ok": False, "error": f"Kan niet openen in nieuw venster: {exc}"}
-
-        with self._lock:
-            state["relaunched_externally"] = True
-            state["log"].append("[tool opnieuw gestart in nieuw venster]")
-        return {"ok": True}
-
-    # ---- queries --------------------------------------------------------
-
-    def status(self, job_id: str, since: int = 0) -> dict:
-        with self._lock:
-            state = self._jobs.get(job_id)
-            if not state:
-                return {"ok": False, "error": "Onbekende job."}
-            total = len(state["log"]) + state["truncated"]
-            # Clamp "since" so the UI can recover if older lines were dropped.
-            start = max(0, since - state["truncated"])
-            log_slice = state["log"][start:]
-            next_offset = total
-            elapsed = (state["finished_at"] or time.time()) - state["started_at"]
-            return {
-                "ok": True,
-                "id": state["id"],
-                "name": state["name"],
-                "cmd": state["cmd"],
-                "running": state["running"],
-                "exit_code": state["exit_code"],
-                "started_at": state["started_at"],
-                "elapsed": elapsed,
-                "log": log_slice,
-                "next_offset": next_offset,
-                "truncated": state["truncated"],
-                "stopped_by_user": state["stopped_by_user"],
-                "relaunched_externally": state["relaunched_externally"],
-            }
-
-    def list_all(self) -> list[dict]:
-        with self._lock:
-            return [
-                {
-                    "id": s["id"],
-                    "name": s["name"],
-                    "running": s["running"],
-                    "exit_code": s["exit_code"],
-                    "started_at": s["started_at"],
-                }
-                for s in self._jobs.values()
-            ]
-
-
-# ---------------------------------------------------------------------------
 # API (same surface as the old PyWebView js_api)
 # ---------------------------------------------------------------------------
 
@@ -600,7 +407,6 @@ class Api:
     def __init__(self):
         self.settings = load_settings()
         self.sync = GitHubSync(settings_provider=lambda: self.settings)
-        self.jobs = JobRunner()
 
     def get_tools(self) -> dict:
         return discover_tools()
@@ -687,8 +493,16 @@ class Api:
         else:
             cmd = [launcher, *args, str(path)]
 
+        popen_kwargs: dict = {"cwd": str(path.parent)}
+        if os.name == "nt":
+            # CREATE_NEW_CONSOLE pops a fresh cmd.exe window so the tool
+            # gets its own TTY, independent of the dashboard.
+            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        # On POSIX we inherit stdio — the dashboard may be launched from a
+        # terminal; if not, output is lost but the tool still runs.
+
         try:
-            job_id = self.jobs.start(cmd, cwd=str(path.parent), name=path.stem)
+            subprocess.Popen(cmd, **popen_kwargs)
         except FileNotFoundError:
             return {"ok": False, "error": f"Launcher '{launcher}' niet gevonden op PATH."}
         except OSError as exc:
@@ -696,24 +510,9 @@ class Api:
 
         return {
             "ok": True,
-            "job_id": job_id,
             "name": path.stem,
             "cmd": " ".join(cmd),
         }
-
-    # ----- job control ---------------------------------------------------
-
-    def get_job(self, job_id: str, since: int = 0) -> dict:
-        return self.jobs.status(job_id, since)
-
-    def stop_job(self, job_id: str) -> dict:
-        return self.jobs.stop(job_id)
-
-    def relaunch_externally(self, job_id: str) -> dict:
-        return self.jobs.relaunch_externally(job_id)
-
-    def list_jobs(self) -> dict:
-        return {"jobs": self.jobs.list_all()}
 
     # Called by the HTTP server when the UI navigates away / closes.
     def shutdown(self) -> dict:
