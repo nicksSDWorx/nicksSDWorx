@@ -1,21 +1,41 @@
 """
 Builder for Payroll Discovery Document MKB (v2, Dutch-only).
-Phased build: each phase extends this script.
-Phase 2 status: skeleton only — 7 visible sheets + _Validations (hidden) with named ranges.
+Phased build.
+Phase 3 status: Start + '1. Bedrijf & Contact' sheets filled.
 """
 import os
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.comments import Comment
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.properties import PageSetupProperties
 
 OUTPUT = "/home/user/nicksSDWorx/outputs/Payroll_Discovery_Document_MKB.xlsx"
 
+# --- Styling constants ---
 HEADER_FILL = PatternFill("solid", fgColor="1F3864")
-HEADER_FONT = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
-BASE_FONT = Font(name="Calibri", size=11)
+SUBHEADER_FILL = PatternFill("solid", fgColor="D9E1F2")
+INPUT_FILL = PatternFill("solid", fgColor="FFF2CC")
+DEFAULT_FILL = PatternFill("solid", fgColor="F2F2F2")
 
+HEADER_FONT = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
+SUBHEADER_FONT = Font(name="Calibri", size=12, bold=True, color="1F3864")
+BASE_FONT = Font(name="Calibri", size=11)
+LABEL_FONT = Font(name="Calibri", size=11)
+REQ_FONT = Font(name="Calibri", size=11, color="C00000", bold=True)
+HELP_FONT = Font(name="Calibri", size=9, italic=True, color="7F7F7F")
+DEFAULT_FONT = Font(name="Calibri", size=11, italic=True, color="595959")
+INTRO_FONT = Font(name="Calibri", size=11)
+
+THIN = Side(border_style="thin", color="BFBFBF")
+BORDER_INPUT = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+
+UNLOCKED = Protection(locked=False)
+LOCKED = Protection(locked=True)
+
+# --- Sheet structure ---
 SHEETS = [
     "Start",
     "1. Bedrijf & Contact",
@@ -25,7 +45,6 @@ SHEETS = [
     "5. Verlof & Grootboek",
     "6. Akkoord",
 ]
-
 SHEET_TITLES = {
     "Start": "Payroll Discovery Document - MKB",
     "1. Bedrijf & Contact": "1. Bedrijf & Contact",
@@ -42,10 +61,8 @@ VALIDATIONS = {
     "val_Taal": ["Nederlands", "Engels"],
     "val_Indeling": ["Klein", "Middel", "Groot"],
     "val_Oproep": [
-        "Nee",
-        "Ja, met verplichting te komen",
-        "Ja, zonder verplichting te komen",
-        "Ja, beide",
+        "Nee", "Ja, met verplichting te komen",
+        "Ja, zonder verplichting te komen", "Ja, beide",
     ],
     "val_Maand": [
         "Januari", "Februari", "Maart", "April", "Mei", "Juni",
@@ -111,7 +128,12 @@ VALIDATIONS = {
     ],
 }
 
+# --- Global registries ---
+REQUIRED_REFS = []  # list of (sheet_name, coord)
+DV_CACHE = {}       # (sheet_name, list_name) -> DataValidation
 
+
+# --- Helpers ---
 def setup_sheet(ws, title):
     ws.column_dimensions["A"].width = 42
     for col in ("B", "C", "D", "E", "F", "G", "H"):
@@ -133,9 +155,88 @@ def setup_sheet(ws, title):
     ws.protection.sheet = True
 
 
+def subheader(ws, row, text, span=8):
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=span)
+    c = ws.cell(row=row, column=1, value=text)
+    c.fill = SUBHEADER_FILL
+    c.font = SUBHEADER_FONT
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    ws.row_dimensions[row].height = 22
+
+
+def label(ws, row, text, required=False, col=1):
+    display = (text + " *") if required else text
+    c = ws.cell(row=row, column=col, value=display)
+    c.font = REQ_FONT if required else LABEL_FONT
+    c.alignment = Alignment(horizontal="right", vertical="center", indent=1)
+
+
+def plain(ws, coord, text, font=None, alignment=None):
+    c = ws[coord]
+    c.value = text
+    c.font = font or BASE_FONT
+    if alignment:
+        c.alignment = alignment
+
+
+def input_cell(ws, coord, required=False, comment=None, default=None, is_default=False):
+    c = ws[coord]
+    if default is not None:
+        c.value = default
+    c.fill = DEFAULT_FILL if is_default else INPUT_FILL
+    c.font = DEFAULT_FONT if is_default else BASE_FONT
+    c.border = BORDER_INPUT
+    c.protection = UNLOCKED
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+    if comment:
+        c.comment = Comment(comment, "SD Worx")
+    if required:
+        REQUIRED_REFS.append((ws.title, coord))
+
+
+def dropdown(ws, coord, listname, required=False, comment=None, default=None, is_default=False):
+    input_cell(ws, coord, required=required, comment=comment, default=default, is_default=is_default)
+    key = (ws.title, listname)
+    dv = DV_CACHE.get(key)
+    if dv is None:
+        dv = DataValidation(
+            type="list", formula1=f"={listname}", allow_blank=True, showDropDown=False
+        )
+        dv.error = "Ongeldige keuze. Kies uit de lijst."
+        dv.errorTitle = "Ongeldige invoer"
+        ws.add_data_validation(dv)
+        DV_CACHE[key] = dv
+    dv.add(coord)
+
+
+def help_line(ws, coord, text):
+    c = ws[coord]
+    c.value = text
+    c.font = HELP_FONT
+    c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+
+
+def opmerkingen_block(ws, start_row, rows=4, span=8):
+    subheader(ws, start_row, "Opmerkingen", span=span)
+    ws.merge_cells(
+        start_row=start_row + 1, start_column=1,
+        end_row=start_row + rows, end_column=span,
+    )
+    c = ws.cell(row=start_row + 1, column=1)
+    c.fill = INPUT_FILL
+    c.border = BORDER_INPUT
+    c.protection = UNLOCKED
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True, indent=1)
+
+
+def footnote(ws, row, text):
+    c = ws.cell(row=row, column=1, value=text)
+    c.font = HELP_FONT
+
+
+# --- Validations sheet ---
 def build_validations(wb):
     vs = wb.create_sheet("_Validations")
-    vs.column_dimensions["A"].width = 25
     for col_idx, (name, values) in enumerate(VALIDATIONS.items(), start=1):
         letter = get_column_letter(col_idx)
         vs.column_dimensions[letter].width = 40
@@ -147,6 +248,145 @@ def build_validations(wb):
     vs.sheet_state = "hidden"
 
 
+# --- Start sheet ---
+def build_start(wb):
+    ws = wb["Start"]
+    # Intro
+    ws.merge_cells("A3:H3")
+    plain(ws, "A3", "Welkom! Dit document is de basis voor de inrichting van uw loonadministratie in Cobra (SD Worx).",
+          font=Font(name="Calibri", size=12, bold=True))
+    ws.merge_cells("A4:H4")
+    plain(ws, "A4",
+          "Vul per tabblad de gegevens in. Geschatte invultijd: 30 - 45 minuten. Velden met * zijn verplicht.",
+          font=INTRO_FONT)
+    ws.merge_cells("A5:H5")
+    plain(ws, "A5",
+          "Geel = door u in te vullen.   Lichtgrijs = voorstel (overschrijfbaar).   Bij twijfel: leeglaten en contact opnemen met uw consultant.",
+          font=HELP_FONT)
+
+    # Consultant block
+    subheader(ws, 7, "Uw contactpersoon bij SD Worx")
+    label(ws, 8, "Naam consultant")
+    input_cell(ws, "B8", comment="In te vullen door SD Worx-consultant.")
+    label(ws, 9, "E-mail")
+    input_cell(ws, "B9", comment="In te vullen door SD Worx-consultant.")
+    label(ws, 10, "Telefoon")
+    input_cell(ws, "B10", comment="In te vullen door SD Worx-consultant.")
+
+    # Bijlagen checklist
+    subheader(ws, 12, "Benodigde bijlagen  (aanvinken wat is meegestuurd)")
+    attachments = [
+        "Kopie laatste loonstrook van ca. 5 medewerkers (incl. 1 met variabele beloning, 1 met pensioen)",
+        "Kopie WHK-beschikking lopend jaar",
+        "Kopie grootboekschema + laatste journaalpost (alleen als u GL-export wilt)",
+        "Kopie pensioenregeling (alleen als u NIET bij een bedrijfstakpensioenfonds zit)",
+        "CAO (alleen als van toepassing)",
+        "Functielijst (functiecode + omschrijving)",
+    ]
+    for i, text in enumerate(attachments):
+        r = 13 + i
+        dropdown(ws, f"A{r}", "val_Checkbox", default="☐", is_default=True)
+        ws.cell(row=r, column=1).alignment = Alignment(horizontal="center", vertical="center")
+        ws.merge_cells(start_row=r, start_column=2, end_row=r, end_column=8)
+        tc = ws.cell(row=r, column=2, value=text)
+        tc.font = BASE_FONT
+        tc.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True, indent=1)
+
+    # Progress indicator
+    subheader(ws, 20, "Voortgang verplichte velden")
+    label(ws, 21, "Aantal ingevuld / totaal")
+    # Placeholder; filled at end
+    c = ws["B21"]
+    c.fill = DEFAULT_FILL
+    c.font = DEFAULT_FONT
+    c.alignment = Alignment(horizontal="center", vertical="center")
+    ws["B21"].value = "(wordt berekend)"
+    label(ws, 22, "Percentage ingevuld")
+    c = ws["B22"]
+    c.fill = DEFAULT_FILL
+    c.font = DEFAULT_FONT
+    c.alignment = Alignment(horizontal="center", vertical="center")
+    ws["B22"].value = "(wordt berekend)"
+    help_line(ws, "C21",
+              "Tip: sla het bestand op of druk op F9 om de teller te verversen.")
+
+    opmerkingen_block(ws, 24)
+
+
+# --- 1. Bedrijf & Contact ---
+def build_bedrijf(wb):
+    ws = wb["1. Bedrijf & Contact"]
+
+    subheader(ws, 3, "Bedrijfsgegevens")
+    rows_company = [
+        ("Bedrijfsnaam", "B4", True, None),
+        ("Straat + huisnummer", "B5", True, None),
+        ("Postcode", "B6", True, "Formaat: 1234 AB"),
+        ("Plaats", "B7", True, None),
+        ("KvK-nummer", "B8", False, "8 cijfers, zonder vestigingsnummer."),
+        ("Loonheffingsnummer", "B9", False,
+         "Formaat: 123456789L01. Wordt ook gevraagd op tab 3. Loonheffing; hier mag u overslaan."),
+    ]
+    for i, (lab, cell, req, cmt) in enumerate(rows_company):
+        label(ws, 4 + i, lab, required=req)
+        input_cell(ws, cell, required=req, comment=cmt)
+
+    subheader(ws, 11, "Contactpersoon HR / salarisadministratie")
+    rows_hr = [
+        ("Naam", "B12", True),
+        ("Functie", "B13", False),
+        ("Telefoon", "B14", True),
+        ("E-mail", "B15", True),
+    ]
+    for i, (lab, cell, req) in enumerate(rows_hr):
+        label(ws, 12 + i, lab, required=req)
+        input_cell(ws, cell, required=req)
+
+    subheader(ws, 17, "Contactpersoon Finance / boekhouding")
+    rows_fin = [
+        ("Naam", "B18", True),
+        ("Functie", "B19", False),
+        ("Telefoon", "B20", True),
+        ("E-mail", "B21", True),
+    ]
+    for i, (lab, cell, req) in enumerate(rows_fin):
+        label(ws, 18 + i, lab, required=req)
+        input_cell(ws, cell, required=req)
+
+    subheader(ws, 23, "Bankgegevens (voor SEPA-betaalbestand nettolonen)")
+    label(ws, 24, "IBAN-rekeningnummer", required=True)
+    input_cell(ws, "B24", required=True,
+               comment="Nederlands IBAN, bijv. NL91 ABNA 0417 1643 00. Spaties mogen, worden genegeerd.")
+    label(ws, 25, "Naam bank")
+    input_cell(ws, "B25")
+    label(ws, 26, "BIC / SWIFT-code")
+    input_cell(ws, "B26",
+               comment="Alleen invullen als de bank NIET in de IBAN-zone (Europa) zit.")
+
+    footnote(ws, 28, "* = verplicht veld. Niet-verplichte velden mogen leeg blijven.")
+    opmerkingen_block(ws, 30)
+
+
+# --- Progress formula wiring ---
+def wire_progress(wb):
+    ws = wb["Start"]
+    if not REQUIRED_REFS:
+        return
+    refs = ",".join(f"'{s}'!{coord_abs(c)}" for s, c in REQUIRED_REFS)
+    total = len(REQUIRED_REFS)
+    # Filled count / total as text
+    ws["B21"].value = f'=COUNTA({refs})&" / {total}"'
+    ws["B22"].value = f'=IFERROR(TEXT(COUNTA({refs})/{total},"0%"),"0%")'
+
+
+def coord_abs(coord):
+    """Convert 'B4' -> '$B$4'."""
+    import re
+    m = re.match(r"([A-Z]+)(\d+)", coord)
+    return f"${m.group(1)}${m.group(2)}"
+
+
+# --- Main ---
 def build():
     wb = Workbook()
     wb.remove(wb.active)
@@ -154,6 +394,9 @@ def build():
         ws = wb.create_sheet(name)
         setup_sheet(ws, SHEET_TITLES[name])
     build_validations(wb)
+    build_start(wb)
+    build_bedrijf(wb)
+    wire_progress(wb)
     os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
     wb.save(OUTPUT)
     return OUTPUT
@@ -163,3 +406,4 @@ if __name__ == "__main__":
     path = build()
     size = os.path.getsize(path)
     print(f"SAVED: {path} ({size} bytes, {size/1024:.1f} KB)")
+    print(f"Required fields registered: {len(REQUIRED_REFS)}")
