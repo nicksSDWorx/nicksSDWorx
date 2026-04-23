@@ -1,7 +1,7 @@
 """
 Builder for Payroll Discovery Document MKB (v2, Dutch-only).
 Phased build.
-Phase 3 status: Start + '1. Bedrijf & Contact' sheets filled.
+Phase 4 status: Start + '1. Bedrijf & Contact' + '2. Payroll basis' + '3. Loonheffing' sheets filled.
 """
 import os
 from openpyxl import Workbook
@@ -367,6 +367,104 @@ def build_bedrijf(wb):
     opmerkingen_block(ws, 30)
 
 
+# --- 2. Payroll basis ---
+def build_payroll(wb):
+    ws = wb["2. Payroll basis"]
+
+    subheader(ws, 3, "CAO (Collectieve arbeidsovereenkomst)")
+    label(ws, 4, "Is een CAO van toepassing?", required=True)
+    dropdown(ws, "B4", "val_JaNee", required=True)
+    label(ws, 5, "Zo ja, welke CAO?")
+    input_cell(ws, "B5", comment="Voluit de officiele naam, bv. 'CAO Metaal en Techniek'.")
+
+    subheader(ws, 7, "Werktijden (standaard fulltime)")
+    label(ws, 8, "Uren per week", required=True)
+    input_cell(ws, "B8", required=True, default=40, is_default=True,
+               comment="Standaard fulltime = 40 uur. Wijk alleen af als uw CAO iets anders voorschrijft.")
+    label(ws, 9, "Uren per dag (maandag - vrijdag)")
+    days = [("C9", "ma"), ("D9", "di"), ("E9", "wo"), ("F9", "do"), ("G9", "vr")]
+    for coord, day in days:
+        # day label above the input
+        top = ws.cell(row=8, column=ws[coord].column, value=day)
+        top.font = HELP_FONT
+        top.alignment = Alignment(horizontal="center", vertical="center")
+        input_cell(ws, coord, default=8, is_default=True)
+        ws[coord].alignment = Alignment(horizontal="center", vertical="center")
+
+    subheader(ws, 11, "Salarisperiode")
+    label(ws, 12, "Salarisperiode", required=True)
+    dropdown(ws, "B12", "val_Salarisperiode", required=True, default="Maand", is_default=True,
+             comment="Voor MKB bijna altijd 'Maand'. '4 weken' enkel bij CAO-verplichting.")
+
+    subheader(ws, 14, "Salarisstrook")
+    label(ws, 15, "Taal salarisstrook", required=True)
+    dropdown(ws, "B15", "val_Taal", required=True, default="Nederlands", is_default=True)
+    label(ws, 16, "Logo van uw bedrijf op salarisstrook?", required=True)
+    dropdown(ws, "B16", "val_JaNee", required=True,
+             comment="Bij 'Ja': stuur het logo als PNG of JPG mee (min. 300 dpi).")
+    label(ws, 17, "Strook zichtbaar voor medewerker", required=True)
+    dropdown(ws, "B17", "val_Zichtbaarheid", required=True,
+             default="Op de betaaldatum", is_default=True)
+    label(ws, 18, "Aantal dagen na betaaldatum")
+    input_cell(ws, "B18",
+               comment="Alleen invullen als hierboven '# dagen na de betaaldatum' is gekozen.")
+
+    subheader(ws, 20, "30%-regeling (voor buitenlandse kenniswerkers)")
+    label(ws, 21, "30%-regeling van toepassing?", required=True)
+    dropdown(ws, "B21", "val_30pct", required=True, default="Nee", is_default=True,
+             comment="Kies 'Nee' als u geen buitenlandse kenniswerkers in dienst heeft.")
+    label(ws, 22, "Aantal medewerkers met 30%-regeling")
+    input_cell(ws, "B22", comment="Alleen invullen bij 'Ja' hierboven.")
+
+    subheader(ws, 24, "Overige werknemerstypen")
+    label(ws, 25, "Stagiaires in dienst?", required=True)
+    dropdown(ws, "B25", "val_JaNee", required=True, default="Nee", is_default=True)
+    label(ws, 26, "Oproepkrachten in dienst?", required=True)
+    dropdown(ws, "B26", "val_Oproep", required=True, default="Nee", is_default=True,
+             comment="Kies het type oproepovereenkomst. Bij meerdere soorten: kies 'Ja, beide'.")
+
+    opmerkingen_block(ws, 28)
+
+
+# --- 3. Loonheffing ---
+def build_loonheffing(wb):
+    ws = wb["3. Loonheffing"]
+
+    subheader(ws, 3, "Gegevens aangifte loonheffingen")
+    label(ws, 4, "Loonheffingsnummer", required=True)
+    input_cell(ws, "B4", required=True,
+               comment="Formaat: 123456789L01. Staat op uw aangifte loonheffingen of in uw portaal bij de Belastingdienst.")
+    label(ws, 5, "Sector (sectorindeling Belastingdienst)", required=True)
+    dropdown(ws, "B5", "val_Sector", required=True,
+             comment="Kies de sector waarin uw bedrijf is ingedeeld. Bij twijfel: zie de sectorbeschikking van de Belastingdienst.")
+    label(ws, 6, "Indeling werkgever", required=True)
+    dropdown(ws, "B6", "val_Indeling", required=True,
+             comment="Klein: minder dan 25 werknemers. Middel: 25 - 100 werknemers. Groot: meer dan 100 werknemers. Bij twijfel: leeglaten, wij bepalen dit.")
+    label(ws, 7, "CBS CAO-code")
+    input_cell(ws, "B7",
+               comment="Optioneel. De 4-cijferige code van uw CAO volgens het CBS. Bij geen CAO: leeglaten.")
+    label(ws, 8, "WBSO-subsidie van toepassing?", required=True)
+    dropdown(ws, "B8", "val_JaNee", required=True, default="Nee", is_default=True,
+             comment="WBSO = Wet Bevordering Speur- en Ontwikkelingswerk. Alleen 'Ja' als u een WBSO-beschikking van RVO heeft.")
+
+    subheader(ws, 10, "WHK-premie (gedifferentieerde premie Werkhervattingskas)")
+    ws.merge_cells("A11:H14")
+    c = ws["A11"]
+    c.value = (
+        "U hoeft hier GEEN premiepercentages in te vullen.\n\n"
+        "Stuur de WHK-beschikking van de Belastingdienst voor het lopende jaar mee "
+        "als bijlage (zie de bijlagen-checklist op het tabblad 'Start').\n\n"
+        "Wij verwerken op basis van die beschikking de WGA-premie, ZW-premie "
+        "en eventueel eigenrisicodragerschap in de inrichting."
+    )
+    c.font = BASE_FONT
+    c.fill = PatternFill("solid", fgColor="FFF8E7")
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True, indent=1)
+    c.border = BORDER_INPUT
+
+    opmerkingen_block(ws, 16)
+
+
 # --- Progress formula wiring ---
 def wire_progress(wb):
     ws = wb["Start"]
@@ -396,6 +494,8 @@ def build():
     build_validations(wb)
     build_start(wb)
     build_bedrijf(wb)
+    build_payroll(wb)
+    build_loonheffing(wb)
     wire_progress(wb)
     os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
     wb.save(OUTPUT)
