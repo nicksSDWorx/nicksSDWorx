@@ -1,7 +1,7 @@
 """
 Builder for Payroll Discovery Document MKB (v2, Dutch-only).
 Phased build.
-Phase 4 status: Start + '1. Bedrijf & Contact' + '2. Payroll basis' + '3. Loonheffing' sheets filled.
+Phase 5 status: all 7 content sheets filled.
 """
 import os
 from openpyxl import Workbook
@@ -465,6 +465,182 @@ def build_loonheffing(wb):
     opmerkingen_block(ws, 16)
 
 
+# --- 4. Reserveringen & Pensioen ---
+def build_reserveringen(wb):
+    ws = wb["4. Reserveringen & Pensioen"]
+
+    subheader(ws, 3, "Vakantiegeld")
+    label(ws, 4, "Uitbetalingspercentage")
+    input_cell(ws, "B4", default="8,33%", is_default=True,
+               comment="Wettelijk minimum 8,00%. In veel CAO's 8,33% (= 1 maand extra salaris).")
+    label(ws, 5, "Referentieperiode van")
+    input_cell(ws, "B5", default="Juni", is_default=True)
+    label(ws, 6, "Referentieperiode tot en met")
+    input_cell(ws, "B6", default="Mei", is_default=True)
+    label(ws, 7, "Uitbetaalmaand")
+    dropdown(ws, "B7", "val_Maand", default="Mei", is_default=True)
+
+    subheader(ws, 9, "13e maand")
+    label(ws, 10, "13e maand van toepassing?", required=True)
+    dropdown(ws, "B10", "val_JaNee", required=True, default="Nee", is_default=True)
+    label(ws, 11, "Uitbetaalmaand 13e maand")
+    dropdown(ws, "B11", "val_Maand",
+             comment="Alleen invullen als '13e maand van toepassing' = Ja. Meestal december.")
+
+    subheader(ws, 13, "Pensioen")
+    label(ws, 14, "Aangesloten bij bedrijfstakpensioenfonds (BPF)?", required=True)
+    dropdown(ws, "B14", "val_JaNee", required=True,
+             comment="BPF = verplicht pensioenfonds per branche (bv. PFZW, BPF Bouw, BPF Metaal). Bij 'Ja' volgt alles uit het BPF-reglement. Bij 'Nee' heeft u een eigen regeling.")
+
+    # Branch A: BPF
+    plain(ws, "A16", "Bij BPF = Ja", font=Font(name="Calibri", size=10, bold=True, color="1F3864"))
+    label(ws, 17, "Naam bedrijfstakpensioenfonds")
+    input_cell(ws, "B17", comment="Bijv. 'PFZW', 'BPF Metaal en Techniek', 'BPF Bouw'.")
+    label(ws, 18, "Aansluitingsnummer bij het fonds")
+    input_cell(ws, "B18")
+
+    # Branch B: eigen regeling
+    plain(ws, "A20", "Bij BPF = Nee (eigen pensioenregeling)",
+          font=Font(name="Calibri", size=10, bold=True, color="1F3864"))
+    label(ws, 21, "Premie werknemer (%)")
+    input_cell(ws, "B21")
+    label(ws, 22, "Premie werkgever (%)")
+    input_cell(ws, "B22")
+    label(ws, 23, "Franchise (EUR per jaar)")
+    input_cell(ws, "B23",
+               comment="Bedrag waarover GEEN pensioen wordt opgebouwd. Bij BPF: leeglaten. Bij twijfel: vraag uw pensioenadviseur.")
+    label(ws, 24, "Maximum pensioengevend jaarloon (EUR)")
+    input_cell(ws, "B24",
+               comment="Wettelijk maximum 2025: circa EUR 137.800. Laat leeg voor 'geen maximum'.")
+    label(ws, 25, "Minimum leeftijd voor pensioenopbouw")
+    input_cell(ws, "B25", default=21, is_default=True)
+    label(ws, 26, "Maximum leeftijd voor pensioenopbouw")
+    input_cell(ws, "B26", default="AOW-leeftijd", is_default=True,
+               comment="Standaard tot AOW-leeftijd. Wijzig alleen als uw regeling anders bepaalt.")
+
+    subheader(ws, 28, "Aanvullende regelingen")
+    label(ws, 29, "Heeft u aanvullende regelingen?", required=True)
+    dropdown(ws, "B29", "val_JaNee", required=True, default="Nee", is_default=True,
+             comment="Denk aan WGA-hiaatverzekering, pensioen-excedent, netto pensioen, WIA-bodem. Bij 'Ja': uw consultant neemt dit mondeling met u door. Wij vragen hier geen details.")
+
+    subheader(ws, 31, "Geavanceerd (optioneel) - Individueel Keuzebudget (IKB)")
+    label(ws, 32, "IKB-toggle")
+    dropdown(ws, "B32", "val_Toggle", default="Basis", is_default=True,
+             comment="Kies 'Uitgebreid' als u een IKB-regeling heeft. Kies 'Basis' om IKB-velden te negeren.")
+    label(ws, 33, "IKB-percentage")
+    input_cell(ws, "B33", is_default=True,
+               comment="Alleen invullen bij toggle = 'Uitgebreid'.")
+    label(ws, 34, "IKB-referentieperiode van")
+    input_cell(ws, "B34", is_default=True,
+               comment="Alleen invullen bij toggle = 'Uitgebreid'.")
+    label(ws, 35, "IKB-referentieperiode tot en met")
+    input_cell(ws, "B35", is_default=True,
+               comment="Alleen invullen bij toggle = 'Uitgebreid'.")
+    label(ws, 36, "IKB-uitbetaalmaand")
+    dropdown(ws, "B36", "val_Maand", is_default=True,
+             comment="Alleen invullen bij toggle = 'Uitgebreid'.")
+
+    opmerkingen_block(ws, 38)
+
+
+# --- 5. Verlof & Grootboek ---
+def build_verlof_gl(wb):
+    ws = wb["5. Verlof & Grootboek"]
+
+    subheader(ws, 3, "Wettelijke verlofregelingen (WAZO)")
+
+    # Table header
+    hdr_cells = [("A4", "Soort verlof"), ("B4", "Doorbetaald %"),
+                 ("C4", "Pensioenopbouw"), ("D4", "Vakantiegeld-opbouw")]
+    for coord, text in hdr_cells:
+        c = ws[coord]
+        c.value = text
+        c.font = Font(name="Calibri", size=11, bold=True, color="1F3864")
+        c.fill = SUBHEADER_FILL
+        c.alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[4].height = 22
+
+    wazo_rows = [
+        ("Geboorteverlof (1 week)", 100, "Ja", "Ja"),
+        ("Aanvullend geboorteverlof (5 weken)", 70, "Ja", "Nee"),
+        ("Betaald ouderschapsverlof (9 weken)", 70, "Ja", "Nee"),
+        ("Onbetaald ouderschapsverlof", 0, "Nee", "Nee"),
+        ("Kortdurend zorgverlof", 70, "Ja", "Ja"),
+        ("Langdurig zorgverlof", 0, "Nee", "Nee"),
+        ("Onbetaald verlof (algemeen)", 0, "Nee", "Nee"),
+    ]
+    for i, (naam, pct, pens, vak) in enumerate(wazo_rows):
+        r = 5 + i
+        c = ws.cell(row=r, column=1, value=naam)
+        c.font = BASE_FONT
+        c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
+        input_cell(ws, f"B{r}", default=pct, is_default=True)
+        ws[f"B{r}"].alignment = Alignment(horizontal="center", vertical="center")
+        dropdown(ws, f"C{r}", "val_JaNee", default=pens, is_default=True)
+        ws[f"C{r}"].alignment = Alignment(horizontal="center", vertical="center")
+        dropdown(ws, f"D{r}", "val_JaNee", default=vak, is_default=True)
+        ws[f"D{r}"].alignment = Alignment(horizontal="center", vertical="center")
+
+    footnote(ws, 13,
+             "Defaults = wettelijk minimum. Overschrijf indien uw CAO gunstigere voorwaarden biedt.")
+
+    subheader(ws, 15, "Grootboek-export (journaalpost)")
+    label(ws, 16, "Financieel systeem", required=True)
+    dropdown(ws, "B16", "val_FinSysteem", required=True,
+             comment="Kies uw financiele pakket. Kies 'Anders' als uw pakket er niet bij staat - wij nemen dan contact op.")
+    label(ws, 17, "Bestandsformaat export", required=True)
+    dropdown(ws, "B17", "val_Formaat", required=True,
+             comment="Meestgebruikt: CSV of XML. Exact Online: XML. AFAS: XML of CSV.")
+    label(ws, 18, "Journaalpost per kostenplaats splitsen?", required=True)
+    dropdown(ws, "B18", "val_JaNee", required=True, default="Nee", is_default=True,
+             comment="Kies 'Ja' als u per afdeling / kostenplaats gesplitste boekingen wilt.")
+
+    ws.merge_cells("A20:H22")
+    c = ws["A20"]
+    c.value = ("Stuur uw GROOTBOEKSCHEMA + een recente JOURNAALPOST als bijlage mee "
+               "(zie bijlagen-checklist op Start). Wij mappen uw looncomponenten hieraan - "
+               "u hoeft hier geen aparte kolommen op te geven.")
+    c.font = BASE_FONT
+    c.fill = PatternFill("solid", fgColor="FFF8E7")
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True, indent=1)
+    c.border = BORDER_INPUT
+
+    opmerkingen_block(ws, 24)
+
+
+# --- 6. Akkoord ---
+def build_akkoord(wb):
+    ws = wb["6. Akkoord"]
+
+    ws.merge_cells("A3:H5")
+    c = ws["A3"]
+    c.value = ("Hierbij verklaart ondergetekende dat de inrichting van Cobra conform de gegevens "
+               "in dit inventarisatiedocument is uitgevoerd en geeft akkoord op de onderstaande punten.")
+    c.font = BASE_FONT
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True, indent=1)
+
+    subheader(ws, 7, "Ondertekening")
+    label(ws, 8, "Naam klant / bedrijf", required=True)
+    input_cell(ws, "B8", required=True)
+    label(ws, 9, "Naam ondertekenaar (contactpersoon)", required=True)
+    input_cell(ws, "B9", required=True)
+    label(ws, 10, "Functie ondertekenaar")
+    input_cell(ws, "B10")
+    label(ws, 11, "Datum", required=True)
+    input_cell(ws, "B11", required=True, comment="Formaat: DD-MM-JJJJ")
+    label(ws, 12, "Handtekening", required=True)
+    ws.row_dimensions[12].height = 60
+    input_cell(ws, "B12", required=True)
+
+    subheader(ws, 14, "Akkoordverklaringen")
+    label(ws, 15, "Akkoord met de Cobra-setup zoals beschreven in dit document", required=True)
+    dropdown(ws, "B15", "val_JaNee", required=True)
+    label(ws, 16, "Akkoord met de schaduwverwerking(en)", required=True)
+    dropdown(ws, "B16", "val_JaNee", required=True)
+
+    opmerkingen_block(ws, 18)
+
+
 # --- Progress formula wiring ---
 def wire_progress(wb):
     ws = wb["Start"]
@@ -496,6 +672,9 @@ def build():
     build_bedrijf(wb)
     build_payroll(wb)
     build_loonheffing(wb)
+    build_reserveringen(wb)
+    build_verlof_gl(wb)
+    build_akkoord(wb)
     wire_progress(wb)
     os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
     wb.save(OUTPUT)
