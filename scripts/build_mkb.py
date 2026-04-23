@@ -2,10 +2,12 @@
 Builder for Payroll Discovery Document MKB (v2, Dutch-only).
 Phased build.
 Phase 5 status: all 7 content sheets filled.
+Phase 8 status: SD Worx branding applied (logo, brand palette, refined layout).
 """
 import os
 from openpyxl import Workbook
 from openpyxl.comments import Comment
+from openpyxl.drawing.image import Image
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Protection, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.workbook.defined_name import DefinedName
@@ -13,23 +15,44 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.properties import PageSetupProperties
 
 OUTPUT = "/home/user/nicksSDWorx/outputs/Payroll_Discovery_Document_MKB.xlsx"
+LOGO_PATH = "/home/user/nicksSDWorx/assets/sdworx_logo_fc_crop.png"
 
-# --- Styling constants ---
-HEADER_FILL = PatternFill("solid", fgColor="1F3864")
-SUBHEADER_FILL = PatternFill("solid", fgColor="D9E1F2")
-INPUT_FILL = PatternFill("solid", fgColor="FFF2CC")
-DEFAULT_FILL = PatternFill("solid", fgColor="F2F2F2")
+# --- SD Worx brand palette ---
+BRAND_NAVY = "203040"
+BRAND_RED = "E01030"
+BRAND_YELLOW = "F0B000"
+BRAND_BLUE = "5080A0"
+BRAND_NAVY_SOFT = "3B4B64"
+PAGE_BG = "FFFFFF"
+SUB_FILL_HEX = "E8ECF2"
+INPUT_FILL_HEX = "FFF4D1"
+DEFAULT_FILL_HEX = "F4F5F7"
+INFO_FILL_HEX = "FFF8E2"
+BORDER_GREY = "C5CCD6"
+HELP_GREY = "6B7684"
+DEFAULT_TEXT = "5F6B7A"
 
-HEADER_FONT = Font(name="Calibri", size=16, bold=True, color="FFFFFF")
-SUBHEADER_FONT = Font(name="Calibri", size=12, bold=True, color="1F3864")
-BASE_FONT = Font(name="Calibri", size=11)
-LABEL_FONT = Font(name="Calibri", size=11)
-REQ_FONT = Font(name="Calibri", size=11, color="C00000", bold=True)
-HELP_FONT = Font(name="Calibri", size=9, italic=True, color="7F7F7F")
-DEFAULT_FONT = Font(name="Calibri", size=11, italic=True, color="595959")
-INTRO_FONT = Font(name="Calibri", size=11)
+# --- Fills ---
+HEADER_FILL = PatternFill("solid", fgColor=PAGE_BG)
+ACCENT_STRIPE_FILL = PatternFill("solid", fgColor=BRAND_YELLOW)
+SUBHEADER_FILL = PatternFill("solid", fgColor=SUB_FILL_HEX)
+INPUT_FILL = PatternFill("solid", fgColor=INPUT_FILL_HEX)
+DEFAULT_FILL = PatternFill("solid", fgColor=DEFAULT_FILL_HEX)
+INFO_FILL = PatternFill("solid", fgColor=INFO_FILL_HEX)
 
-THIN = Side(border_style="thin", color="BFBFBF")
+# --- Fonts ---
+HEADER_FONT = Font(name="Calibri", size=18, bold=True, color=BRAND_NAVY)
+SUBHEADER_FONT = Font(name="Calibri", size=12, bold=True, color=BRAND_NAVY)
+BASE_FONT = Font(name="Calibri", size=11, color=BRAND_NAVY)
+LABEL_FONT = Font(name="Calibri", size=11, color=BRAND_NAVY)
+REQ_FONT = Font(name="Calibri", size=11, color=BRAND_NAVY, bold=False)
+REQ_STAR_FONT = Font(name="Calibri", size=11, color=BRAND_RED, bold=True)
+HELP_FONT = Font(name="Calibri", size=9, italic=True, color=HELP_GREY)
+DEFAULT_FONT = Font(name="Calibri", size=11, italic=True, color=DEFAULT_TEXT)
+INTRO_FONT = Font(name="Calibri", size=11, color=BRAND_NAVY)
+INTRO_BOLD_FONT = Font(name="Calibri", size=12, bold=True, color=BRAND_NAVY)
+
+THIN = Side(border_style="thin", color=BORDER_GREY)
 BORDER_INPUT = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
 UNLOCKED = Protection(locked=False)
@@ -138,13 +161,26 @@ def setup_sheet(ws, title):
     ws.column_dimensions["A"].width = 42
     for col in ("B", "C", "D", "E", "F", "G", "H"):
         ws.column_dimensions[col].width = 28
+    # Branded header: white background, logo top-left, title right
     ws.merge_cells("A1:H1")
     c = ws["A1"]
     c.value = title
     c.fill = HEADER_FILL
     c.font = HEADER_FONT
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    ws.row_dimensions[1].height = 32
+    c.alignment = Alignment(horizontal="right", vertical="center", indent=2)
+    ws.row_dimensions[1].height = 55
+    # Accent stripe row 2 (brand yellow) as a thin divider
+    for col_idx in range(1, 9):
+        cell = ws.cell(row=2, column=col_idx)
+        cell.fill = ACCENT_STRIPE_FILL
+    ws.row_dimensions[2].height = 4
+    # Embed logo anchored to A1 (floats left within header row)
+    img = Image(LOGO_PATH)
+    img.width = 190
+    img.height = 63
+    img.anchor = "A1"
+    ws.add_image(img)
+    # View + print
     ws.sheet_view.showGridLines = False
     ws.page_setup.orientation = "landscape"
     ws.page_setup.fitToWidth = 1
@@ -152,6 +188,10 @@ def setup_sheet(ws, title):
     ws.page_setup.paperSize = ws.PAPERSIZE_A4
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.print_options.horizontalCentered = True
+    ws.page_margins.left = 0.4
+    ws.page_margins.right = 0.4
+    ws.page_margins.top = 0.5
+    ws.page_margins.bottom = 0.5
     ws.protection.sheet = True
 
 
@@ -161,14 +201,23 @@ def subheader(ws, row, text, span=8):
     c.fill = SUBHEADER_FILL
     c.font = SUBHEADER_FONT
     c.alignment = Alignment(horizontal="left", vertical="center", indent=1)
-    ws.row_dimensions[row].height = 22
+    c.border = Border(left=Side(border_style="thick", color=BRAND_YELLOW))
+    ws.row_dimensions[row].height = 24
 
 
 def label(ws, row, text, required=False, col=1):
-    display = (text + " *") if required else text
-    c = ws.cell(row=row, column=col, value=display)
-    c.font = REQ_FONT if required else LABEL_FONT
+    from openpyxl.cell.rich_text import CellRichText, TextBlock
+    from openpyxl.cell.text import InlineFont
+    c = ws.cell(row=row, column=col)
+    if required:
+        navy = InlineFont(rFont="Calibri", sz=11, color=BRAND_NAVY)
+        red = InlineFont(rFont="Calibri", sz=11, b=True, color=BRAND_RED)
+        c.value = CellRichText([TextBlock(navy, text), TextBlock(red, "  *")])
+    else:
+        c.value = text
+    c.font = LABEL_FONT
     c.alignment = Alignment(horizontal="right", vertical="center", indent=1)
+    ws.row_dimensions[row].height = max(ws.row_dimensions[row].height or 18, 18)
 
 
 def plain(ws, coord, text, font=None, alignment=None):
@@ -458,7 +507,7 @@ def build_loonheffing(wb):
         "en eventueel eigenrisicodragerschap in de inrichting."
     )
     c.font = BASE_FONT
-    c.fill = PatternFill("solid", fgColor="FFF8E7")
+    c.fill = INFO_FILL
     c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True, indent=1)
     c.border = BORDER_INPUT
 
@@ -601,7 +650,7 @@ def build_verlof_gl(wb):
                "(zie bijlagen-checklist op Start). Wij mappen uw looncomponenten hieraan - "
                "u hoeft hier geen aparte kolommen op te geven.")
     c.font = BASE_FONT
-    c.fill = PatternFill("solid", fgColor="FFF8E7")
+    c.fill = INFO_FILL
     c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True, indent=1)
     c.border = BORDER_INPUT
 

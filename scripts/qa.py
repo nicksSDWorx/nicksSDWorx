@@ -76,7 +76,7 @@ def main():
                 if c.protection.locked is False and c.fill and c.fill.fgColor:
                     rgb = c.fill.fgColor.rgb if c.fill.fgColor else None
                     # Count only yellow (input) cells, not grey defaults not merged areas
-                    if rgb in ("00FFF2CC", "FFFFF2CC"):
+                    if rgb in ("00FFF4D1", "FFFFF4D1", "00FFF2CC", "FFFFF2CC"):
                         input_count += 1
     total_unlocked = 0
     for sn in wb.sheetnames:
