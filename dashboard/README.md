@@ -12,12 +12,20 @@ into a local `repo/` folder, groups them by first-level subdirectory, and
 launches them through a configurable per-extension handler table.
 
 Each first-level subdirectory is shown as **one** tile: the dashboard
-picks a single entry file per folder (`<folder>.py`, `main.*`, `app.*`,
-`run.*`, `start.*`, `launch.*`, `index.*`, or — if there's only one
-executable in the root — that one). Supporting files (READMEs, data,
-helpers, assets) still sync to disk so the tool can use them, but stay
-invisible in the UI. Folders with no detectable entry file don't appear
-at all.
+walks the folder recursively (skipping `IGNORE_DIRS` plus `_internal/`
+so PyInstaller bundles don't flood the UI with helper EXEs) and picks
+the single entry file:
+
+1. a file whose stem matches the folder name (e.g.
+   `BrokenURLFinder/dist/.../Broken_URL_Finder.exe`);
+2. a file named `main.*`, `app.*`, `run.*`, `start.*`, `launch.*`, or
+   `index.*`;
+3. otherwise, the lone executable in the whole subtree, preferring a
+   single `.exe` if multiple file types coexist.
+
+Supporting files (READMEs, data, helpers, assets) still sync to disk
+so the tool can use them but stay invisible in the UI. Folders with
+no detectable entry file don't appear at all.
 
 ## How it works
 
@@ -144,19 +152,20 @@ folder and writes everything under it to `<target>/` on the configured
 branch as a single commit (Git Data API: blobs → tree → commit → update
 ref). Flow:
 
-1. Set a Personal Access Token with the `repo` scope in the
-   `GITHUB_TOKEN` environment variable, *before* launching the dashboard
-   (Windows: `setx GITHUB_TOKEN <pat>`, then open a new shell).
-2. Click **Map kiezen**, pick a local folder. The status line shows the
-   file count and total size.
+1. Provide a Personal Access Token with the `repo` scope. Either:
+   - paste it into **Settings → GitHub-authenticatie** (stored in
+     `settings.json`, which is in `.gitignore`), *or*
+   - export it as the `GITHUB_TOKEN` environment variable before
+     launching (Windows: `setx GITHUB_TOKEN <pat>`, open a new shell).
+     Settings wins over the environment variable.
+2. From the **Dashboard** tab click **Upload** (or open **GitHub** and
+   click **Map kiezen**) and pick a local folder. The status line shows
+   the file count and total size.
 3. Adjust **Doelmap in repo** and **Commit-bericht** if needed. The
    target folder defaults to the local folder's name.
 4. Click **Push nu**. Progress streams into the log. On success the
    dashboard automatically runs **Sync nu** so the new folder appears as
    a tile.
-
-The token is read fresh on every push — it is never written to
-`settings.json` or any other file on disk.
 
 ## Troubleshooting
 

@@ -734,6 +734,7 @@
               <input id="searchInput" type="text" placeholder="Zoek tools op naam, beschrijving of categorie...">
             </div>
             <button class="btn" id="refreshBtn" title="Herlaad tools van schijf">Herlaad</button>
+            <button class="btn" id="uploadShortcut" title="Upload een map naar de repo">Upload</button>
             <button class="btn primary" id="syncShortcut">Sync repo</button>
           </div>
           <div id="toolsContainer"></div>
@@ -804,6 +805,31 @@
                 <span>SSL-certificaten verifi&euml;ren</span>
               </label>
               <span class="mono" id="sslHint" style="color:var(--text-faint);font-size:12px;"></span>
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>GitHub-authenticatie</h3>
+            <p class="hint">
+              Personal Access Token met <code>repo</code>-scope. Nodig om vanuit
+              het dashboard bestanden naar de repo te <b>pushen</b>. Lokaal
+              opgeslagen in <code>settings.json</code> (die staat in
+              <code>.gitignore</code> — wordt dus niet mee-gepusht).
+              Laat leeg om te vertrouwen op de omgevingsvariabele
+              <code>GITHUB_TOKEN</code>.
+            </p>
+            <div class="row" style="display:flex; gap:10px; align-items:end;">
+              <div class="field" style="flex:1;">
+                <label>Token</label>
+                <input type="password" id="ghToken" class="mono"
+                       autocomplete="off" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+              </div>
+              <button class="btn" type="button" id="ghTokenToggle" title="Toon/verberg">Toon</button>
+              <button class="btn primary" id="ghTokenSave">Opslaan</button>
+              <button class="btn" id="ghTokenClear">Wissen</button>
+            </div>
+            <div class="row" style="margin-top:6px;">
+              <span class="mono" id="ghTokenStatus" style="color: var(--text-faint); font-size: 12px;"></span>
             </div>
           </div>
 
@@ -1687,15 +1713,47 @@
     tick();
   }
 
-  function renderPushTokenHint() {
+  function renderTokenStatus(res) {
+    var hintParts;
+    if (res && res.present) {
+      hintParts = res.source === "env"
+        ? "Token via omgevingsvariabele GITHUB_TOKEN"
+        : "Token opgeslagen in settings.json";
+    } else {
+      hintParts = "Geen token ingesteld — pushen is uitgeschakeld.";
+    }
+    var hint = $("#pushTokenHint");
+    if (hint) hint.textContent = hintParts;
+    var status = $("#ghTokenStatus");
+    if (status) status.textContent = hintParts;
+  }
+
+  function refreshTokenStatus() {
+    var api = pyApi();
+    if (!api) return Promise.resolve();
+    return api.has_github_token().then(renderTokenStatus);
+  }
+
+  function saveGhToken() {
     var api = pyApi();
     if (!api) return;
-    api.has_github_token().then(function (res) {
-      if (res && res.present) {
-        $("#pushTokenHint").textContent = "GITHUB_TOKEN gevonden";
-      } else {
-        $("#pushTokenHint").textContent = "GITHUB_TOKEN niet ingesteld";
-      }
+    var val = ($("#ghToken").value || "").trim();
+    api.set_github_token(val).then(function (res) {
+      renderTokenStatus(res);
+      $("#ghToken").value = "";
+      toast(val ? "Token opgeslagen." : "Token gewist.");
+    }).catch(function (err) {
+      toast("Kon token niet opslaan: " + err.message, "error");
+    });
+  }
+
+  function clearGhToken() {
+    var api = pyApi();
+    if (!api) return;
+    api.set_github_token("").then(function (res) {
+      renderTokenStatus(res);
+      $("#ghToken").value = "";
+      toast("Token gewist.");
     });
   }
 
@@ -1732,6 +1790,29 @@
       e.target.value = "";
     });
     $("#pushBtn").addEventListener("click", startPush);
+
+    $("#uploadShortcut").addEventListener("click", function () {
+      showPage("github");
+      // Give the page a tick to become visible before popping the native dialog.
+      setTimeout(function () { $("#pushFolder").click(); }, 50);
+    });
+
+    $("#ghTokenSave").addEventListener("click", saveGhToken);
+    $("#ghTokenClear").addEventListener("click", clearGhToken);
+    $("#ghToken").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") saveGhToken();
+    });
+    $("#ghTokenToggle").addEventListener("click", function () {
+      var input = $("#ghToken");
+      var btn = $("#ghTokenToggle");
+      if (input.type === "password") {
+        input.type = "text";
+        btn.textContent = "Verberg";
+      } else {
+        input.type = "password";
+        btn.textContent = "Toon";
+      }
+    });
 
     $("#sslVerify").addEventListener("change", function (e) {
       var enabled = !!e.target.checked;
@@ -1778,9 +1859,8 @@
           renderRepoInfo();
         }),
         refreshTools(),
-      ]).then(function () {
-        renderPushTokenHint();
-      });
+        refreshTokenStatus(),
+      ]);
     });
   }
 

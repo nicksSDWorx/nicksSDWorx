@@ -207,32 +207,63 @@ def read_readme_description(folder: Path) -> str:
 def find_entry_file(folder: Path) -> Path | None:
     """Pick the single executable file that represents a tool-folder.
 
-    Rules, in order:
-      1. ``<folder>/<folder-name>.<ext>``  (e.g. ``myTool/myTool.py``)
-      2. ``<folder>/<known-stem>.<ext>``   (main, app, run, start, ...)
-      3. If exactly one executable sits in the folder root, pick it.
-    """
-    def _ok(path: Path) -> bool:
-        return (
-            path.is_file()
-            and path.suffix.lower() in TOOL_EXTENSIONS
-            and path.name not in IGNORE_FILES
-        )
+    Walks the full subtree (skipping ``IGNORE_DIRS`` plus ``_internal``,
+    which PyInstaller one-folder bundles fill with helper DLLs/EXEs we
+    shouldn't surface) and picks, in order:
 
-    for ext in TOOL_EXTENSIONS:
-        candidate = folder / f"{folder.name}{ext}"
-        if _ok(candidate):
-            return candidate
+      1. The file whose stem matches the folder name (case/punctuation
+         insensitive). Catches PyInstaller layouts like
+         ``BrokenURLFinder/dist/<bundle>/Broken_URL_Finder.exe``.
+      2. The file whose stem matches a known entry (main, app, run, ...).
+      3. If exactly one executable exists in the whole subtree, use it.
+      4. If exactly one ``.exe`` exists, use it (prefer a prebuilt binary
+         over scattered scripts).
+    """
+    ignore = IGNORE_DIRS | {"_internal"}
+    norm = lambda s: re.sub(r"[^a-z0-9]", "", s.lower())
+
+    executables: list[Path] = []
+    stack: list[Path] = [folder]
+    while stack:
+        current = stack.pop()
+        try:
+            children = list(current.iterdir())
+        except OSError:
+            continue
+        for p in children:
+            if p.is_dir():
+                if p.name not in ignore:
+                    stack.append(p)
+            elif (
+                p.is_file()
+                and p.suffix.lower() in TOOL_EXTENSIONS
+                and p.name not in IGNORE_FILES
+            ):
+                executables.append(p)
+
+    if not executables:
+        return None
+
+    # Prefer shallower paths when multiple candidates tie.
+    executables.sort(key=lambda p: (len(p.parts), p.as_posix().lower()))
+
+    norm_folder = norm(folder.name)
+    for p in executables:
+        if norm(p.stem) == norm_folder:
+            return p
 
     for stem in ENTRY_STEMS:
-        for ext in TOOL_EXTENSIONS:
-            candidate = folder / f"{stem}{ext}"
-            if _ok(candidate):
-                return candidate
+        for p in executables:
+            if p.stem.lower() == stem:
+                return p
 
-    roots = [p for p in folder.iterdir() if _ok(p)]
-    if len(roots) == 1:
-        return roots[0]
+    if len(executables) == 1:
+        return executables[0]
+
+    exe_only = [p for p in executables if p.suffix.lower() == ".exe"]
+    if len(exe_only) == 1:
+        return exe_only[0]
+
     return None
 
 
@@ -472,12 +503,16 @@ class GitHubPush:
             }
 
     def start(self, target_folder: str, files: list[dict], message: str) -> dict:
-        token = os.environ.get("GITHUB_TOKEN", "").strip()
+        settings = self._settings_provider() or {}
+        token = (settings.get("github_token") or "").strip()
+        if not token:
+            token = os.environ.get("GITHUB_TOKEN", "").strip()
         if not token:
             return {
                 "ok": False,
-                "error": "Stel de omgevingsvariabele GITHUB_TOKEN in met een "
-                         "Personal Access Token (scope: repo).",
+                "error": "Geen GitHub-token. Vul er een in bij Settings → "
+                         "GitHub-authenticatie, of zet de omgevingsvariabele "
+                         "GITHUB_TOKEN (scope: repo).",
             }
         target = (target_folder or "").strip().strip("/")
         if not target or not SAFE_FOLDER_RE.match(target):
@@ -868,7 +903,20 @@ class Api:
         return self.sync.status()
 
     def has_github_token(self) -> dict:
-        return {"present": bool(os.environ.get("GITHUB_TOKEN", "").strip())}
+        if (self.settings.get("github_token") or "").strip():
+            return {"present": True, "source": "settings"}
+        if os.environ.get("GITHUB_TOKEN", "").strip():
+            return {"present": True, "source": "env"}
+        return {"present": False, "source": None}
+
+    def set_github_token(self, token: str) -> dict:
+        token = (token or "").strip()
+        if token:
+            self.settings["github_token"] = token
+        else:
+            self.settings.pop("github_token", None)
+        save_settings(self.settings)
+        return self.has_github_token()
 
     def push_folder(self, target_folder: str, files, message: str) -> dict:
         return self.push.start(target_folder, files or [], message or "")
