@@ -591,12 +591,36 @@ class GitHubPush:
                         "Token ongeldig of verlopen. Vernieuw in Settings → "
                         "GitHub-authenticatie."
                     ) from exc
-                if exc.code == 403:
+                raise
+
+            # Preflight #2: verify this token can actually WRITE to the repo.
+            # Authenticated GET /repos/<o>/<r> returns a ``permissions`` block
+            # that tells us whether the token has push access. Catches the
+            # common "fine-grained PAT without Contents: Read/Write" case
+            # before we upload any blobs.
+            self._append(f"Preflight: schrijfrechten controleren op {GITHUB_OWNER}/{GITHUB_REPO}...")
+            try:
+                info = self._api("GET", base, None, token)
+            except urllib.error.HTTPError as exc:
+                if exc.code == 404:
                     raise RuntimeError(
-                        "Token is geldig maar mist de 'repo' scope. Maak een "
-                        "nieuw PAT met 'repo' scope aan."
+                        f"Repo {GITHUB_OWNER}/{GITHUB_REPO} niet vindbaar met deze token. "
+                        "Bij een fine-grained PAT moet je deze repo expliciet "
+                        "selecteren onder 'Repository access'."
                     ) from exc
                 raise
+            perms = (info or {}).get("permissions") or {}
+            if not perms.get("push"):
+                raise RuntimeError(
+                    "Token heeft geen schrijfrechten op "
+                    f"{GITHUB_OWNER}/{GITHUB_REPO}. Oplossing: "
+                    "bij een FINE-GRAINED PAT de permissie 'Contents: "
+                    "Read and write' aanzetten én deze repo kiezen onder "
+                    "'Repository access'. Bij een CLASSIC PAT de 'repo' "
+                    "scope aanvinken. Maak daarna een nieuwe token aan en "
+                    "zet die in Settings → GitHub-authenticatie."
+                )
+            self._append("Schrijfrechten ok.")
 
             ref = self._api("GET", f"{base}/git/ref/heads/{BRANCH}", None, token)
             base_sha = ref["object"]["sha"]
@@ -643,12 +667,33 @@ class GitHubPush:
                 body = exc.read().decode("utf-8", errors="replace")
             except Exception:
                 body = ""
-            err_msg = f"GitHub HTTP {exc.code} — {exc.reason}"
+            # Prefer GitHub's own message (it's precise and actionable).
+            gh_msg = ""
+            try:
+                gh_msg = (json.loads(body) or {}).get("message", "")
+            except Exception:
+                pass
+
+            # The specific "fine-grained PAT without Contents:Write" signature
+            # — map it to a concrete fix. GitHub returns this on 403 during
+            # write ops even when /user and /repos both succeed (e.g. when
+            # the token was just downgraded, or org SSO lapsed).
+            if exc.code == 403 and "not accessible by personal access token" in gh_msg.lower():
+                err_msg = (
+                    "Token mag niet schrijven naar deze repo. "
+                    "Fine-grained PAT: zet 'Contents: Read and write' aan en "
+                    "voeg deze repo toe aan 'Repository access'. Classic PAT: "
+                    "vink de 'repo' scope aan. Herlaad daarna de token in "
+                    "Settings → GitHub-authenticatie."
+                )
+            elif exc.code == 401:
+                err_msg = "Token ongeldig of verlopen. Vernieuw in Settings → GitHub-authenticatie."
+            else:
+                err_msg = f"GitHub HTTP {exc.code} — {gh_msg or exc.reason}"
+
             self._append(f"FOUT: {err_msg}")
-            if body:
+            if body and body.strip() != gh_msg:
                 self._append(body[:500])
-            if exc.code in (401, 403):
-                self._append("! Check token-geldigheid en 'repo' scope.")
         except urllib.error.URLError as exc:
             reason = str(exc.reason)
             err_msg = f"Kan GitHub niet bereiken ({reason})"
