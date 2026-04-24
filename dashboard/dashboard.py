@@ -488,6 +488,7 @@ class GitHubPush:
         self._success = False
         self._started_at = 0.0
         self._ssl_ctx: ssl.SSLContext | None = None
+        self._error: str = ""
 
     def _append(self, line: str) -> None:
         with self._lock:
@@ -500,6 +501,7 @@ class GitHubPush:
                 "done": self._done,
                 "success": self._success,
                 "log": list(self._log),
+                "error": self._error,
             }
 
     def start(self, target_folder: str, files: list[dict], message: str) -> dict:
@@ -536,6 +538,7 @@ class GitHubPush:
             if self._running:
                 return {"ok": False, "error": "Push is al bezig."}
             self._log = []
+            self._error = ""
             self._running = True
             self._done = False
             self._success = False
@@ -565,6 +568,7 @@ class GitHubPush:
 
     def _run(self, token: str, target: str, files: list[dict], message: str) -> None:
         ok = False
+        err_msg = ""
         try:
             settings = self._settings_provider() or {}
             verify = bool(settings.get("ssl_verify", True))
@@ -573,6 +577,26 @@ class GitHubPush:
             base = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
             self._append(f"Start push naar {GITHUB_OWNER}/{GITHUB_REPO}@{BRANCH}")
             self._append(f"Doelmap: {target}  ({len(files)} bestanden)")
+
+            # Preflight: verify the token works at all before we spend time
+            # base64-ing blobs. GitHub returns 401 for bad tokens and 403 for
+            # tokens missing the ``repo`` scope.
+            self._append("Preflight: token controleren via /user...")
+            try:
+                who = self._api("GET", "https://api.github.com/user", None, token)
+                self._append(f"Token ok (user: {who.get('login', '?')})")
+            except urllib.error.HTTPError as exc:
+                if exc.code == 401:
+                    raise RuntimeError(
+                        "Token ongeldig of verlopen. Vernieuw in Settings → "
+                        "GitHub-authenticatie."
+                    ) from exc
+                if exc.code == 403:
+                    raise RuntimeError(
+                        "Token is geldig maar mist de 'repo' scope. Maak een "
+                        "nieuw PAT met 'repo' scope aan."
+                    ) from exc
+                raise
 
             ref = self._api("GET", f"{base}/git/ref/heads/{BRANCH}", None, token)
             base_sha = ref["object"]["sha"]
@@ -619,26 +643,31 @@ class GitHubPush:
                 body = exc.read().decode("utf-8", errors="replace")
             except Exception:
                 body = ""
-            self._append(f"FOUT: HTTP {exc.code} — {exc.reason}")
+            err_msg = f"GitHub HTTP {exc.code} — {exc.reason}"
+            self._append(f"FOUT: {err_msg}")
             if body:
                 self._append(body[:500])
             if exc.code in (401, 403):
-                self._append("! Check of GITHUB_TOKEN geldig is en 'repo' scope heeft.")
+                self._append("! Check token-geldigheid en 'repo' scope.")
         except urllib.error.URLError as exc:
             reason = str(exc.reason)
-            self._append(f"FOUT: kan GitHub niet bereiken ({reason}).")
+            err_msg = f"Kan GitHub niet bereiken ({reason})"
+            self._append(f"FOUT: {err_msg}.")
             if "CERTIFICATE_VERIFY_FAILED" in reason or "SSL" in reason.upper():
                 self._append(
                     "! Corporate SSL-proxy? Zet in Settings \"SSL-certificaten "
                     "verifiëren\" uit en probeer opnieuw."
                 )
         except Exception as exc:  # noqa: BLE001
-            self._append(f"FOUT: {exc}")
+            err_msg = str(exc) or exc.__class__.__name__
+            self._append(f"FOUT: {err_msg}")
         finally:
             with self._lock:
                 self._running = False
                 self._done = True
                 self._success = ok
+                if not ok and not self._error:
+                    self._error = err_msg or "Onbekende fout — zie log."
 
 
 # ---------------------------------------------------------------------------

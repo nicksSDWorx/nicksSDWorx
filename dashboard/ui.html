@@ -771,9 +771,12 @@
               Vereist de omgevingsvariabele <code>GITHUB_TOKEN</code> met <code>repo</code>-scope.
             </p>
             <input type="file" id="pushFolder" webkitdirectory directory multiple hidden>
+            <input type="file" id="pushFiles" multiple hidden>
             <div class="row">
               <button class="btn" id="pickFolderBtn">Map kiezen</button>
-              <span class="mono" id="pushSelection" style="color: var(--text-dim); font-size: 12px;">Geen map gekozen.</span>
+              <button class="btn" id="pickFilesBtn">Bestand(en) kiezen</button>
+              <button class="btn" id="pushClearBtn" title="Selectie wissen">Wissen</button>
+              <span class="mono" id="pushSelection" style="color: var(--text-dim); font-size: 12px;">Geen selectie.</span>
             </div>
             <div class="row" style="margin-top:10px; display:flex; gap:10px; align-items:end;">
               <div class="field" style="flex:1;">
@@ -1612,14 +1615,31 @@
     });
   }
 
-  function onFolderChosen(fileList) {
+  function clearPushSelection() {
+    state.pushFiles = [];
+    state.pushFolderName = "";
+    state.pushBytes = 0;
+    $("#pushSelection").textContent = "Geen selectie.";
+    $("#pushBtn").disabled = true;
+  }
+
+  function onFilesChosen(fileList, mode, opts) {
     var files = Array.prototype.slice.call(fileList || []);
     if (!files.length) return;
+    opts = opts || {};
 
-    // The first path segment is the chosen folder's own name; strip it so
-    // paths in the commit are relative to the folder root.
-    var firstPath = (files[0].webkitRelativePath || files[0].name || "").replace(/\\/g, "/");
-    var rootName = firstPath.split("/")[0] || "upload";
+    // When webkitdirectory was used, the first path segment is the chosen
+    // folder's own name. For a plain file-picker webkitRelativePath is "",
+    // so every file lives at the root of a synthetic folder.
+    var rootName;
+    if (mode === "folder") {
+      var firstPath = (files[0].webkitRelativePath || files[0].name || "").replace(/\\/g, "/");
+      rootName = firstPath.split("/")[0] || "upload";
+    } else {
+      rootName = files.length === 1
+        ? (files[0].name.replace(/\.[^.]+$/, "") || "upload")
+        : "uploads";
+    }
 
     $("#pushSelection").textContent = "laden...";
     $("#pushBtn").disabled = true;
@@ -1627,10 +1647,8 @@
     Promise.all(files.map(function (f) {
       return readFileAsBase64(f).then(function (b64) {
         var rel = (f.webkitRelativePath || f.name || "").replace(/\\/g, "/");
-        // Remove the root-folder segment so the server places files under
-        // the user-chosen target instead of duplicating the folder name.
         var parts = rel.split("/");
-        if (parts[0] === rootName) parts.shift();
+        if (mode === "folder" && parts[0] === rootName) parts.shift();
         return { path: parts.join("/") || f.name, content_b64: b64, size: f.size };
       });
     })).then(function (prepared) {
@@ -1638,23 +1656,36 @@
       state.pushFolderName = rootName;
       state.pushBytes = prepared.reduce(function (a, f) { return a + (f.size || 0); }, 0);
 
-      $("#pushSelection").textContent =
-        rootName + " (" + prepared.length + " bestand" +
-        (prepared.length === 1 ? "" : "en") + ", " + fmtBytes(state.pushBytes) + ")";
+      var label = (mode === "folder" ? rootName + " / " : "") +
+          prepared.length + " bestand" + (prepared.length === 1 ? "" : "en") +
+          ", " + fmtBytes(state.pushBytes);
+      $("#pushSelection").textContent = label;
       if (!$("#pushTarget").value) $("#pushTarget").value = rootName;
       if (!$("#pushMessage").value) $("#pushMessage").value = "Update " + rootName + " via dashboard";
       $("#pushBtn").disabled = false;
+
+      if (opts.autoPush) {
+        // Give the UI one paint so the user sees what's about to happen.
+        setTimeout(startPush, 50);
+      }
     }).catch(function (err) {
-      toast("Kon map niet inlezen: " + err.message, "error");
+      toast("Kon bestanden niet inlezen: " + (err && err.message || err), "error");
       $("#pushSelection").textContent = "Fout bij inlezen.";
     });
+  }
+
+  function setPushControlsDisabled(disabled) {
+    $("#pushBtn").disabled = disabled;
+    $("#pickFolderBtn").disabled = disabled;
+    $("#pickFilesBtn").disabled = disabled;
+    $("#pushClearBtn").disabled = disabled;
   }
 
   function startPush() {
     var api = pyApi();
     if (!api) return;
     if (!state.pushFiles.length) {
-      toast("Kies eerst een map.", "error");
+      toast("Kies eerst bestanden of een map.", "error");
       return;
     }
     var target = ($("#pushTarget").value || "").trim();
@@ -1664,8 +1695,9 @@
     }
     var message = ($("#pushMessage").value || "").trim();
 
-    $("#pushBtn").disabled = true;
-    $("#pickFolderBtn").disabled = true;
+    // Make sure the GitHub page is visible so the log is in view.
+    showPage("github");
+    setPushControlsDisabled(true);
     $("#pushState").textContent = "bezig...";
     // Strip size before sending — not needed server-side.
     var payload = state.pushFiles.map(function (f) {
@@ -1673,13 +1705,19 @@
     });
     api.push_folder(target, payload, message).then(function (res) {
       if (!res || !res.ok) {
-        toast((res && res.error) || "Kon upload niet starten.", "error");
-        $("#pushBtn").disabled = false;
-        $("#pickFolderBtn").disabled = false;
-        $("#pushState").textContent = "";
+        var err = (res && res.error) || "Kon upload niet starten.";
+        toast(err, "error");
+        setPushControlsDisabled(false);
+        $("#pushState").textContent = "mislukt";
+        // Surface the error in the log too so it sticks on screen.
+        renderPushLog(["FOUT: " + err]);
         return;
       }
       pollPush();
+    }, function (err) {
+      toast("Netwerkfout: " + (err && err.message || err), "error");
+      setPushControlsDisabled(false);
+      $("#pushState").textContent = "mislukt";
     });
   }
 
@@ -1694,20 +1732,25 @@
           setTimeout(tick, 400);
         } else {
           state.pushPolling = false;
-          $("#pushBtn").disabled = false;
-          $("#pickFolderBtn").disabled = false;
+          setPushControlsDisabled(false);
           if (st.done) {
             if (st.success) {
               $("#pushState").textContent = "klaar";
-              toast("Upload voltooid.");
+              toast("Upload voltooid — repo wordt gesynchroniseerd.");
+              clearPushSelection();
               // Sync back so the freshly-pushed folder appears as a tile.
               startSync();
             } else {
-              $("#pushState").textContent = "mislukt";
-              toast("Upload mislukt. Zie log.", "error");
+              var err = st.error || "Zie log voor details.";
+              $("#pushState").textContent = "mislukt: " + err;
+              toast("Upload mislukt: " + err, "error");
             }
           }
         }
+      }, function (err) {
+        state.pushPolling = false;
+        setPushControlsDisabled(false);
+        toast("Kon status niet ophalen: " + (err && err.message || err), "error");
       });
     };
     tick();
@@ -1781,20 +1824,39 @@
       startSync();
     });
 
+    // Mark the *next* selection as auto-push so the upload shortcut on the
+    // dashboard becomes a true one-click experience.
+    var nextPickAutoPushes = false;
+
     $("#pickFolderBtn").addEventListener("click", function () {
+      nextPickAutoPushes = false;
       $("#pushFolder").click();
     });
+    $("#pickFilesBtn").addEventListener("click", function () {
+      nextPickAutoPushes = false;
+      $("#pushFiles").click();
+    });
     $("#pushFolder").addEventListener("change", function (e) {
-      onFolderChosen(e.target.files);
-      // Allow re-picking the same folder later.
+      var auto = nextPickAutoPushes; nextPickAutoPushes = false;
+      onFilesChosen(e.target.files, "folder", { autoPush: auto });
       e.target.value = "";
     });
+    $("#pushFiles").addEventListener("change", function (e) {
+      var auto = nextPickAutoPushes; nextPickAutoPushes = false;
+      onFilesChosen(e.target.files, "files", { autoPush: auto });
+      e.target.value = "";
+    });
+    $("#pushClearBtn").addEventListener("click", clearPushSelection);
     $("#pushBtn").addEventListener("click", startPush);
 
     $("#uploadShortcut").addEventListener("click", function () {
+      // Show the GitHub tab first so the log is visible during the push,
+      // then trigger the picker. The click is forwarded synchronously
+      // within this trusted-user-gesture handler so Chromium opens the
+      // native dialog without blocking it.
+      nextPickAutoPushes = true;
       showPage("github");
-      // Give the page a tick to become visible before popping the native dialog.
-      setTimeout(function () { $("#pushFolder").click(); }, 50);
+      $("#pushFiles").click();
     });
 
     $("#ghTokenSave").addEventListener("click", saveGhToken);
