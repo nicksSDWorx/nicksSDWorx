@@ -11,6 +11,14 @@ The app syncs all tools from
 into a local `repo/` folder, groups them by first-level subdirectory, and
 launches them through a configurable per-extension handler table.
 
+Each first-level subdirectory is shown as **one** tile: the dashboard
+picks a single entry file per folder (`<folder>.py`, `main.*`, `app.*`,
+`run.*`, `start.*`, `launch.*`, `index.*`, or — if there's only one
+executable in the root — that one). Supporting files (READMEs, data,
+helpers, assets) still sync to disk so the tool can use them, but stay
+invisible in the UI. Folders with no detectable entry file don't appear
+at all.
+
 ## How it works
 
 1. `dashboard.py` starts a tiny HTTP server on `127.0.0.1:<random port>`
@@ -128,6 +136,27 @@ Edit the `BRANCH` constant near the top of `dashboard.py`:
 ```python
 BRANCH = "main"
 ```
+
+## Uploading a folder to the repo
+
+The **GitHub** tab has an *Upload naar repo* panel. It takes a local
+folder and writes everything under it to `<target>/` on the configured
+branch as a single commit (Git Data API: blobs → tree → commit → update
+ref). Flow:
+
+1. Set a Personal Access Token with the `repo` scope in the
+   `GITHUB_TOKEN` environment variable, *before* launching the dashboard
+   (Windows: `setx GITHUB_TOKEN <pat>`, then open a new shell).
+2. Click **Map kiezen**, pick a local folder. The status line shows the
+   file count and total size.
+3. Adjust **Doelmap in repo** and **Commit-bericht** if needed. The
+   target folder defaults to the local folder's name.
+4. Click **Push nu**. Progress streams into the log. On success the
+   dashboard automatically runs **Sync nu** so the new folder appears as
+   a tile.
+
+The token is read fresh on every push — it is never written to
+`settings.json` or any other file on disk.
 
 ## Troubleshooting
 

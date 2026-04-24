@@ -7,8 +7,10 @@ native-desktop feel without requiring pywebview/pythonnet (and
 therefore compatible with every Python version, including 3.14).
 """
 
+import base64
 import json
 import os
+import re
 import shutil
 import socket
 import ssl
@@ -49,6 +51,11 @@ TOOL_EXTENSIONS = {".py", ".exe", ".bat", ".ps1", ".js", ".sh"}
 
 IGNORE_FILES = {"__init__.py", "setup.py", "requirements.txt", "utils.py", "helpers.py"}
 IGNORE_DIRS = {".git", "__pycache__", "venv", ".venv", "node_modules", ".github", "tests", "docs"}
+
+# Priority order for picking the single "entry" file inside a tool-folder.
+# Files that don't match are treated as supporting material (docs, data,
+# helpers) and stay invisible in the dashboard while still syncing to disk.
+ENTRY_STEMS = ("main", "app", "run", "start", "launch", "index")
 
 ICON_CYCLE = [
     "\u25C6", "\u25B2", "\u25CF", "\u2726", "\u2756",
@@ -197,6 +204,38 @@ def read_readme_description(folder: Path) -> str:
     return ""
 
 
+def find_entry_file(folder: Path) -> Path | None:
+    """Pick the single executable file that represents a tool-folder.
+
+    Rules, in order:
+      1. ``<folder>/<folder-name>.<ext>``  (e.g. ``myTool/myTool.py``)
+      2. ``<folder>/<known-stem>.<ext>``   (main, app, run, start, ...)
+      3. If exactly one executable sits in the folder root, pick it.
+    """
+    def _ok(path: Path) -> bool:
+        return (
+            path.is_file()
+            and path.suffix.lower() in TOOL_EXTENSIONS
+            and path.name not in IGNORE_FILES
+        )
+
+    for ext in TOOL_EXTENSIONS:
+        candidate = folder / f"{folder.name}{ext}"
+        if _ok(candidate):
+            return candidate
+
+    for stem in ENTRY_STEMS:
+        for ext in TOOL_EXTENSIONS:
+            candidate = folder / f"{stem}{ext}"
+            if _ok(candidate):
+                return candidate
+
+    roots = [p for p in folder.iterdir() if _ok(p)]
+    if len(roots) == 1:
+        return roots[0]
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Tool discovery
 # ---------------------------------------------------------------------------
@@ -244,18 +283,14 @@ def discover_tools() -> dict:
     for sub in sorted(REPO_DIR.iterdir(), key=lambda p: p.name.lower()):
         if not sub.is_dir() or sub.name in IGNORE_DIRS:
             continue
+        entry = find_entry_file(sub)
+        if entry is None:
+            # No obvious executable → treat folder as pure supporting
+            # material (docs, assets, ...) and hide it from the dashboard.
+            continue
         category_label = snake_to_title(sub.name)
         category_desc = read_readme_description(sub) or f"Tools in {category_label.lower()}."
-        for path in sorted(sub.rglob("*"), key=lambda p: p.as_posix().lower()):
-            if not path.is_file():
-                continue
-            if any(part in IGNORE_DIRS for part in path.relative_to(sub).parts[:-1]):
-                continue
-            if path.name in IGNORE_FILES:
-                continue
-            if path.suffix.lower() not in TOOL_EXTENSIONS:
-                continue
-            add_tool(sub.name, category_label, category_desc, path)
+        add_tool(sub.name, category_label, category_desc, entry)
 
     ordered = []
     if CATEGORY_FALLBACK in groups:
@@ -389,6 +424,178 @@ class GitHubSync:
                 self._append(
                     "! Corporate SSL-proxy gedetecteerd. Zet in settings.json "
                     "\"ssl_verify\": false en probeer opnieuw."
+                )
+        except Exception as exc:  # noqa: BLE001
+            self._append(f"FOUT: {exc}")
+        finally:
+            with self._lock:
+                self._running = False
+                self._done = True
+                self._success = ok
+
+
+# ---------------------------------------------------------------------------
+# GitHub push (upload local folder as a single commit)
+# ---------------------------------------------------------------------------
+
+SAFE_FOLDER_RE = re.compile(r"^[A-Za-z0-9._][A-Za-z0-9._ \-]{0,127}$")
+
+
+class GitHubPush:
+    """Uploads a local folder to the repo as a single commit via the
+    Git Data API (blobs → tree → commit → update ref). All files land
+    under ``<target_folder>/`` on the configured branch.
+    """
+
+    def __init__(self, settings_provider):
+        self._settings_provider = settings_provider
+        self._thread: threading.Thread | None = None
+        self._lock = threading.Lock()
+        self._log: list[str] = []
+        self._running = False
+        self._done = False
+        self._success = False
+        self._started_at = 0.0
+        self._ssl_ctx: ssl.SSLContext | None = None
+
+    def _append(self, line: str) -> None:
+        with self._lock:
+            self._log.append(line)
+
+    def status(self) -> dict:
+        with self._lock:
+            return {
+                "running": self._running,
+                "done": self._done,
+                "success": self._success,
+                "log": list(self._log),
+            }
+
+    def start(self, target_folder: str, files: list[dict], message: str) -> dict:
+        token = os.environ.get("GITHUB_TOKEN", "").strip()
+        if not token:
+            return {
+                "ok": False,
+                "error": "Stel de omgevingsvariabele GITHUB_TOKEN in met een "
+                         "Personal Access Token (scope: repo).",
+            }
+        target = (target_folder or "").strip().strip("/")
+        if not target or not SAFE_FOLDER_RE.match(target):
+            return {"ok": False, "error": "Ongeldige doelmap-naam."}
+        if not isinstance(files, list) or not files:
+            return {"ok": False, "error": "Geen bestanden geselecteerd."}
+
+        clean_files: list[dict] = []
+        for f in files:
+            rel = (f.get("path") or "").replace("\\", "/").lstrip("/")
+            if not rel or ".." in rel.split("/"):
+                return {"ok": False, "error": f"Ongeldig bestandspad: {rel!r}"}
+            content_b64 = f.get("content_b64") or ""
+            try:
+                base64.b64decode(content_b64, validate=True)
+            except Exception:
+                return {"ok": False, "error": f"Ongeldige base64 voor {rel}"}
+            clean_files.append({"rel": rel, "b64": content_b64})
+
+        with self._lock:
+            if self._running:
+                return {"ok": False, "error": "Push is al bezig."}
+            self._log = []
+            self._running = True
+            self._done = False
+            self._success = False
+            self._started_at = time.time()
+
+        msg = (message or "").strip() or f"Update {target} via dashboard"
+        self._thread = threading.Thread(
+            target=self._run,
+            args=(token, target, clean_files, msg),
+            daemon=True,
+        )
+        self._thread.start()
+        return {"ok": True}
+
+    def _api(self, method: str, url: str, body: dict | None, token: str) -> dict:
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        req = urllib.request.Request(url, data=data, method=method, headers={
+            "User-Agent": "Dashboard-AI-Worx/1.0",
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+        })
+        with urllib.request.urlopen(req, timeout=60, context=self._ssl_ctx) as resp:
+            raw = resp.read()
+        return json.loads(raw.decode("utf-8")) if raw else {}
+
+    def _run(self, token: str, target: str, files: list[dict], message: str) -> None:
+        ok = False
+        try:
+            settings = self._settings_provider() or {}
+            verify = bool(settings.get("ssl_verify", True))
+            self._ssl_ctx = build_ssl_context(verify=verify)
+
+            base = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}"
+            self._append(f"Start push naar {GITHUB_OWNER}/{GITHUB_REPO}@{BRANCH}")
+            self._append(f"Doelmap: {target}  ({len(files)} bestanden)")
+
+            ref = self._api("GET", f"{base}/git/ref/heads/{BRANCH}", None, token)
+            base_sha = ref["object"]["sha"]
+            self._append(f"Branch HEAD: {base_sha[:7]}")
+
+            base_commit = self._api("GET", f"{base}/git/commits/{base_sha}", None, token)
+            base_tree = base_commit["tree"]["sha"]
+
+            tree_entries: list[dict] = []
+            for idx, f in enumerate(files, 1):
+                blob = self._api("POST", f"{base}/git/blobs", {
+                    "content": f["b64"],
+                    "encoding": "base64",
+                }, token)
+                tree_entries.append({
+                    "path": f"{target}/{f['rel']}",
+                    "mode": "100644",
+                    "type": "blob",
+                    "sha": blob["sha"],
+                })
+                if idx % 5 == 0 or idx == len(files):
+                    self._append(f"[{idx}/{len(files)}] blob: {f['rel']}")
+
+            tree = self._api("POST", f"{base}/git/trees", {
+                "base_tree": base_tree,
+                "tree": tree_entries,
+            }, token)
+
+            commit = self._api("POST", f"{base}/git/commits", {
+                "message": message,
+                "tree": tree["sha"],
+                "parents": [base_sha],
+            }, token)
+
+            self._api("PATCH", f"{base}/git/refs/heads/{BRANCH}", {
+                "sha": commit["sha"],
+            }, token)
+
+            elapsed = time.time() - self._started_at
+            self._append(f"Klaar: commit {commit['sha'][:7]} in {elapsed:.1f}s.")
+            ok = True
+        except urllib.error.HTTPError as exc:
+            try:
+                body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                body = ""
+            self._append(f"FOUT: HTTP {exc.code} — {exc.reason}")
+            if body:
+                self._append(body[:500])
+            if exc.code in (401, 403):
+                self._append("! Check of GITHUB_TOKEN geldig is en 'repo' scope heeft.")
+        except urllib.error.URLError as exc:
+            reason = str(exc.reason)
+            self._append(f"FOUT: kan GitHub niet bereiken ({reason}).")
+            if "CERTIFICATE_VERIFY_FAILED" in reason or "SSL" in reason.upper():
+                self._append(
+                    "! Corporate SSL-proxy? Zet in Settings \"SSL-certificaten "
+                    "verifiëren\" uit en probeer opnieuw."
                 )
         except Exception as exc:  # noqa: BLE001
             self._append(f"FOUT: {exc}")
@@ -600,6 +807,7 @@ class Api:
     def __init__(self):
         self.settings = load_settings()
         self.sync = GitHubSync(settings_provider=lambda: self.settings)
+        self.push = GitHubPush(settings_provider=lambda: self.settings)
         self.jobs = JobRunner()
 
     def get_tools(self) -> dict:
@@ -658,6 +866,15 @@ class Api:
 
     def get_sync_status(self) -> dict:
         return self.sync.status()
+
+    def has_github_token(self) -> dict:
+        return {"present": bool(os.environ.get("GITHUB_TOKEN", "").strip())}
+
+    def push_folder(self, target_folder: str, files, message: str) -> dict:
+        return self.push.start(target_folder, files or [], message or "")
+
+    def get_push_status(self) -> dict:
+        return self.push.status()
 
     def launch_tool(self, script_path: str) -> dict:
         if not script_path:

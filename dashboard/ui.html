@@ -760,6 +760,37 @@
             <p class="hint">Live uitvoer van de sync-thread.</p>
             <div class="log" id="syncLog">Nog geen sync uitgevoerd.</div>
           </div>
+
+          <div class="panel">
+            <h3>Upload naar repo</h3>
+            <p class="hint">
+              Kies een lokale map; alle bestanden eronder worden in &eacute;&eacute;n commit
+              naar <span class="mono" id="pushRepoName">-</span>@<span class="mono" id="pushBranchName">-</span>
+              gezet, onder een submap met de opgegeven naam.
+              Vereist de omgevingsvariabele <code>GITHUB_TOKEN</code> met <code>repo</code>-scope.
+            </p>
+            <input type="file" id="pushFolder" webkitdirectory directory multiple hidden>
+            <div class="row">
+              <button class="btn" id="pickFolderBtn">Map kiezen</button>
+              <span class="mono" id="pushSelection" style="color: var(--text-dim); font-size: 12px;">Geen map gekozen.</span>
+            </div>
+            <div class="row" style="margin-top:10px; display:flex; gap:10px; align-items:end;">
+              <div class="field" style="flex:1;">
+                <label>Doelmap in repo</label>
+                <input type="text" id="pushTarget" placeholder="myTool" class="mono">
+              </div>
+              <div class="field" style="flex:2;">
+                <label>Commit-bericht</label>
+                <input type="text" id="pushMessage" placeholder="Update myTool via dashboard">
+              </div>
+            </div>
+            <div class="row" style="margin-top:10px;">
+              <button class="btn primary" id="pushBtn" disabled>Push nu</button>
+              <span class="mono" id="pushState" style="color: var(--text-dim); font-size: 12px;"></span>
+              <span class="mono" id="pushTokenHint" style="color: var(--text-faint); font-size: 12px;"></span>
+            </div>
+            <div class="log" id="pushLog" style="margin-top:10px;">Nog geen upload uitgevoerd.</div>
+          </div>
         </div>
 
         <!-- Settings page -->
@@ -851,6 +882,10 @@
     repo: null,
     search: "",
     syncPolling: false,
+    pushPolling: false,
+    pushFiles: [],        // [{path, content_b64}]
+    pushFolderName: "",
+    pushBytes: 0,
   };
 
   var PRESETS = [
@@ -1445,6 +1480,8 @@
     $("#repoBranch").textContent = r.branch;
     $("#repoLocal").textContent = r.repo_path;
     $("#repoStatus").textContent = r.repo_exists ? "aanwezig" : "nog niet gesynchroniseerd";
+    $("#pushRepoName").textContent = r.owner + "/" + r.repo;
+    $("#pushBranchName").textContent = r.branch;
   }
 
   function renderLog(log) {
@@ -1513,6 +1550,155 @@
     tick();
   }
 
+  // --- github / push ---
+  function fmtBytes(n) {
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+    return (n / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function renderPushLog(log) {
+    var box = $("#pushLog");
+    if (!log || !log.length) {
+      box.textContent = "Nog geen upload uitgevoerd.";
+      return;
+    }
+    box.innerHTML = log.map(function (line) {
+      var cls = "";
+      if (line.indexOf("FOUT") === 0 || line.indexOf("! ") === 0) cls = "err";
+      else if (line.indexOf("Klaar") === 0) cls = "ok";
+      return '<div class="' + cls + '">' + esc(line) + '</div>';
+    }).join("");
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function readFileAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        // DataURL is "data:<mime>;base64,<b64>"; split off the header.
+        var s = reader.result || "";
+        var comma = s.indexOf(",");
+        resolve(comma >= 0 ? s.slice(comma + 1) : "");
+      };
+      reader.onerror = function () { reject(reader.error || new Error("read failed")); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function onFolderChosen(fileList) {
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return;
+
+    // The first path segment is the chosen folder's own name; strip it so
+    // paths in the commit are relative to the folder root.
+    var firstPath = (files[0].webkitRelativePath || files[0].name || "").replace(/\\/g, "/");
+    var rootName = firstPath.split("/")[0] || "upload";
+
+    $("#pushSelection").textContent = "laden...";
+    $("#pushBtn").disabled = true;
+
+    Promise.all(files.map(function (f) {
+      return readFileAsBase64(f).then(function (b64) {
+        var rel = (f.webkitRelativePath || f.name || "").replace(/\\/g, "/");
+        // Remove the root-folder segment so the server places files under
+        // the user-chosen target instead of duplicating the folder name.
+        var parts = rel.split("/");
+        if (parts[0] === rootName) parts.shift();
+        return { path: parts.join("/") || f.name, content_b64: b64, size: f.size };
+      });
+    })).then(function (prepared) {
+      state.pushFiles = prepared;
+      state.pushFolderName = rootName;
+      state.pushBytes = prepared.reduce(function (a, f) { return a + (f.size || 0); }, 0);
+
+      $("#pushSelection").textContent =
+        rootName + " (" + prepared.length + " bestand" +
+        (prepared.length === 1 ? "" : "en") + ", " + fmtBytes(state.pushBytes) + ")";
+      if (!$("#pushTarget").value) $("#pushTarget").value = rootName;
+      if (!$("#pushMessage").value) $("#pushMessage").value = "Update " + rootName + " via dashboard";
+      $("#pushBtn").disabled = false;
+    }).catch(function (err) {
+      toast("Kon map niet inlezen: " + err.message, "error");
+      $("#pushSelection").textContent = "Fout bij inlezen.";
+    });
+  }
+
+  function startPush() {
+    var api = pyApi();
+    if (!api) return;
+    if (!state.pushFiles.length) {
+      toast("Kies eerst een map.", "error");
+      return;
+    }
+    var target = ($("#pushTarget").value || "").trim();
+    if (!target) {
+      toast("Vul een doelmap in.", "error");
+      return;
+    }
+    var message = ($("#pushMessage").value || "").trim();
+
+    $("#pushBtn").disabled = true;
+    $("#pickFolderBtn").disabled = true;
+    $("#pushState").textContent = "bezig...";
+    // Strip size before sending — not needed server-side.
+    var payload = state.pushFiles.map(function (f) {
+      return { path: f.path, content_b64: f.content_b64 };
+    });
+    api.push_folder(target, payload, message).then(function (res) {
+      if (!res || !res.ok) {
+        toast((res && res.error) || "Kon upload niet starten.", "error");
+        $("#pushBtn").disabled = false;
+        $("#pickFolderBtn").disabled = false;
+        $("#pushState").textContent = "";
+        return;
+      }
+      pollPush();
+    });
+  }
+
+  function pollPush() {
+    if (state.pushPolling) return;
+    state.pushPolling = true;
+    var api = pyApi();
+    var tick = function () {
+      api.get_push_status().then(function (st) {
+        renderPushLog(st.log);
+        if (st.running) {
+          setTimeout(tick, 400);
+        } else {
+          state.pushPolling = false;
+          $("#pushBtn").disabled = false;
+          $("#pickFolderBtn").disabled = false;
+          if (st.done) {
+            if (st.success) {
+              $("#pushState").textContent = "klaar";
+              toast("Upload voltooid.");
+              // Sync back so the freshly-pushed folder appears as a tile.
+              startSync();
+            } else {
+              $("#pushState").textContent = "mislukt";
+              toast("Upload mislukt. Zie log.", "error");
+            }
+          }
+        }
+      });
+    };
+    tick();
+  }
+
+  function renderPushTokenHint() {
+    var api = pyApi();
+    if (!api) return;
+    api.has_github_token().then(function (res) {
+      if (res && res.present) {
+        $("#pushTokenHint").textContent = "GITHUB_TOKEN gevonden";
+      } else {
+        $("#pushTokenHint").textContent = "GITHUB_TOKEN niet ingesteld";
+      }
+    });
+  }
+
   // --- wiring ---
   function wire() {
     $$(".tab, .nav-btn").forEach(function (el) {
@@ -1536,6 +1722,16 @@
       showPage("github");
       startSync();
     });
+
+    $("#pickFolderBtn").addEventListener("click", function () {
+      $("#pushFolder").click();
+    });
+    $("#pushFolder").addEventListener("change", function (e) {
+      onFolderChosen(e.target.files);
+      // Allow re-picking the same folder later.
+      e.target.value = "";
+    });
+    $("#pushBtn").addEventListener("click", startPush);
 
     $("#sslVerify").addEventListener("change", function (e) {
       var enabled = !!e.target.checked;
@@ -1582,7 +1778,9 @@
           renderRepoInfo();
         }),
         refreshTools(),
-      ]);
+      ]).then(function () {
+        renderPushTokenHint();
+      });
     });
   }
 
