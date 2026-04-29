@@ -869,11 +869,18 @@ class JobRunner:
         # are honoured by PyInstaller-frozen apps because the bootloader
         # reads them at interpreter init. The ``:replace`` suffix on
         # PYTHONIOENCODING ensures a stray glyph never halts a tool.
+        # ``PYTHONLEGACYWINDOWSSTDIO=0`` disables the cp1252 fallback on
+        # Windows even when the parent is wrapping us oddly.
+        # ``LC_ALL`` / ``LANG`` cover non-Python libraries (libcurl,
+        # libxml, etc.) that consult locale(7) for their default codec.
         # Inherits the rest of the parent environment so PATH etc.
         # still resolve.
         child_env = os.environ.copy()
         child_env["PYTHONIOENCODING"] = "utf-8:replace"
         child_env["PYTHONUTF8"] = "1"
+        child_env["PYTHONLEGACYWINDOWSSTDIO"] = "0"
+        child_env["LC_ALL"] = "C.UTF-8"
+        child_env["LANG"] = "C.UTF-8"
 
         popen_kwargs = {
             "cwd": cwd,
@@ -1844,7 +1851,13 @@ class Api:
         args = list(handler.get("args") or [])
 
         if launcher == "python":
-            cmd = [sys.executable, *args, str(path)]
+            # ``-X utf8`` puts the interpreter in UTF-8 Mode (PEP 540)
+            # straight from the command line — more reliable than the
+            # ``PYTHONUTF8=1`` env-var because it survives env-stripping
+            # (Windows policies, antivirus shims, exotic shells). Tools
+            # that ``open()`` files without ``encoding=`` then default
+            # to UTF-8 instead of cp1252.
+            cmd = [sys.executable, "-X", "utf8", *args, str(path)]
         elif launcher == "direct":
             cmd = [str(path), *args]
         else:
@@ -1890,13 +1903,25 @@ class Api:
         """Open the tool in its own real OS console window.
 
         Pragmatic default: every manual launch gets a fresh ``cmd.exe``
-        (Windows ``CREATE_NEW_CONSOLE``) — that's what the old
-        ``relaunch_externally`` button did. No captured pipes, no
-        polling, no embedded UI. The OS console *is* the UI, which
-        means stdin/colour codes/console-only Windows APIs all work
-        natively. PyInstaller-frozen .exes that need their own
+        (Windows ``CREATE_NEW_CONSOLE``). The OS console *is* the UI,
+        which means stdin/colour codes/console-only Windows APIs all
+        work natively. PyInstaller-frozen .exes that need their own
         console (the URL checker, anything using ``msvcrt``, getpass,
         etc.) just work.
+
+        Defence-in-depth against ``UnicodeEncodeError: 'charmap' …``
+        on Windows (the cp1252 trap):
+        1. ``PYTHONUTF8=1`` and ``PYTHONIOENCODING=utf-8:replace`` on
+           the child env so even frozen Python interpreters start in
+           UTF-8 mode (PEP 540).
+        2. ``chcp 65001`` at the top of the launched cmd-line flips
+           the new console's codepage to UTF-8 *before* the tool
+           starts writing — covers tools that bypass Python defaults
+           and write straight to the console.
+        3. ``LC_ALL=C.UTF-8`` and ``LANG=C.UTF-8`` for any libraries
+           that consult locale(7) directly (curl, libxml, etc.).
+        4. ``pause`` on non-zero exit so the user can read any error
+           message instead of watching the window flash and disappear.
 
         Scheduled runs still go through ``launch_tool`` →
         ``JobRunner.start`` so their output is captured to JSON+TXT
@@ -1907,17 +1932,38 @@ class Api:
             return resolved
 
         cmd = resolved["cmd"]
-        popen_kwargs: dict = {"cwd": resolved["cwd"]}
+        cwd = resolved["cwd"]
+
+        env = os.environ.copy()
+        env["PYTHONUTF8"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8:replace"
+        env["PYTHONLEGACYWINDOWSSTDIO"] = "0"
+        env["LC_ALL"] = "C.UTF-8"
+        env["LANG"] = "C.UTF-8"
+
         if os.name == "nt":
-            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
-        # On POSIX we inherit stdio from the dashboard process. If the
-        # dashboard was launched from a terminal the user sees output
-        # there; otherwise it's lost — but the tool still runs. Real
-        # terminal-emulator forking is dev-only and not worth the
-        # cross-distro fragility.
+            # Wrap in cmd.exe so we can flip the console codepage to
+            # UTF-8 *before* the tool starts and ``pause`` if it dies.
+            # ``list2cmdline`` handles Windows-correct quoting of paths
+            # with spaces (OneDrive, "Documents", etc.).
+            inner = subprocess.list2cmdline(cmd)
+            wrapped = [
+                "cmd", "/c",
+                f'chcp 65001 >nul & {inner} & '
+                f'if errorlevel 1 (echo.& echo [tool exitte met code %errorlevel% '
+                f'-- druk een toets om te sluiten]& pause >nul)',
+            ]
+            popen_kwargs = {
+                "cwd": cwd,
+                "env": env,
+                "creationflags": getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+            }
+        else:
+            wrapped = cmd
+            popen_kwargs = {"cwd": cwd, "env": env}
 
         try:
-            subprocess.Popen(cmd, **popen_kwargs)
+            subprocess.Popen(wrapped, **popen_kwargs)
         except FileNotFoundError:
             return {
                 "ok": False,
