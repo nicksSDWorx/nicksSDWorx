@@ -1946,13 +1946,23 @@ class Api:
             # UTF-8 *before* the tool starts and ``pause`` if it dies.
             # ``list2cmdline`` handles Windows-correct quoting of paths
             # with spaces (OneDrive, "Documents", etc.).
+            #
+            # CRITICAL: pass the wrapper as a single STRING, not a list.
+            # When Popen receives a list on Windows it re-quotes every
+            # element via the MS-CRT rules — that escapes the inner
+            # quotes around the exe path to ``\"``, which cmd then
+            # treats as a literal command name and fails with
+            # "is not recognized as an internal or external command".
+            # The string form is passed verbatim to CreateProcess. The
+            # ``/s`` flag tells cmd to strip the outer quotes around
+            # the rest of the line (per ``cmd /?``), so the inner
+            # quotes around the exe path survive intact.
             inner = subprocess.list2cmdline(cmd)
-            wrapped = [
-                "cmd", "/c",
-                f'chcp 65001 >nul & {inner} & '
+            wrapped = (
+                f'cmd.exe /s /c "chcp 65001>nul & {inner} & '
                 f'if errorlevel 1 (echo.& echo [tool exitte met code %errorlevel% '
-                f'-- druk een toets om te sluiten]& pause >nul)',
-            ]
+                f'-- druk een toets om te sluiten]& pause >nul)"'
+            )
             popen_kwargs = {
                 "cwd": cwd,
                 "env": env,
