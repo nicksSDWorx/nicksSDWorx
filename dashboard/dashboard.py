@@ -855,6 +855,17 @@ class JobRunner:
 
     def start(self, cmd: list[str], cwd: str, name: str,
               on_finish=None) -> str:
+        # Force UTF-8 stdout/stderr for child Python (and PyInstaller-frozen
+        # Python) processes. Without this, scripts that print non-cp1252
+        # characters (emoji, arrows, accented forms) crash with
+        # ``UnicodeEncodeError: 'charmap' codec can't encode character ...``
+        # because Windows defaults the console codec to cp1252. The
+        # ``:replace`` suffix swaps unencodable chars for ``?`` so a
+        # surprise glyph never halts a tool again. Inherits the rest of
+        # the parent environment so PATH etc. still resolve.
+        child_env = os.environ.copy()
+        child_env["PYTHONIOENCODING"] = "utf-8:replace"
+
         popen_kwargs = {
             "cwd": cwd,
             "stdout": subprocess.PIPE,
@@ -864,6 +875,7 @@ class JobRunner:
             "text": True,
             "encoding": "utf-8",
             "errors": "replace",
+            "env": child_env,
         }
         if os.name == "nt":
             # CREATE_NO_WINDOW hides the would-be console of the child so
