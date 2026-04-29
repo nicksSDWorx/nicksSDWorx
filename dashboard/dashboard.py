@@ -74,7 +74,15 @@ DEFAULT_SETTINGS = {
     # whose root CA can't be found even after auto-importing the
     # Windows certificate store. Disables HTTPS verification entirely.
     "ssl_verify": True,
+    # User-controlled tile grouping. ``order`` lists category names in
+    # the order they should appear; ``assignments`` maps a tool's
+    # rel_path → category name. The virtual "Ongecategoriseerd" bucket
+    # is always rendered last and never stored here.
+    "categories": {"order": [], "assignments": {}},
 }
+
+UNCATEGORIZED = "Ongecategoriseerd"
+MAX_CATEGORY_NAME = 64
 
 CATEGORY_FALLBACK = "Algemeen"
 
@@ -93,8 +101,22 @@ def load_settings() -> dict:
     except (OSError, json.JSONDecodeError):
         save_settings(DEFAULT_SETTINGS)
         return json.loads(json.dumps(DEFAULT_SETTINGS))
+    changed = False
     if "handlers" not in data or not isinstance(data["handlers"], dict):
         data["handlers"] = dict(DEFAULT_SETTINGS["handlers"])
+        changed = True
+    cats = data.get("categories")
+    if not isinstance(cats, dict):
+        cats = {}
+        data["categories"] = cats
+        changed = True
+    if not isinstance(cats.get("order"), list):
+        cats["order"] = []
+        changed = True
+    if not isinstance(cats.get("assignments"), dict):
+        cats["assignments"] = {}
+        changed = True
+    if changed:
         save_settings(data)
     return data
 
@@ -271,24 +293,19 @@ def find_entry_file(folder: Path) -> Path | None:
 # Tool discovery
 # ---------------------------------------------------------------------------
 
-def discover_tools() -> dict:
-    result = {"categories": [], "empty": True, "repo_path": str(REPO_DIR)}
+def discover_tools_flat() -> list[dict]:
+    """Discover all tools as a flat list. Categorisation is applied
+    separately (see :func:`group_by_user_categories`) so the user can
+    override the repo's folder structure with their own grouping.
+    """
     if not REPO_DIR.exists():
-        return result
+        return []
 
-    result["empty"] = False
+    tools: list[dict] = []
     icon_idx = 0
-    groups: dict[str, dict] = {}
 
-    def add_tool(category_key: str, category_label: str, category_desc: str, file_path: Path):
+    def add(file_path: Path) -> None:
         nonlocal icon_idx
-        if category_key not in groups:
-            groups[category_key] = {
-                "key": category_key,
-                "name": category_label,
-                "description": category_desc,
-                "tools": [],
-            }
         ext = file_path.suffix.lower()
         tool_name = snake_to_title(file_path.stem)
         description = read_py_description(file_path) if ext == ".py" else ""
@@ -297,40 +314,103 @@ def discover_tools() -> dict:
         icon = ICON_CYCLE[icon_idx % len(ICON_CYCLE)]
         icon_idx += 1
         rel_path = file_path.relative_to(REPO_DIR).as_posix()
-        groups[category_key]["tools"].append({
+        tools.append({
             "name": tool_name,
             "description": description,
             "extension": ext,
             "icon": icon,
             "path": str(file_path),
             "rel_path": rel_path,
-            "category": category_label,
         })
 
     for entry in sorted(REPO_DIR.iterdir(), key=lambda p: p.name.lower()):
-        if entry.is_file() and entry.suffix.lower() in TOOL_EXTENSIONS and entry.name not in IGNORE_FILES:
-            add_tool(CATEGORY_FALLBACK, CATEGORY_FALLBACK, "Losse tools uit de root van de repo.", entry)
+        if (
+            entry.is_file()
+            and entry.suffix.lower() in TOOL_EXTENSIONS
+            and entry.name not in IGNORE_FILES
+        ):
+            add(entry)
 
     for sub in sorted(REPO_DIR.iterdir(), key=lambda p: p.name.lower()):
         if not sub.is_dir() or sub.name in IGNORE_DIRS:
             continue
         entry = find_entry_file(sub)
-        if entry is None:
-            # No obvious executable → treat folder as pure supporting
-            # material (docs, assets, ...) and hide it from the dashboard.
-            continue
-        category_label = snake_to_title(sub.name)
-        category_desc = read_readme_description(sub) or f"Tools in {category_label.lower()}."
-        add_tool(sub.name, category_label, category_desc, entry)
+        if entry is not None:
+            add(entry)
 
-    ordered = []
-    if CATEGORY_FALLBACK in groups:
-        ordered.append(groups.pop(CATEGORY_FALLBACK))
-    for key in sorted(groups.keys(), key=str.lower):
-        ordered.append(groups[key])
+    return tools
 
-    result["categories"] = [g for g in ordered if g["tools"]]
-    return result
+
+def group_by_user_categories(tools: list[dict], settings: dict) -> dict:
+    """Build the ``{categories, empty, repo_path}`` payload the UI
+    consumes, using the user's chosen ``order``/``assignments`` from
+    settings. Tools without an assignment (or with an assignment that
+    points to a deleted category) land in the virtual *Ongecategoriseerd*
+    bucket which always renders last.
+    """
+    cats = (settings or {}).get("categories") or {}
+    order = [c for c in (cats.get("order") or []) if isinstance(c, str)]
+    assignments = cats.get("assignments") or {}
+    if not isinstance(assignments, dict):
+        assignments = {}
+
+    known = set(order)
+    groups: dict[str, list[dict]] = {name: [] for name in order}
+    uncategorised: list[dict] = []
+
+    for tool in tools:
+        target = assignments.get(tool["rel_path"])
+        if target and target in known:
+            tool = dict(tool)
+            tool["category"] = target
+            groups[target].append(tool)
+        else:
+            tool = dict(tool)
+            tool["category"] = UNCATEGORIZED
+            uncategorised.append(tool)
+
+    payload: list[dict] = []
+    for name in order:
+        payload.append({
+            "key": name,
+            "name": name,
+            "description": "",
+            "tools": groups[name],
+            "user_managed": True,
+        })
+    payload.append({
+        "key": UNCATEGORIZED,
+        "name": UNCATEGORIZED,
+        "description": "Tools die nog geen categorie hebben.",
+        "tools": uncategorised,
+        "user_managed": False,
+    })
+
+    return {
+        "categories": payload,
+        "empty": not tools,
+        "repo_path": str(REPO_DIR),
+    }
+
+
+def discover_tools(settings: dict | None = None) -> dict:
+    return group_by_user_categories(discover_tools_flat(), settings or {})
+
+
+# ---------------------------------------------------------------------------
+# Category management helpers
+# ---------------------------------------------------------------------------
+
+def _normalise_category_name(raw: str) -> tuple[str, str | None]:
+    """Return ``(clean_name, error)``. ``error`` is None when valid."""
+    name = (raw or "").strip()
+    if not name:
+        return "", "Categorienaam mag niet leeg zijn."
+    if len(name) > MAX_CATEGORY_NAME:
+        return "", f"Categorienaam mag max. {MAX_CATEGORY_NAME} tekens zijn."
+    if name.lower() == UNCATEGORIZED.lower():
+        return "", f"De naam '{UNCATEGORIZED}' is gereserveerd."
+    return name, None
 
 
 # ---------------------------------------------------------------------------
@@ -920,7 +1000,105 @@ class Api:
         self.jobs = JobRunner()
 
     def get_tools(self) -> dict:
-        return discover_tools()
+        return discover_tools(self.settings)
+
+    # ----- categories ---------------------------------------------------
+
+    def _categories_payload(self) -> dict:
+        cats = self.settings.setdefault(
+            "categories", {"order": [], "assignments": {}}
+        )
+        return {
+            "ok": True,
+            "order": list(cats.get("order") or []),
+            "assignments": dict(cats.get("assignments") or {}),
+        }
+
+    def add_category(self, name: str) -> dict:
+        clean, err = _normalise_category_name(name)
+        if err:
+            return {"ok": False, "error": err}
+        cats = self.settings.setdefault(
+            "categories", {"order": [], "assignments": {}}
+        )
+        order = cats.setdefault("order", [])
+        if any(c.lower() == clean.lower() for c in order):
+            return {"ok": False, "error": f"Categorie '{clean}' bestaat al."}
+        order.append(clean)
+        save_settings(self.settings)
+        return self._categories_payload()
+
+    def rename_category(self, old: str, new: str) -> dict:
+        clean, err = _normalise_category_name(new)
+        if err:
+            return {"ok": False, "error": err}
+        cats = self.settings.setdefault(
+            "categories", {"order": [], "assignments": {}}
+        )
+        order = cats.setdefault("order", [])
+        if old not in order:
+            return {"ok": False, "error": f"Onbekende categorie: '{old}'."}
+        if old != clean and any(c.lower() == clean.lower() for c in order):
+            return {"ok": False, "error": f"Categorie '{clean}' bestaat al."}
+        order[order.index(old)] = clean
+        assigns = cats.setdefault("assignments", {})
+        for path, cat in list(assigns.items()):
+            if cat == old:
+                assigns[path] = clean
+        save_settings(self.settings)
+        return self._categories_payload()
+
+    def delete_category(self, name: str) -> dict:
+        cats = self.settings.setdefault(
+            "categories", {"order": [], "assignments": {}}
+        )
+        order = cats.setdefault("order", [])
+        if name not in order:
+            return {"ok": False, "error": f"Onbekende categorie: '{name}'."}
+        order.remove(name)
+        assigns = cats.setdefault("assignments", {})
+        for path, cat in list(assigns.items()):
+            if cat == name:
+                del assigns[path]
+        save_settings(self.settings)
+        return self._categories_payload()
+
+    def reorder_categories(self, names) -> dict:
+        if not isinstance(names, list):
+            return {"ok": False, "error": "Verwacht een lijst met namen."}
+        cats = self.settings.setdefault(
+            "categories", {"order": [], "assignments": {}}
+        )
+        order = cats.setdefault("order", [])
+        if sorted(map(str, names)) != sorted(order):
+            return {
+                "ok": False,
+                "error": "Volgorde komt niet exact overeen met huidige categorieën.",
+            }
+        cats["order"] = [str(n) for n in names]
+        save_settings(self.settings)
+        return self._categories_payload()
+
+    def set_tool_category(self, rel_path: str, category: str) -> dict:
+        if not (rel_path or "").strip():
+            return {"ok": False, "error": "Geen tool opgegeven."}
+        cats = self.settings.setdefault(
+            "categories", {"order": [], "assignments": {}}
+        )
+        assigns = cats.setdefault("assignments", {})
+        target = (category or "").strip()
+        if not target or target.lower() == UNCATEGORIZED.lower():
+            assigns.pop(rel_path, None)
+        else:
+            order = cats.setdefault("order", [])
+            if target not in order:
+                return {
+                    "ok": False,
+                    "error": f"Categorie '{target}' bestaat niet — maak hem eerst aan.",
+                }
+            assigns[rel_path] = target
+        save_settings(self.settings)
+        return self._categories_payload()
 
     def get_repo_info(self) -> dict:
         return {

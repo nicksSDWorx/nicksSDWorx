@@ -287,7 +287,7 @@
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
   /* ---------- Tool cards ---------- */
-  .category { margin-bottom: 30px; }
+  .category { margin-bottom: 30px; border-radius: var(--radius); transition: background 120ms, outline 120ms; outline: 1px solid transparent; outline-offset: 4px; }
   .category h2 {
     font-size: 12px;
     font-weight: 600;
@@ -295,12 +295,60 @@
     text-transform: uppercase;
     color: var(--text-dim);
     margin: 0 0 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
+  .category h2 .cat-name { cursor: text; }
+  .category h2 .cat-name[contenteditable="true"] {
+    outline: 1px solid var(--accent);
+    background: #0f0f0f;
+    color: var(--text);
+    padding: 2px 4px;
+    border-radius: 4px;
+    text-transform: none;
+  }
+  .category h2 .cat-count { color: var(--text-faint); font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .category h2 .cat-actions {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 120ms;
+  }
+  .category:hover h2 .cat-actions { opacity: 1; }
+  .category h2 .cat-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 4px;
+    width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+  }
+  .category h2 .cat-btn:hover { color: var(--text); border-color: var(--accent); }
+  .category h2 .cat-grip { color: var(--text-faint); cursor: grab; user-select: none; }
+  .category h2 .cat-grip:active { cursor: grabbing; }
   .category .cat-desc {
     color: var(--text-faint);
     font-size: 12px;
     margin-bottom: 14px;
   }
+  .category.is-drop-target { background: rgba(247, 198, 47, 0.06); outline-color: var(--accent); }
+  .category.is-cat-drop-before { box-shadow: inset 4px 0 0 var(--accent); }
+  .category.is-dragging { opacity: 0.5; }
+  .category .cat-empty {
+    color: var(--text-faint);
+    font-size: 12px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+  }
+  .card.is-dragging { opacity: 0.4; }
 
   .grid {
     display: grid;
@@ -734,6 +782,7 @@
               <input id="searchInput" type="text" placeholder="Zoek tools op naam, beschrijving of categorie...">
             </div>
             <button class="btn" id="refreshBtn" title="Herlaad tools van schijf">Herlaad</button>
+            <button class="btn" id="addCategoryBtn" title="Nieuwe categorie aanmaken">+ Categorie</button>
             <button class="btn" id="uploadShortcut" title="Upload een map naar de repo">Upload</button>
             <button class="btn primary" id="syncShortcut">Sync repo</button>
           </div>
@@ -908,6 +957,7 @@
   var state = {
     tools: { categories: [], empty: true },
     settings: { handlers: {} },
+    categories: { order: [], assignments: {} },
     repo: null,
     search: "",
     syncPolling: false,
@@ -1048,45 +1098,301 @@
     var q = state.search.trim();
     var html = "";
     var total = 0;
-    var visible = 0;
+    var visibleCards = 0;
+    var renderedSections = 0;
 
     data.categories.forEach(function (cat) {
       var cards = cat.tools.filter(function (t) { return matchesSearch(t, cat.name, q); });
       total += cat.tools.length;
-      visible += cards.length;
-      if (!cards.length) return;
-      html += '<section class="category">';
-      html += '<h2>' + esc(cat.name) + ' <span style="color:var(--text-faint);font-weight:400;">(' + cards.length + ')</span></h2>';
+      visibleCards += cards.length;
+
+      // While searching we hide empty sections (less noise). Otherwise
+      // we always render the section so the user has a drop target.
+      if (q && !cards.length) return;
+
+      var managed = cat.user_managed === true;
+      html += '<section class="category" data-cat-name="' + esc(cat.name) + '"' +
+              (managed ? ' data-managed="1"' : '') + '>';
+      html += '<h2>';
+      if (managed) {
+        html += '<span class="cat-grip" draggable="true" title="Sleep om te herordenen">\u2630</span>';
+      }
+      html += '<span class="cat-name"' + (managed ? ' tabindex="0"' : '') + '>' +
+              esc(cat.name) + '</span>';
+      html += '<span class="cat-count">(' + cards.length + ')</span>';
+      if (managed) {
+        html += '<span class="cat-actions">';
+        html += '<button class="cat-btn cat-rename" title="Hernoemen">\u270E</button>';
+        html += '<button class="cat-btn cat-delete" title="Verwijderen">\u00D7</button>';
+        html += '</span>';
+      }
+      html += '</h2>';
       if (cat.description) {
         html += '<div class="cat-desc">' + esc(cat.description) + '</div>';
       }
-      html += '<div class="grid">';
-      cards.forEach(function (tool) {
-        html += (
-          '<article class="card" data-path="' + esc(tool.path) + '">' +
-            '<div class="head">' +
-              '<div class="icon">' + esc(tool.icon) + '</div>' +
-              '<div class="badge">' + esc(tool.extension) + '</div>' +
-            '</div>' +
-            '<div class="name">' + esc(tool.name) + '</div>' +
-            '<div class="desc">' + esc(tool.description) + '</div>' +
-          '</article>'
-        );
-      });
-      html += '</div></section>';
+      if (cards.length) {
+        html += '<div class="grid">';
+        cards.forEach(function (tool) {
+          html += (
+            '<article class="card" draggable="true"' +
+              ' data-path="' + esc(tool.path) + '"' +
+              ' data-rel-path="' + esc(tool.rel_path) + '">' +
+              '<div class="head">' +
+                '<div class="icon">' + esc(tool.icon) + '</div>' +
+                '<div class="badge">' + esc(tool.extension) + '</div>' +
+              '</div>' +
+              '<div class="name">' + esc(tool.name) + '</div>' +
+              '<div class="desc">' + esc(tool.description) + '</div>' +
+            '</article>'
+          );
+        });
+        html += '</div>';
+      } else if (!q) {
+        html += '<div class="cat-empty">Sleep tools hierheen om ze in deze categorie te zetten.</div>';
+      }
+      html += '</section>';
+      renderedSections++;
     });
 
-    if (!visible && q) {
+    if (q && !visibleCards) {
       html = '<div class="empty"><h3>Geen resultaten</h3><p>Niets gevonden voor \u201C' + esc(q) + '\u201D.</p></div>';
     }
 
     container.innerHTML = html;
     $("#toolCount").textContent = String(total);
 
+    wireToolsDom();
+  }
+
+  // Wire DnD + click handlers for the tiles and category headers we just
+  // rendered. Kept separate so renderTools stays mostly declarative.
+  function wireToolsDom() {
     $$("#toolsContainer .card").forEach(function (el) {
-      el.addEventListener("click", function () {
+      el.addEventListener("click", function (ev) {
+        // Suppress click that happens at the end of a drag (browser quirk).
+        if (el.dataset.suppressClick === "1") {
+          el.dataset.suppressClick = "";
+          return;
+        }
+        if (ev.defaultPrevented) return;
         launchTool(el.getAttribute("data-path"));
       });
+      el.addEventListener("dragstart", function (ev) {
+        var rel = el.getAttribute("data-rel-path") || "";
+        ev.dataTransfer.setData("application/x-tool", rel);
+        // Plain text fallback for OS-level drop targets.
+        ev.dataTransfer.setData("text/plain", rel);
+        ev.dataTransfer.effectAllowed = "move";
+        el.classList.add("is-dragging");
+      });
+      el.addEventListener("dragend", function () {
+        el.classList.remove("is-dragging");
+        // The browser fires a synthetic click after some drag-ends; squash it.
+        el.dataset.suppressClick = "1";
+        setTimeout(function () { el.dataset.suppressClick = ""; }, 50);
+      });
+    });
+
+    $$("#toolsContainer .category").forEach(function (section) {
+      section.addEventListener("dragover", onSectionDragOver);
+      section.addEventListener("dragleave", onSectionDragLeave);
+      section.addEventListener("drop", onSectionDrop);
+
+      var grip = section.querySelector(".cat-grip");
+      if (grip) {
+        grip.addEventListener("dragstart", function (ev) {
+          ev.dataTransfer.setData("application/x-category", section.getAttribute("data-cat-name"));
+          ev.dataTransfer.setData("text/plain", section.getAttribute("data-cat-name"));
+          ev.dataTransfer.effectAllowed = "move";
+          section.classList.add("is-dragging");
+        });
+        grip.addEventListener("dragend", function () {
+          section.classList.remove("is-dragging");
+        });
+      }
+
+      var renameBtn = section.querySelector(".cat-rename");
+      if (renameBtn) {
+        renameBtn.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          startCategoryRename(section);
+        });
+      }
+      var nameSpan = section.querySelector(".cat-name");
+      if (nameSpan && section.dataset.managed === "1") {
+        nameSpan.addEventListener("dblclick", function () { startCategoryRename(section); });
+      }
+      var delBtn = section.querySelector(".cat-delete");
+      if (delBtn) {
+        delBtn.addEventListener("click", function (ev) {
+          ev.stopPropagation();
+          deleteCategory(section.getAttribute("data-cat-name"));
+        });
+      }
+    });
+  }
+
+  function onSectionDragOver(ev) {
+    var section = ev.currentTarget;
+    var dt = ev.dataTransfer;
+    var types = dt.types || [];
+    var hasTool = Array.prototype.indexOf.call(types, "application/x-tool") >= 0;
+    var hasCat = Array.prototype.indexOf.call(types, "application/x-category") >= 0;
+    if (!hasTool && !hasCat) return;
+    ev.preventDefault();
+    dt.dropEffect = "move";
+    if (hasTool) section.classList.add("is-drop-target");
+    if (hasCat && section.dataset.managed === "1") section.classList.add("is-cat-drop-before");
+  }
+
+  function onSectionDragLeave(ev) {
+    var section = ev.currentTarget;
+    // Only clear when we actually leave the section, not when moving onto a child.
+    if (section.contains(ev.relatedTarget)) return;
+    section.classList.remove("is-drop-target");
+    section.classList.remove("is-cat-drop-before");
+  }
+
+  function onSectionDrop(ev) {
+    var section = ev.currentTarget;
+    section.classList.remove("is-drop-target");
+    section.classList.remove("is-cat-drop-before");
+    var dt = ev.dataTransfer;
+    var rel = dt.getData("application/x-tool");
+    var dragCat = dt.getData("application/x-category");
+    var dropCat = section.getAttribute("data-cat-name");
+
+    if (rel) {
+      ev.preventDefault();
+      assignToolToCategory(rel, dropCat);
+      return;
+    }
+    if (dragCat && section.dataset.managed === "1" && dragCat !== dropCat) {
+      ev.preventDefault();
+      reorderCategory(dragCat, dropCat);
+    }
+  }
+
+  function assignToolToCategory(relPath, categoryName) {
+    var api = pyApi();
+    if (!api) return;
+    api.set_tool_category(relPath, categoryName).then(function (res) {
+      if (res && res.ok) {
+        state.categories = { order: res.order, assignments: res.assignments };
+        refreshTools();
+      } else {
+        toast((res && res.error) || "Kon tool niet verplaatsen.", "error");
+      }
+    }, function (err) { toast("Fout: " + err.message, "error"); });
+  }
+
+  function reorderCategory(dragName, dropName) {
+    var order = (state.categories && state.categories.order) ? state.categories.order.slice() : [];
+    var from = order.indexOf(dragName);
+    var to = order.indexOf(dropName);
+    if (from < 0 || to < 0) return;
+    order.splice(from, 1);
+    if (from < to) to -= 1;  // account for the removal shift
+    order.splice(to, 0, dragName);
+    var api = pyApi();
+    if (!api) return;
+    api.reorder_categories(order).then(function (res) {
+      if (res && res.ok) {
+        state.categories = { order: res.order, assignments: res.assignments };
+        refreshTools();
+      } else {
+        toast((res && res.error) || "Kon volgorde niet aanpassen.", "error");
+      }
+    });
+  }
+
+  function startCategoryRename(section) {
+    var nameSpan = section.querySelector(".cat-name");
+    if (!nameSpan) return;
+    var original = section.getAttribute("data-cat-name");
+    nameSpan.setAttribute("contenteditable", "true");
+    nameSpan.focus();
+    // Select all text inside the span.
+    var range = document.createRange();
+    range.selectNodeContents(nameSpan);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    var commit = function () {
+      var next = (nameSpan.textContent || "").trim();
+      nameSpan.removeAttribute("contenteditable");
+      if (!next || next === original) {
+        nameSpan.textContent = original;
+        return;
+      }
+      var api = pyApi();
+      api.rename_category(original, next).then(function (res) {
+        if (res && res.ok) {
+          state.categories = { order: res.order, assignments: res.assignments };
+          refreshTools();
+          toast("Hernoemd naar '" + next + "'.");
+        } else {
+          nameSpan.textContent = original;
+          toast((res && res.error) || "Kon niet hernoemen.", "error");
+        }
+      });
+    };
+    var cancel = function () {
+      nameSpan.removeAttribute("contenteditable");
+      nameSpan.textContent = original;
+    };
+    nameSpan.addEventListener("blur", commit, { once: true });
+    nameSpan.addEventListener("keydown", function onKey(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        nameSpan.removeEventListener("keydown", onKey);
+        nameSpan.blur();  // triggers commit via blur listener
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        nameSpan.removeEventListener("keydown", onKey);
+        nameSpan.removeEventListener("blur", commit);
+        cancel();
+      }
+    });
+  }
+
+  function deleteCategory(name) {
+    var count = 0;
+    if (state.tools && state.tools.categories) {
+      state.tools.categories.forEach(function (c) {
+        if (c.name === name) count = c.tools.length;
+      });
+    }
+    var msg = "Categorie '" + name + "' verwijderen?";
+    if (count) msg += "\n" + count + " tool" + (count === 1 ? "" : "s") + " gaan naar Ongecategoriseerd.";
+    if (!window.confirm(msg)) return;
+    var api = pyApi();
+    api.delete_category(name).then(function (res) {
+      if (res && res.ok) {
+        state.categories = { order: res.order, assignments: res.assignments };
+        refreshTools();
+        toast("Categorie verwijderd.");
+      } else {
+        toast((res && res.error) || "Kon niet verwijderen.", "error");
+      }
+    });
+  }
+
+  function addNewCategory() {
+    var name = window.prompt("Naam voor de nieuwe categorie:");
+    if (name == null) return;
+    var clean = name.trim();
+    if (!clean) return;
+    var api = pyApi();
+    api.add_category(clean).then(function (res) {
+      if (res && res.ok) {
+        state.categories = { order: res.order, assignments: res.assignments };
+        refreshTools();
+        toast("Categorie '" + clean + "' aangemaakt.");
+      } else {
+        toast((res && res.error) || "Kon categorie niet aanmaken.", "error");
+      }
     });
   }
 
@@ -1818,6 +2124,8 @@
       refreshTools().then(function () { toast("Tools herladen."); });
     });
 
+    $("#addCategoryBtn").addEventListener("click", addNewCategory);
+
     $("#syncBtn").addEventListener("click", startSync);
     $("#syncShortcut").addEventListener("click", function () {
       showPage("github");
@@ -1913,6 +2221,7 @@
       return Promise.all([
         api.get_settings().then(function (s) {
           state.settings = s || { handlers: {} };
+          state.categories = (s && s.categories) || { order: [], assignments: {} };
           renderHandlers();
           renderNetworkSettings();
         }),
