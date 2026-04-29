@@ -1359,39 +1359,54 @@
           </div>
 
           <div class="panel">
-            <h3>Mail (Microsoft Graph)</h3>
+            <h3>Mail (SMTP)</h3>
             <p class="hint">
-              Stuur output van geplande runs via M365 / Outlook. Vereist een Azure-AD-app-registratie met
-              <code>Mail.Send (Application)</code> permissie en admin-consent. Het <b>client secret</b>
-              wordt plain-text in <code>settings.json</code> opgeslagen (in <code>.gitignore</code>).
+              Stuur output van geplande runs via SMTP. Voor <b>Gmail</b>: zet eerst tweestapsverificatie aan,
+              maak daarna een <b>app-wachtwoord</b> aan via
+              <span class="mono">myaccount.google.com &rarr; Beveiliging &rarr; App-wachtwoorden</span>
+              en plak die hieronder (spaties mag, worden gestript). Standaarden hieronder zijn
+              al ingevuld voor Gmail. Het wachtwoord wordt plain-text in <code>settings.json</code>
+              opgeslagen (staat in <code>.gitignore</code>).
             </p>
-            <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr;">
               <div class="field">
-                <label>Tenant ID</label>
-                <input type="text" id="gmTenant" class="mono" placeholder="00000000-0000-0000-0000-000000000000">
+                <label>SMTP-host</label>
+                <input type="text" id="smtpHost" class="mono" placeholder="smtp.gmail.com">
               </div>
               <div class="field">
-                <label>Client ID</label>
-                <input type="text" id="gmClient" class="mono" placeholder="00000000-0000-0000-0000-000000000000">
+                <label>Poort</label>
+                <input type="number" id="smtpPort" class="mono" min="1" max="65535" placeholder="587">
               </div>
               <div class="field">
-                <label>Client secret</label>
-                <input type="password" id="gmSecret" class="mono" autocomplete="off" placeholder="laat leeg = niet wijzigen">
+                <label>TLS-modus</label>
+                <select id="smtpTls">
+                  <option value="starttls">STARTTLS (587)</option>
+                  <option value="ssl">SSL (465)</option>
+                  <option value="none">Geen</option>
+                </select>
               </div>
               <div class="field">
-                <label>From-adres (verzendende mailbox)</label>
-                <input type="text" id="gmFrom" class="mono" placeholder="dashboard@bedrijf.com">
+                <label>Gebruikersnaam (Gmail-adres)</label>
+                <input type="text" id="smtpUser" class="mono" placeholder="voorbeeld@gmail.com">
               </div>
-              <div class="field" style="grid-column: 1 / -1;">
+              <div class="field" style="grid-column: span 2;">
+                <label>App-wachtwoord</label>
+                <input type="password" id="smtpPass" class="mono" autocomplete="off" placeholder="laat leeg = niet wijzigen">
+              </div>
+              <div class="field">
+                <label>From-adres (optioneel)</label>
+                <input type="text" id="smtpFrom" class="mono" placeholder="leeg = gebruik gebruikersnaam">
+              </div>
+              <div class="field" style="grid-column: span 2;">
                 <label>Standaardontvanger(s) &mdash; kommagescheiden</label>
-                <input type="text" id="gmDefaultTo" class="mono" placeholder="ontvanger@bedrijf.com">
+                <input type="text" id="smtpDefaultTo" class="mono" placeholder="ontvanger@bedrijf.com">
               </div>
             </div>
             <div class="row" style="margin-top:12px;">
-              <button class="btn primary" id="gmSaveBtn">Opslaan</button>
-              <button class="btn" id="gmClearSecretBtn" title="Wis het opgeslagen secret">Secret wissen</button>
-              <button class="btn" id="gmTestBtn">Test e-mail</button>
-              <span class="mono" id="gmStatus" style="color:var(--text-faint); font-size:12px;"></span>
+              <button class="btn primary" id="smtpSaveBtn">Opslaan</button>
+              <button class="btn" id="smtpClearPassBtn" title="Wis het opgeslagen wachtwoord">Wachtwoord wissen</button>
+              <button class="btn" id="smtpTestBtn">Test e-mail</button>
+              <span class="mono" id="smtpStatus" style="color:var(--text-faint); font-size:12px;"></span>
             </div>
           </div>
 
@@ -3253,41 +3268,45 @@
     }, 5000);
   }
 
-  // --- Graph mail settings ---
-  function renderGraphSettings(cfg) {
+  // --- SMTP mail settings ---
+  function renderSmtpSettings(cfg) {
     if (!cfg) return;
-    $("#gmTenant").value = cfg.tenant_id || "";
-    $("#gmClient").value = cfg.client_id || "";
-    $("#gmFrom").value = cfg.from_address || "";
-    $("#gmDefaultTo").value = cfg.default_to || "";
-    $("#gmSecret").value = "";
-    $("#gmSecret").placeholder = cfg.has_secret
-      ? "secret opgeslagen — leeg laten = niet wijzigen"
-      : "geen secret opgeslagen";
-    $("#gmStatus").textContent = cfg.configured
+    $("#smtpHost").value = cfg.host || "smtp.gmail.com";
+    $("#smtpPort").value = cfg.port || 587;
+    $("#smtpTls").value = cfg.tls_mode || "starttls";
+    $("#smtpUser").value = cfg.username || "";
+    $("#smtpFrom").value = cfg.from_address || "";
+    $("#smtpDefaultTo").value = cfg.default_to || "";
+    $("#smtpPass").value = "";
+    $("#smtpPass").placeholder = cfg.has_password
+      ? "wachtwoord opgeslagen — leeg laten = niet wijzigen"
+      : "app-wachtwoord (16 tekens, spaties OK)";
+    $("#smtpStatus").textContent = cfg.configured
       ? "geconfigureerd"
       : "nog niet volledig ingevuld";
   }
 
-  function refreshGraphSettings() {
+  function refreshSmtpSettings() {
     var api = pyApi();
     if (!api) return Promise.resolve();
-    return api.get_graph_settings().then(function (cfg) { renderGraphSettings(cfg); });
+    return api.get_smtp_settings().then(function (cfg) { renderSmtpSettings(cfg); });
   }
 
-  function saveGraphSettings() {
+  function saveSmtpSettings() {
     var api = pyApi();
     if (!api) return;
     var payload = {
-      tenant_id: $("#gmTenant").value.trim(),
-      client_id: $("#gmClient").value.trim(),
-      from_address: $("#gmFrom").value.trim(),
-      default_to: $("#gmDefaultTo").value.trim(),
-      client_secret: $("#gmSecret").value, // empty = unchanged
+      host: $("#smtpHost").value.trim(),
+      port: parseInt($("#smtpPort").value || "0", 10),
+      tls_mode: $("#smtpTls").value,
+      username: $("#smtpUser").value.trim(),
+      from_address: $("#smtpFrom").value.trim(),
+      default_to: $("#smtpDefaultTo").value.trim(),
+      password: $("#smtpPass").value, // empty = unchanged
     };
-    api.set_graph_settings(payload).then(function (res) {
+    api.set_smtp_settings(payload).then(function (res) {
       if (res && res.ok) {
-        renderGraphSettings(res);
+        renderSmtpSettings(res);
         toast("Mail-instellingen opgeslagen.");
       } else {
         toast((res && res.error) || "Opslaan mislukt.", "error");
@@ -3295,36 +3314,36 @@
     });
   }
 
-  function clearGraphSecret() {
+  function clearSmtpPassword() {
     var api = pyApi();
     if (!api) return;
-    if (!window.confirm("Opgeslagen client-secret wissen?")) return;
-    api.set_graph_settings({ clear_secret: true }).then(function (res) {
+    if (!window.confirm("Opgeslagen wachtwoord wissen?")) return;
+    api.set_smtp_settings({ clear_password: true }).then(function (res) {
       if (res && res.ok) {
-        renderGraphSettings(res);
-        toast("Secret gewist.");
+        renderSmtpSettings(res);
+        toast("Wachtwoord gewist.");
       } else {
         toast((res && res.error) || "Wissen mislukt.", "error");
       }
     });
   }
 
-  function testGraphMail() {
+  function testSmtpMail() {
     var api = pyApi();
     if (!api) return;
-    var to = $("#gmDefaultTo").value.trim();
+    var to = $("#smtpDefaultTo").value.trim();
     if (!to) {
       var manual = window.prompt("Stuur testmail naar (geen standaardontvanger ingesteld):");
       if (!manual) return;
       to = manual.trim();
     }
-    $("#gmStatus").textContent = "testen...";
-    api.test_graph_mail(to).then(function (res) {
+    $("#smtpStatus").textContent = "testen...";
+    api.test_smtp_mail(to).then(function (res) {
       if (res && res.ok) {
-        $("#gmStatus").textContent = "test ok — verzonden naar " + to;
+        $("#smtpStatus").textContent = "test ok — verzonden naar " + to;
         toast("Testmail verzonden.");
       } else {
-        $("#gmStatus").textContent = "test mislukt";
+        $("#smtpStatus").textContent = "test mislukt";
         toast((res && res.error) || "Test mislukt.", "error");
       }
     });
@@ -3463,10 +3482,10 @@
     $("#runsClearBtn").addEventListener("click", clearActiveRunsHistory);
     $("#runDetailClose").addEventListener("click", closeRunDetail);
 
-    // Graph mail settings
-    $("#gmSaveBtn").addEventListener("click", saveGraphSettings);
-    $("#gmClearSecretBtn").addEventListener("click", clearGraphSecret);
-    $("#gmTestBtn").addEventListener("click", testGraphMail);
+    // SMTP mail settings
+    $("#smtpSaveBtn").addEventListener("click", saveSmtpSettings);
+    $("#smtpClearPassBtn").addEventListener("click", clearSmtpPassword);
+    $("#smtpTestBtn").addEventListener("click", testSmtpMail);
   }
 
   // --- boot ---
@@ -3497,7 +3516,7 @@
         }),
         refreshTokenStatus(),
         refreshSchedules().then(function () { renderRunsFilterList(); }),
-        refreshGraphSettings(),
+        refreshSmtpSettings(),
         refreshHeartbeat(),
         refreshRuns(),
       ]).then(function () {

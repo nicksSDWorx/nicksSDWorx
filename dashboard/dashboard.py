@@ -12,6 +12,7 @@ import json
 import os
 import re
 import shutil
+import smtplib
 import socket
 import ssl
 import subprocess
@@ -21,6 +22,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
+from email.message import EmailMessage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -83,13 +85,16 @@ DEFAULT_SETTINGS = {
     # Scheduled tool runs. See Scheduler / compute_next_run for the
     # accepted shape per entry.
     "schedules": [],
-    # Microsoft Graph / M365 mail config. App-only client-credentials
-    # flow — ``client_secret`` lives plain-text in this file (which is
-    # in .gitignore). See GraphMailer for the wire format.
-    "graph_mail": {
-        "tenant_id": "",
-        "client_id": "",
-        "client_secret": "",
+    # SMTP mail config used by the scheduled-runs mailer. ``password``
+    # lives plain-text in this file (which is in .gitignore). For Gmail
+    # you must use a 16-char *app-password* (requires 2FA on the Google
+    # account); spaces are stripped on save. See SmtpMailer.
+    "smtp_mail": {
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "tls_mode": "starttls",
+        "username": "",
+        "password": "",
         "from_address": "",
         "default_to": "",
     },
@@ -97,6 +102,7 @@ DEFAULT_SETTINGS = {
 
 VALID_SCHEDULE_TYPES = {"once", "daily", "weekly", "interval"}
 VALID_MAIL_TRIGGERS = {"never", "on_error", "always"}
+VALID_TLS_MODES = {"starttls", "ssl", "none"}
 MAX_SCHEDULE_NAME = 80
 
 UNCATEGORIZED = "Ongecategoriseerd"
@@ -137,14 +143,18 @@ def load_settings() -> dict:
     if not isinstance(data.get("schedules"), list):
         data["schedules"] = []
         changed = True
-    gm = data.get("graph_mail")
-    if not isinstance(gm, dict):
-        data["graph_mail"] = dict(DEFAULT_SETTINGS["graph_mail"])
+    # Drop the abandoned Graph block on first load — superseded by SMTP.
+    if "graph_mail" in data:
+        data.pop("graph_mail", None)
+        changed = True
+    sm = data.get("smtp_mail")
+    if not isinstance(sm, dict):
+        data["smtp_mail"] = dict(DEFAULT_SETTINGS["smtp_mail"])
         changed = True
     else:
-        for k, v in DEFAULT_SETTINGS["graph_mail"].items():
-            if k not in gm:
-                gm[k] = v
+        for k, v in DEFAULT_SETTINGS["smtp_mail"].items():
+            if k not in sm:
+                sm[k] = v
                 changed = True
     if changed:
         save_settings(data)
@@ -1180,17 +1190,15 @@ class RunStore:
 
 
 # ---------------------------------------------------------------------------
-# Microsoft Graph mail (M365 sendMail) — app-only, client-credentials flow
+# SMTP mail (Gmail-default, generic) — used by scheduled-run mailer
 # ---------------------------------------------------------------------------
 
-GRAPH_TOKEN_URL = "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
-GRAPH_SENDMAIL_URL = "https://graph.microsoft.com/v1.0/users/{addr}/sendMail"
-GRAPH_SCOPE = "https://graph.microsoft.com/.default"
-
-DEFAULT_GRAPH_MAIL = {
-    "tenant_id": "",
-    "client_id": "",
-    "client_secret": "",
+DEFAULT_SMTP_MAIL = {
+    "host": "smtp.gmail.com",
+    "port": 587,
+    "tls_mode": "starttls",   # "starttls" | "ssl" | "none"
+    "username": "",
+    "password": "",
     "from_address": "",
     "default_to": "",
 }
@@ -1203,71 +1211,42 @@ def _split_recipients(raw: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-class GraphMailer:
-    """Send mail via Microsoft Graph using app-only auth.
+class SmtpMailer:
+    """Send mail via plain SMTP with login auth.
 
-    Requires `Mail.Send` (Application) permission with admin consent on
-    the configured tenant. Token is cached in-memory until ~60s before
-    expiry. All HTTP traffic goes through ``build_ssl_context`` so a
-    corporate root-CA is honoured (same setting as GitHub sync).
+    Defaults target Gmail (``smtp.gmail.com:587`` with STARTTLS), which
+    requires a 16-character *app password* (Google Account → Security →
+    App passwords; needs 2FA enabled). Username/password auth, app
+    password spaces are stripped on save. Generic enough to work with
+    any STARTTLS / SSL / plain SMTP server.
     """
 
     def __init__(self, settings_provider):
         self._settings_provider = settings_provider
-        self._lock = threading.Lock()
-        self._token: str = ""
-        self._token_expires_at: float = 0.0
-
-    # ---- helpers --------------------------------------------------------
-
-    def _ssl_ctx(self) -> ssl.SSLContext:
-        verify = bool((self._settings_provider() or {}).get("ssl_verify", True))
-        return build_ssl_context(verify=verify)
+        self._lock = threading.Lock()  # serialises sends per process
 
     def _config(self) -> dict:
-        cfg = (self._settings_provider() or {}).get("graph_mail") or {}
-        return {**DEFAULT_GRAPH_MAIL, **cfg}
+        cfg = (self._settings_provider() or {}).get("smtp_mail") or {}
+        return {**DEFAULT_SMTP_MAIL, **cfg}
 
     def _missing_fields(self, cfg: dict) -> list[str]:
-        return [k for k in ("tenant_id", "client_id", "client_secret", "from_address")
-                if not (cfg.get(k) or "").strip()]
+        missing = []
+        if not (cfg.get("host") or "").strip():
+            missing.append("host")
+        try:
+            port = int(cfg.get("port") or 0)
+        except (TypeError, ValueError):
+            port = 0
+        if port <= 0:
+            missing.append("port")
+        if not (cfg.get("username") or "").strip():
+            missing.append("username")
+        if not (cfg.get("password") or "").strip():
+            missing.append("password")
+        return missing
 
     def is_configured(self) -> bool:
         return not self._missing_fields(self._config())
-
-    # ---- token ----------------------------------------------------------
-
-    def _get_token(self, cfg: dict) -> str:
-        with self._lock:
-            if self._token and time.time() < self._token_expires_at - 60:
-                return self._token
-            url = GRAPH_TOKEN_URL.format(tenant=cfg["tenant_id"])
-            body = (
-                "grant_type=client_credentials"
-                f"&client_id={urllib.request.quote(cfg['client_id'])}"
-                f"&client_secret={urllib.request.quote(cfg['client_secret'])}"
-                f"&scope={urllib.request.quote(GRAPH_SCOPE)}"
-            ).encode("utf-8")
-            req = urllib.request.Request(url, data=body, method="POST", headers={
-                "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "Dashboard-AI-Worx/1.0",
-            })
-            with urllib.request.urlopen(req, timeout=30, context=self._ssl_ctx()) as resp:
-                raw = resp.read()
-            data = json.loads(raw.decode("utf-8"))
-            tok = data.get("access_token") or ""
-            if not tok:
-                raise RuntimeError("Geen access_token in tokenrespons.")
-            self._token = tok
-            self._token_expires_at = time.time() + int(data.get("expires_in", 3600))
-            return tok
-
-    def invalidate_token(self) -> None:
-        with self._lock:
-            self._token = ""
-            self._token_expires_at = 0.0
-
-    # ---- send -----------------------------------------------------------
 
     def send(self, to: list[str], subject: str, body_text: str,
              attachments: list[dict] | None = None) -> dict:
@@ -1277,68 +1256,73 @@ class GraphMailer:
         cfg = self._config()
         missing = self._missing_fields(cfg)
         if missing:
-            return {"ok": False, "error": f"Graph-config onvolledig: {', '.join(missing)}"}
+            return {"ok": False, "error": f"SMTP-config onvolledig: {', '.join(missing)}"}
         if not to:
             return {"ok": False, "error": "Geen ontvangers."}
+        tls_mode = (cfg.get("tls_mode") or "starttls").strip().lower()
+        if tls_mode not in VALID_TLS_MODES:
+            return {"ok": False, "error": f"Onbekende TLS-modus: {tls_mode!r}"}
 
-        message: dict = {
-            "subject": subject[:255] if subject else "(geen onderwerp)",
-            "body": {"contentType": "Text", "content": body_text or ""},
-            "toRecipients": [{"emailAddress": {"address": addr}} for addr in to],
-        }
-        if attachments:
-            message["attachments"] = [
-                {
-                    "@odata.type": "#microsoft.graph.fileAttachment",
-                    "name": a.get("name") or "attachment.txt",
-                    "contentBytes": base64.b64encode(a.get("content") or b"").decode("ascii"),
-                    "contentType": "text/plain",
-                }
-                for a in attachments
-            ]
-
-        payload = {"message": message, "saveToSentItems": True}
-        url = GRAPH_SENDMAIL_URL.format(addr=urllib.request.quote(cfg["from_address"]))
+        host = cfg["host"].strip()
         try:
-            token = self._get_token(cfg)
-        except urllib.error.HTTPError as exc:
-            try:
-                err_body = exc.read().decode("utf-8", errors="replace")
-            except Exception:
-                err_body = ""
-            return {"ok": False, "error": f"Token HTTP {exc.code}: {err_body[:200]}"}
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": f"Token-fout: {exc}"}
+            port = int(cfg["port"])
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "Poort moet een getal zijn."}
+        username = cfg["username"].strip()
+        password = (cfg["password"] or "").replace(" ", "")  # Google copies with spaces
+        from_addr = (cfg.get("from_address") or "").strip() or username
 
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            method="POST",
-            headers={
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json",
-                "User-Agent": "Dashboard-AI-Worx/1.0",
-            },
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=60, context=self._ssl_ctx()) as resp:
-                # 202 Accepted is the success response for sendMail.
-                if 200 <= resp.status < 300:
-                    return {"ok": True}
-                return {"ok": False, "error": f"Onverwachte status {resp.status}"}
-        except urllib.error.HTTPError as exc:
+        msg = EmailMessage()
+        msg["Subject"] = (subject or "(geen onderwerp)")[:255]
+        msg["From"] = from_addr
+        msg["To"] = ", ".join(to)
+        msg.set_content(body_text or "")
+        for a in attachments or []:
+            content = a.get("content") or b""
+            name = a.get("name") or "attachment.txt"
             try:
-                err_body = exc.read().decode("utf-8", errors="replace")
-            except Exception:
-                err_body = ""
-            # 401 typically means stale token / revoked secret — drop it.
-            if exc.code in (401, 403):
-                self.invalidate_token()
-            return {"ok": False, "error": f"sendMail HTTP {exc.code}: {err_body[:300]}"}
-        except urllib.error.URLError as exc:
-            return {"ok": False, "error": f"Netwerk: {exc.reason}"}
-        except Exception as exc:  # noqa: BLE001
-            return {"ok": False, "error": str(exc)}
+                msg.add_attachment(content, maintype="text", subtype="plain", filename=name)
+            except Exception as exc:  # noqa: BLE001
+                return {"ok": False, "error": f"Bijlage afgewezen: {exc}"}
+
+        ssl_ctx = ssl.create_default_context()
+
+        with self._lock:
+            try:
+                if tls_mode == "ssl":
+                    smtp = smtplib.SMTP_SSL(host, port, timeout=30, context=ssl_ctx)
+                else:
+                    smtp = smtplib.SMTP(host, port, timeout=30)
+                with smtp:
+                    smtp.ehlo()
+                    if tls_mode == "starttls":
+                        smtp.starttls(context=ssl_ctx)
+                        smtp.ehlo()
+                    smtp.login(username, password)
+                    smtp.send_message(msg)
+                return {"ok": True}
+            except smtplib.SMTPAuthenticationError as exc:
+                hint = (
+                    " (gebruik een app-wachtwoord, niet je gewone Gmail-wachtwoord)"
+                    if "gmail" in host.lower() else ""
+                )
+                return {"ok": False, "error": f"Authenticatie geweigerd: {exc.smtp_code}{hint}"}
+            except smtplib.SMTPRecipientsRefused as exc:
+                return {"ok": False, "error": f"Ontvangers geweigerd: {list(exc.recipients.keys())}"}
+            except smtplib.SMTPSenderRefused as exc:
+                return {"ok": False, "error": f"Afzender geweigerd ({from_addr}): {exc.smtp_error.decode('utf-8', 'replace') if isinstance(exc.smtp_error, bytes) else exc.smtp_error}"}
+            except smtplib.SMTPConnectError as exc:
+                return {"ok": False, "error": f"Verbindingsfout {host}:{port} — {exc}"}
+            except smtplib.SMTPServerDisconnected as exc:
+                return {"ok": False, "error": f"Server brak verbinding af: {exc}"}
+            except smtplib.SMTPException as exc:
+                return {"ok": False, "error": f"SMTP-fout: {exc}"}
+            except (socket.gaierror, OSError, TimeoutError) as exc:
+                return {"ok": False, "error": f"Kan SMTP-server niet bereiken {host}:{port} — {exc}"}
+            except ssl.SSLError as exc:
+                return {"ok": False, "error": f"SSL-fout: {exc} (klopt de TLS-modus bij de poort?)"}
+            except Exception as exc:  # noqa: BLE001
+                return {"ok": False, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -1663,7 +1647,7 @@ class Api:
         self.push = GitHubPush(settings_provider=lambda: self.settings)
         self.jobs = JobRunner()
         self.runs = RunStore()
-        self.mailer = GraphMailer(settings_provider=lambda: self.settings)
+        self.mailer = SmtpMailer(settings_provider=lambda: self.settings)
         self._sched_lock = threading.Lock()
         self.scheduler = Scheduler(
             settings_provider=lambda: self.settings,
@@ -2026,7 +2010,7 @@ class Api:
         recipients = _split_recipients(sched_snapshot.get("mail_to") or "")
         if not recipients:
             default_to = (
-                (self.settings.get("graph_mail") or {}).get("default_to") or ""
+                (self.settings.get("smtp_mail") or {}).get("default_to") or ""
             )
             recipients = _split_recipients(default_to)
         if not recipients:
@@ -2210,36 +2194,48 @@ class Api:
             return {"ok": False, "error": str(exc)}
         return {"ok": True, "removed": removed}
 
-    # ----- Microsoft Graph mail ----------------------------------------
+    # ----- SMTP mail ---------------------------------------------------
 
-    def get_graph_settings(self) -> dict:
-        cfg = (self.settings.get("graph_mail") or {}).copy()
-        # Don't ship the raw secret to the UI — render presence only.
-        secret = cfg.pop("client_secret", "") or ""
-        cfg["has_secret"] = bool(secret)
+    def get_smtp_settings(self) -> dict:
+        cfg = (self.settings.get("smtp_mail") or {}).copy()
+        # Don't ship the raw password to the UI — render presence only.
+        password = cfg.pop("password", "") or ""
+        cfg["has_password"] = bool(password)
         cfg["configured"] = self.mailer.is_configured()
         return cfg
 
-    def set_graph_settings(self, payload: dict) -> dict:
+    def set_smtp_settings(self, payload: dict) -> dict:
         if not isinstance(payload, dict):
             return {"ok": False, "error": "Ongeldige payload."}
-        cfg = self.settings.setdefault("graph_mail", dict(DEFAULT_SETTINGS["graph_mail"]))
-        for k in ("tenant_id", "client_id", "from_address", "default_to"):
+        cfg = self.settings.setdefault("smtp_mail", dict(DEFAULT_SETTINGS["smtp_mail"]))
+        for k in ("host", "username", "from_address", "default_to"):
             if k in payload:
                 cfg[k] = (payload.get(k) or "").strip()
-        # Secret: only overwrite when the UI actually sent one (empty
-        # string from the password input means "unchanged"). To clear it,
-        # the UI sends ``"clear_secret": true``.
-        if payload.get("clear_secret"):
-            cfg["client_secret"] = ""
-        elif (payload.get("client_secret") or "").strip():
-            cfg["client_secret"] = payload["client_secret"].strip()
+        if "tls_mode" in payload:
+            mode = (payload.get("tls_mode") or "").strip().lower()
+            if mode and mode not in VALID_TLS_MODES:
+                return {"ok": False, "error": f"Onbekende TLS-modus: {mode!r}"}
+            cfg["tls_mode"] = mode or "starttls"
+        if "port" in payload:
+            try:
+                port = int(payload["port"])
+            except (TypeError, ValueError):
+                return {"ok": False, "error": "Poort moet een getal zijn."}
+            if not (1 <= port <= 65535):
+                return {"ok": False, "error": "Poort buiten bereik (1–65535)."}
+            cfg["port"] = port
+        # Password: empty string from the input = unchanged. To clear,
+        # the UI sends ``"clear_password": true``. Spaces stripped because
+        # Google copies app-passwords with spaces for readability.
+        if payload.get("clear_password"):
+            cfg["password"] = ""
+        elif (payload.get("password") or "").strip():
+            cfg["password"] = payload["password"].replace(" ", "").strip()
         save_settings(self.settings)
-        self.mailer.invalidate_token()
-        return {"ok": True, **self.get_graph_settings()}
+        return {"ok": True, **self.get_smtp_settings()}
 
-    def test_graph_mail(self, recipient: str = "") -> dict:
-        cfg = self.settings.get("graph_mail") or {}
+    def test_smtp_mail(self, recipient: str = "") -> dict:
+        cfg = self.settings.get("smtp_mail") or {}
         to = (recipient or "").strip() or (cfg.get("default_to") or "").strip()
         recipients = _split_recipients(to)
         if not recipients:
@@ -2247,7 +2243,8 @@ class Api:
         body = (
             "Dit is een testbericht van Dashboard AI Worx.\n\n"
             f"Verzonden om: {datetime.now().isoformat(timespec='seconds')}\n"
-            f"Vanuit: {cfg.get('from_address', '?')}\n"
+            f"Vanuit: {cfg.get('from_address') or cfg.get('username') or '?'}\n"
+            f"Server: {cfg.get('host')}:{cfg.get('port')} ({cfg.get('tls_mode')})\n"
         )
         return self.mailer.send(recipients, "[Dashboard AI Worx] Test", body)
 
