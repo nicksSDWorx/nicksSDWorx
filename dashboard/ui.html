@@ -1177,19 +1177,6 @@
                 <input type="number" id="schedInterval" min="1" step="1" value="60">
               </div>
 
-              <div class="field">
-                <label>Mail bij voltooiing</label>
-                <select id="schedMailTrigger">
-                  <option value="never">Nooit</option>
-                  <option value="on_error">Alleen bij fout</option>
-                  <option value="always">Altijd</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Mail naar (optioneel, kommagescheiden)</label>
-                <input type="text" id="schedMailTo" placeholder="laat leeg om de standaardontvanger te gebruiken">
-              </div>
-
               <div class="field span2">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);">
                   <input type="checkbox" id="schedSkipIfRunning" checked style="width:16px;height:16px;accent-color:var(--accent);">
@@ -1359,54 +1346,29 @@
           </div>
 
           <div class="panel">
-            <h3>Mail (SMTP)</h3>
+            <h3>Runs-opslag</h3>
             <p class="hint">
-              Stuur output van geplande runs via SMTP. Voor <b>Gmail</b>: zet eerst tweestapsverificatie aan,
-              maak daarna een <b>app-wachtwoord</b> aan via
-              <span class="mono">myaccount.google.com &rarr; Beveiliging &rarr; App-wachtwoorden</span>
-              en plak die hieronder (spaties mag, worden gestript). Standaarden hieronder zijn
-              al ingevuld voor Gmail. Het wachtwoord wordt plain-text in <code>settings.json</code>
-              opgeslagen (staat in <code>.gitignore</code>).
+              Output van geplande runs wordt per run als <code>.json</code> én leesbare <code>.txt</code>
+              naar deze map geschreven (bestandsnaam:
+              <code>YYYY-MM-DD_HH-MM-SS_&lt;naam&gt;_&lt;status&gt;</code>).
+              Laat het pad leeg om de standaardlocatie naast het dashboard te gebruiken.
+              Geef een absoluut pad op (bijv. naar een OneDrive-map of netwerkshare) als
+              een andere automation de bestanden later moet oppikken.
             </p>
-            <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr;">
+            <div class="form-grid" style="grid-template-columns: 2fr 1fr;">
               <div class="field">
-                <label>SMTP-host</label>
-                <input type="text" id="smtpHost" class="mono" placeholder="smtp.gmail.com">
-              </div>
-              <div class="field">
-                <label>Poort</label>
-                <input type="number" id="smtpPort" class="mono" min="1" max="65535" placeholder="587">
+                <label>Pad</label>
+                <input type="text" id="runsPath" class="mono" placeholder="laat leeg = standaard">
               </div>
               <div class="field">
-                <label>TLS-modus</label>
-                <select id="smtpTls">
-                  <option value="starttls">STARTTLS (587)</option>
-                  <option value="ssl">SSL (465)</option>
-                  <option value="none">Geen</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Gebruikersnaam (Gmail-adres)</label>
-                <input type="text" id="smtpUser" class="mono" placeholder="voorbeeld@gmail.com">
-              </div>
-              <div class="field" style="grid-column: span 2;">
-                <label>App-wachtwoord</label>
-                <input type="password" id="smtpPass" class="mono" autocomplete="off" placeholder="laat leeg = niet wijzigen">
-              </div>
-              <div class="field">
-                <label>From-adres (optioneel)</label>
-                <input type="text" id="smtpFrom" class="mono" placeholder="leeg = gebruik gebruikersnaam">
-              </div>
-              <div class="field" style="grid-column: span 2;">
-                <label>Standaardontvanger(s) &mdash; kommagescheiden</label>
-                <input type="text" id="smtpDefaultTo" class="mono" placeholder="ontvanger@bedrijf.com">
+                <label>Maximum runs per planning</label>
+                <input type="number" id="runsCap" class="mono" min="1" max="10000" value="50">
               </div>
             </div>
             <div class="row" style="margin-top:12px;">
-              <button class="btn primary" id="smtpSaveBtn">Opslaan</button>
-              <button class="btn" id="smtpClearPassBtn" title="Wis het opgeslagen wachtwoord">Wachtwoord wissen</button>
-              <button class="btn" id="smtpTestBtn">Test e-mail</button>
-              <span class="mono" id="smtpStatus" style="color:var(--text-faint); font-size:12px;"></span>
+              <button class="btn primary" id="runsSaveBtn">Opslaan</button>
+              <button class="btn" id="runsOpenBtn">Open map</button>
+              <span class="mono" id="runsStatus" style="color:var(--text-faint); font-size:12px;"></span>
             </div>
           </div>
 
@@ -2822,8 +2784,6 @@
       type: type,
       enabled: $("#schedEnabled").checked,
       skip_if_running: $("#schedSkipIfRunning").checked,
-      mail_trigger: $("#schedMailTrigger").value,
-      mail_to: $("#schedMailTo").value.trim(),
     };
     if (type === "once") {
       payload.datetime = $("#schedDatetime").value;
@@ -2870,8 +2830,6 @@
     $$('#schedWeekdays input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
     $("#schedSkipIfRunning").checked = true;
     $("#schedEnabled").checked = true;
-    $("#schedMailTrigger").value = "never";
-    $("#schedMailTo").value = "";
     var dailyRadio = document.querySelector('input[name="schedType"][value="daily"]');
     if (dailyRadio) dailyRadio.checked = true;
     applyTypeVisibility();
@@ -2896,8 +2854,6 @@
     });
     $("#schedSkipIfRunning").checked = s.skip_if_running !== false;
     $("#schedEnabled").checked = !!s.enabled;
-    $("#schedMailTrigger").value = s.mail_trigger || "never";
-    $("#schedMailTo").value = s.mail_to || "";
     applyTypeVisibility();
     applyWeekdayHighlight();
     $("#plannerFormTitle").textContent = "Planning bewerken: " + (s.name || "");
@@ -3108,16 +3064,6 @@
     return '<span class="pill off">' + esc(st || "?") + '</span>';
   }
 
-  function mailPillFor(rec) {
-    var ms = rec.mail_status || "";
-    if (!ms || ms === "skipped" || ms.indexOf("skipped") === 0) {
-      return '<span class="pill off">' + esc(ms || "—") + '</span>';
-    }
-    if (ms.indexOf("sent") === 0) return '<span class="pill ok">' + esc(ms) + '</span>';
-    if (ms.indexOf("error") === 0) return '<span class="pill error">' + esc(ms) + '</span>';
-    return '<span class="pill off">' + esc(ms) + '</span>';
-  }
-
   function renderRuns() {
     var container = $("#runsContainer");
     var count = $("#runsCount");
@@ -3139,7 +3085,6 @@
         +   '<td>' + statusPillFor(r) + '</td>'
         +   '<td class="mono">' + (r.exit_code === null || r.exit_code === undefined ? "—" : esc(String(r.exit_code))) + '</td>'
         +   '<td class="mono">' + esc(fmtDuration(r)) + '</td>'
-        +   '<td>' + mailPillFor(r) + '</td>'
         + '</tr>';
     }).join("");
 
@@ -3151,7 +3096,6 @@
       +   '<th>Status</th>'
       +   '<th>Exit</th>'
       +   '<th>Duur</th>'
-      +   '<th>Mail</th>'
       + '</tr></thead>'
       + '<tbody>' + rows + '</tbody>'
       + '</table>';
@@ -3203,8 +3147,7 @@
       var r = res.run || {};
       title.textContent = (r.schedule_name || "?") + " — " + (r.status || "?");
       var when = fmtAbsTime(r.started_at) + " · duur " + fmtDuration(r)
-               + " · exit " + (r.exit_code === null || r.exit_code === undefined ? "—" : r.exit_code)
-               + " · mail: " + (r.mail_status || "—");
+               + " · exit " + (r.exit_code === null || r.exit_code === undefined ? "—" : r.exit_code);
       meta.textContent = when;
       var log = (r.log || []).join("\n") || "(geen output)";
       if (r.truncated && r.truncated > 0) {
@@ -3268,83 +3211,53 @@
     }, 5000);
   }
 
-  // --- SMTP mail settings ---
-  function renderSmtpSettings(cfg) {
+  // --- Runs-opslag settings ---
+  function renderRunsStorage(cfg) {
     if (!cfg) return;
-    $("#smtpHost").value = cfg.host || "smtp.gmail.com";
-    $("#smtpPort").value = cfg.port || 587;
-    $("#smtpTls").value = cfg.tls_mode || "starttls";
-    $("#smtpUser").value = cfg.username || "";
-    $("#smtpFrom").value = cfg.from_address || "";
-    $("#smtpDefaultTo").value = cfg.default_to || "";
-    $("#smtpPass").value = "";
-    $("#smtpPass").placeholder = cfg.has_password
-      ? "wachtwoord opgeslagen — leeg laten = niet wijzigen"
-      : "app-wachtwoord (16 tekens, spaties OK)";
-    $("#smtpStatus").textContent = cfg.configured
-      ? "geconfigureerd"
-      : "nog niet volledig ingevuld";
+    $("#runsPath").value = cfg.path || "";
+    $("#runsCap").value = cfg.max_per_schedule || 50;
+    $("#runsCap").min = cfg.cap_min || 1;
+    $("#runsCap").max = cfg.cap_max || 10000;
+    var status = "Actief: " + (cfg.resolved_path || "?");
+    if (cfg.fallback) {
+      status += " (fallback — ingesteld pad onbruikbaar)";
+    } else if (cfg.is_default) {
+      status += " (standaardlocatie)";
+    }
+    $("#runsStatus").textContent = status;
+    $("#runsStatus").style.color = cfg.fallback ? "var(--danger)" : "";
   }
 
-  function refreshSmtpSettings() {
+  function refreshRunsStorage() {
     var api = pyApi();
     if (!api) return Promise.resolve();
-    return api.get_smtp_settings().then(function (cfg) { renderSmtpSettings(cfg); });
+    return api.get_runs_storage().then(function (cfg) { renderRunsStorage(cfg); });
   }
 
-  function saveSmtpSettings() {
+  function saveRunsStorage() {
     var api = pyApi();
     if (!api) return;
     var payload = {
-      host: $("#smtpHost").value.trim(),
-      port: parseInt($("#smtpPort").value || "0", 10),
-      tls_mode: $("#smtpTls").value,
-      username: $("#smtpUser").value.trim(),
-      from_address: $("#smtpFrom").value.trim(),
-      default_to: $("#smtpDefaultTo").value.trim(),
-      password: $("#smtpPass").value, // empty = unchanged
+      path: $("#runsPath").value.trim(),
+      max_per_schedule: parseInt($("#runsCap").value || "50", 10),
     };
-    api.set_smtp_settings(payload).then(function (res) {
+    api.set_runs_storage(payload).then(function (res) {
       if (res && res.ok) {
-        renderSmtpSettings(res);
-        toast("Mail-instellingen opgeslagen.");
+        renderRunsStorage(res);
+        toast("Runs-opslag opgeslagen.");
+        refreshRuns();  // pick up runs from the new path
       } else {
         toast((res && res.error) || "Opslaan mislukt.", "error");
       }
     });
   }
 
-  function clearSmtpPassword() {
+  function openRunsFolder() {
     var api = pyApi();
     if (!api) return;
-    if (!window.confirm("Opgeslagen wachtwoord wissen?")) return;
-    api.set_smtp_settings({ clear_password: true }).then(function (res) {
-      if (res && res.ok) {
-        renderSmtpSettings(res);
-        toast("Wachtwoord gewist.");
-      } else {
-        toast((res && res.error) || "Wissen mislukt.", "error");
-      }
-    });
-  }
-
-  function testSmtpMail() {
-    var api = pyApi();
-    if (!api) return;
-    var to = $("#smtpDefaultTo").value.trim();
-    if (!to) {
-      var manual = window.prompt("Stuur testmail naar (geen standaardontvanger ingesteld):");
-      if (!manual) return;
-      to = manual.trim();
-    }
-    $("#smtpStatus").textContent = "testen...";
-    api.test_smtp_mail(to).then(function (res) {
-      if (res && res.ok) {
-        $("#smtpStatus").textContent = "test ok — verzonden naar " + to;
-        toast("Testmail verzonden.");
-      } else {
-        $("#smtpStatus").textContent = "test mislukt";
-        toast((res && res.error) || "Test mislukt.", "error");
+    api.open_runs_folder().then(function (res) {
+      if (!res || !res.ok) {
+        toast((res && res.error) || "Kan map niet openen.", "error");
       }
     });
   }
@@ -3482,10 +3395,9 @@
     $("#runsClearBtn").addEventListener("click", clearActiveRunsHistory);
     $("#runDetailClose").addEventListener("click", closeRunDetail);
 
-    // SMTP mail settings
-    $("#smtpSaveBtn").addEventListener("click", saveSmtpSettings);
-    $("#smtpClearPassBtn").addEventListener("click", clearSmtpPassword);
-    $("#smtpTestBtn").addEventListener("click", testSmtpMail);
+    // Runs-opslag settings
+    $("#runsSaveBtn").addEventListener("click", saveRunsStorage);
+    $("#runsOpenBtn").addEventListener("click", openRunsFolder);
   }
 
   // --- boot ---
@@ -3516,7 +3428,7 @@
         }),
         refreshTokenStatus(),
         refreshSchedules().then(function () { renderRunsFilterList(); }),
-        refreshSmtpSettings(),
+        refreshRunsStorage(),
         refreshHeartbeat(),
         refreshRuns(),
       ]).then(function () {

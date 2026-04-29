@@ -12,7 +12,6 @@ import json
 import os
 import re
 import shutil
-import smtplib
 import socket
 import ssl
 import subprocess
@@ -22,7 +21,6 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta
-from email.message import EmailMessage
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -85,24 +83,18 @@ DEFAULT_SETTINGS = {
     # Scheduled tool runs. See Scheduler / compute_next_run for the
     # accepted shape per entry.
     "schedules": [],
-    # SMTP mail config used by the scheduled-runs mailer. ``password``
-    # lives plain-text in this file (which is in .gitignore). For Gmail
-    # you must use a 16-char *app-password* (requires 2FA on the Google
-    # account); spaces are stripped on save. See SmtpMailer.
-    "smtp_mail": {
-        "host": "smtp.gmail.com",
-        "port": 587,
-        "tls_mode": "starttls",
-        "username": "",
-        "password": "",
-        "from_address": "",
-        "default_to": "",
+    # Where scheduled-run output is written. ``path`` empty = use the
+    # built-in ``schedule_runs/`` folder next to the dashboard. Set it
+    # to an absolute path (e.g. a OneDrive sync folder or network
+    # share) when you want a future automation to pick the files up
+    # from elsewhere.
+    "runs_storage": {
+        "path": "",
+        "max_per_schedule": 50,
     },
 }
 
 VALID_SCHEDULE_TYPES = {"once", "daily", "weekly", "interval"}
-VALID_MAIL_TRIGGERS = {"never", "on_error", "always"}
-VALID_TLS_MODES = {"starttls", "ssl", "none"}
 MAX_SCHEDULE_NAME = 80
 
 UNCATEGORIZED = "Ongecategoriseerd"
@@ -143,18 +135,27 @@ def load_settings() -> dict:
     if not isinstance(data.get("schedules"), list):
         data["schedules"] = []
         changed = True
-    # Drop the abandoned Graph block on first load — superseded by SMTP.
-    if "graph_mail" in data:
-        data.pop("graph_mail", None)
-        changed = True
-    sm = data.get("smtp_mail")
-    if not isinstance(sm, dict):
-        data["smtp_mail"] = dict(DEFAULT_SETTINGS["smtp_mail"])
+    # Drop abandoned mail blocks from earlier iterations.
+    for legacy in ("graph_mail", "smtp_mail"):
+        if legacy in data:
+            data.pop(legacy, None)
+            changed = True
+    # Strip dead mail fields off existing schedules so the file stays clean.
+    for s in data.get("schedules") or []:
+        if not isinstance(s, dict):
+            continue
+        for k in ("mail_trigger", "mail_to", "mail_status"):
+            if k in s:
+                s.pop(k, None)
+                changed = True
+    rs = data.get("runs_storage")
+    if not isinstance(rs, dict):
+        data["runs_storage"] = dict(DEFAULT_SETTINGS["runs_storage"])
         changed = True
     else:
-        for k, v in DEFAULT_SETTINGS["smtp_mail"].items():
-            if k not in sm:
-                sm[k] = v
+        for k, v in DEFAULT_SETTINGS["runs_storage"].items():
+            if k not in rs:
+                rs[k] = v
                 changed = True
     if changed:
         save_settings(data)
@@ -1055,74 +1056,171 @@ class JobRunner:
 # Persistent run history (survives dashboard restarts)
 # ---------------------------------------------------------------------------
 
-RUNS_DIR = APP_DIR / "schedule_runs"
-MAX_RUNS_PER_SCHEDULE = 50
+DEFAULT_RUNS_DIR = APP_DIR / "schedule_runs"
+DEFAULT_MAX_RUNS_PER_SCHEDULE = 50
+RUNS_CAP_MIN = 1
+RUNS_CAP_MAX = 10000
 SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+SAFE_NAME_RE = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _safe_filename(name: str, max_len: int = 60) -> str:
+    """Return a filesystem-safe slug derived from ``name``. Empty input
+    becomes ``"unnamed"``.
+    """
+    cleaned = SAFE_NAME_RE.sub("_", (name or "").strip())
+    cleaned = cleaned.strip("_") or "unnamed"
+    return cleaned[:max_len]
 
 
 class RunStore:
-    """Append-only-ish per-schedule run archive on disk.
+    """Per-schedule run archive on disk, dual-written as JSON + TXT.
 
-    Layout: ``schedule_runs/<schedule_id>/<epoch_ms>.json`` — one file per
-    run holding the full captured log + meta. We trim the oldest files
-    after every write so a misbehaving schedule can't fill the disk.
+    Layout::
+
+        <root>/<schedule_id>/<YYYY-MM-DD_HH-MM-SS_<slug>_<status>>.json
+        <root>/<schedule_id>/<YYYY-MM-DD_HH-MM-SS_<slug>_<status>>.txt
+
+    The JSON holds full meta + log (consumed by the Runs UI). The TXT
+    holds only stdout, suitable for hand-off to an external automation.
+
+    The root path and per-schedule cap come from ``settings_provider``
+    so changing them in the UI takes effect on the next write — no
+    restart required. ``fallback_log`` is invoked once with a string
+    when the configured path is unusable and we fall back to default.
     """
 
-    def __init__(self, root: Path = RUNS_DIR):
-        self._root = root
+    def __init__(self, settings_provider, fallback_log=None):
+        self._settings_provider = settings_provider
+        self._fallback_log = fallback_log
         self._lock = threading.Lock()
+        self._fallback_signalled = False
 
-    def _dir_for(self, schedule_id: str) -> Path:
+    # ---- config resolution --------------------------------------------
+
+    def _root(self) -> Path:
+        cfg = (self._settings_provider() or {}).get("runs_storage") or {}
+        raw = (cfg.get("path") or "").strip()
+        if not raw:
+            return DEFAULT_RUNS_DIR
+        candidate = Path(raw)
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+            if candidate.is_dir():
+                self._fallback_signalled = False  # recovered
+                return candidate
+        except OSError as exc:
+            self._signal_fallback(f"Kon {raw} niet gebruiken: {exc}. Val terug op default.")
+            return DEFAULT_RUNS_DIR
+        self._signal_fallback(f"Pad {raw} is geen map. Val terug op default.")
+        return DEFAULT_RUNS_DIR
+
+    def _signal_fallback(self, msg: str) -> None:
+        if self._fallback_signalled:
+            return
+        self._fallback_signalled = True
+        if self._fallback_log:
+            try:
+                self._fallback_log(msg)
+            except Exception:  # noqa: BLE001
+                pass
+
+    def _max_per_schedule(self) -> int:
+        cfg = (self._settings_provider() or {}).get("runs_storage") or {}
+        try:
+            n = int(cfg.get("max_per_schedule") or DEFAULT_MAX_RUNS_PER_SCHEDULE)
+        except (TypeError, ValueError):
+            n = DEFAULT_MAX_RUNS_PER_SCHEDULE
+        return max(RUNS_CAP_MIN, min(RUNS_CAP_MAX, n))
+
+    def resolved_path(self) -> Path:
+        return self._root()
+
+    # ---- internal helpers ---------------------------------------------
+
+    def _dir_for(self, schedule_id: str, root: Path | None = None) -> Path:
         if not SAFE_ID_RE.match(schedule_id or ""):
             raise ValueError(f"Onveilig schedule_id: {schedule_id!r}")
-        return self._root / schedule_id
+        return (root or self._root()) / schedule_id
+
+    @staticmethod
+    def _stem(path: Path) -> str:
+        # ".../<stem>.json" → "<stem>"
+        return path.stem
+
+    @staticmethod
+    def _build_run_id(record: dict) -> str:
+        ts = record.get("started_at") or time.time()
+        when = datetime.fromtimestamp(ts).strftime("%Y-%m-%d_%H-%M-%S")
+        slug = _safe_filename(record.get("schedule_name") or "")
+        status = _safe_filename(record.get("status") or "?")
+        return f"{when}_{slug}_{status}"
+
+    # ---- public API ---------------------------------------------------
 
     def save(self, record: dict) -> str:
-        """Write a run record. Returns the run_id (file stem)."""
+        """Write a run record. Returns the run_id (filename stem)."""
         sid = record.get("schedule_id") or ""
         target_dir = self._dir_for(sid)
         with self._lock:
             target_dir.mkdir(parents=True, exist_ok=True)
-            run_id = f"{int(time.time() * 1000)}"
-            # Avoid collision when two runs land in the same millisecond.
-            path = target_dir / f"{run_id}.json"
-            while path.exists():
-                run_id = f"{int(time.time() * 1000)}-{os.urandom(2).hex()}"
-                path = target_dir / f"{run_id}.json"
+            run_id = self._build_run_id(record)
+            json_path = target_dir / f"{run_id}.json"
+            # Avoid collision (same schedule, same status, same second).
+            attempt = 0
+            while json_path.exists():
+                attempt += 1
+                run_id = f"{self._build_run_id(record)}_{os.urandom(2).hex()}"
+                json_path = target_dir / f"{run_id}.json"
+                if attempt > 5:
+                    break
+            txt_path = target_dir / f"{run_id}.txt"
+
             record = dict(record)
             record["run_id"] = run_id
-            with open(path, "w", encoding="utf-8") as fh:
-                json.dump(record, fh, ensure_ascii=False)
+            try:
+                with open(json_path, "w", encoding="utf-8") as fh:
+                    json.dump(record, fh, ensure_ascii=False)
+            except OSError as exc:
+                self._signal_fallback(f"Kan {json_path} niet schrijven: {exc}")
+                raise
+
+            # Dual-write the plain stdout dump for external pickers.
+            try:
+                with open(txt_path, "w", encoding="utf-8") as fh:
+                    fh.write("\n".join(record.get("log") or []))
+                    if record.get("log"):
+                        fh.write("\n")
+            except OSError as exc:
+                # JSON is the source of truth — best-effort .txt only.
+                self._signal_fallback(f"Kon {txt_path} niet schrijven: {exc}")
+
             self._trim(target_dir)
         return run_id
 
-    def update(self, schedule_id: str, run_id: str, patch: dict) -> None:
-        """Merge ``patch`` into an existing run record (e.g. mail_status)."""
-        target_dir = self._dir_for(schedule_id)
-        path = target_dir / f"{run_id}.json"
-        with self._lock:
-            if not path.exists():
-                return
-            try:
-                with open(path, "r", encoding="utf-8") as fh:
-                    rec = json.load(fh)
-            except (OSError, json.JSONDecodeError):
-                return
-            rec.update(patch)
-            with open(path, "w", encoding="utf-8") as fh:
-                json.dump(rec, fh, ensure_ascii=False)
-
     def _trim(self, target_dir: Path) -> None:
+        cap = self._max_per_schedule()
         try:
-            files = sorted(target_dir.glob("*.json"), key=lambda p: p.name)
+            json_files = list(target_dir.glob("*.json"))
         except OSError:
             return
-        excess = len(files) - MAX_RUNS_PER_SCHEDULE
-        for f in files[:max(0, excess)]:
+        # Sort by record.started_at (with name as tie-breaker) since the
+        # filename is no longer epoch-sortable.
+        def _started(p: Path) -> float:
             try:
-                f.unlink()
-            except OSError:
-                pass
+                with open(p, "r", encoding="utf-8") as fh:
+                    return float(json.load(fh).get("started_at") or 0)
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                return 0.0
+        json_files.sort(key=lambda p: (_started(p), p.name))
+        excess = len(json_files) - cap
+        for f in json_files[:max(0, excess)]:
+            stem = self._stem(f)
+            for sibling in (f, target_dir / f"{stem}.txt"):
+                try:
+                    sibling.unlink()
+                except OSError:
+                    pass
 
     def list(self, schedule_id: str | None = None, limit: int = 50) -> list[dict]:
         """Return run records (without ``log``) newest first.
@@ -1131,23 +1229,24 @@ class RunStore:
         "Alle runs" view.
         """
         out: list[dict] = []
-        if not self._root.exists():
+        root = self._root()
+        if not root.exists():
             return out
         with self._lock:
             try:
                 if schedule_id is None:
-                    sub_dirs = [p for p in self._root.iterdir() if p.is_dir()]
+                    sub_dirs = [p for p in root.iterdir() if p.is_dir()]
                 else:
-                    d = self._dir_for(schedule_id)
+                    d = self._dir_for(schedule_id, root=root)
                     sub_dirs = [d] if d.exists() else []
             except (OSError, ValueError):
                 return out
             for d in sub_dirs:
                 try:
-                    files = sorted(d.glob("*.json"), reverse=True)[:limit]
+                    files = list(d.glob("*.json"))
                 except OSError:
                     continue
-                for f in files:
+                for f in files[:limit * 2]:  # over-read; we sort+cap later
                     try:
                         with open(f, "r", encoding="utf-8") as fh:
                             rec = json.load(fh)
@@ -1176,153 +1275,19 @@ class RunStore:
             if not target_dir.exists():
                 return 0
             removed = 0
-            for f in target_dir.glob("*.json"):
-                try:
-                    f.unlink()
-                    removed += 1
-                except OSError:
-                    pass
+            for pattern in ("*.json", "*.txt"):
+                for f in target_dir.glob(pattern):
+                    try:
+                        f.unlink()
+                        if pattern == "*.json":
+                            removed += 1
+                    except OSError:
+                        pass
             try:
                 target_dir.rmdir()
             except OSError:
                 pass
             return removed
-
-
-# ---------------------------------------------------------------------------
-# SMTP mail (Gmail-default, generic) — used by scheduled-run mailer
-# ---------------------------------------------------------------------------
-
-DEFAULT_SMTP_MAIL = {
-    "host": "smtp.gmail.com",
-    "port": 587,
-    "tls_mode": "starttls",   # "starttls" | "ssl" | "none"
-    "username": "",
-    "password": "",
-    "from_address": "",
-    "default_to": "",
-}
-
-
-def _split_recipients(raw: str) -> list[str]:
-    if not raw:
-        return []
-    parts = re.split(r"[,;\s]+", raw)
-    return [p.strip() for p in parts if p.strip()]
-
-
-class SmtpMailer:
-    """Send mail via plain SMTP with login auth.
-
-    Defaults target Gmail (``smtp.gmail.com:587`` with STARTTLS), which
-    requires a 16-character *app password* (Google Account → Security →
-    App passwords; needs 2FA enabled). Username/password auth, app
-    password spaces are stripped on save. Generic enough to work with
-    any STARTTLS / SSL / plain SMTP server.
-    """
-
-    def __init__(self, settings_provider):
-        self._settings_provider = settings_provider
-        self._lock = threading.Lock()  # serialises sends per process
-
-    def _config(self) -> dict:
-        cfg = (self._settings_provider() or {}).get("smtp_mail") or {}
-        return {**DEFAULT_SMTP_MAIL, **cfg}
-
-    def _missing_fields(self, cfg: dict) -> list[str]:
-        missing = []
-        if not (cfg.get("host") or "").strip():
-            missing.append("host")
-        try:
-            port = int(cfg.get("port") or 0)
-        except (TypeError, ValueError):
-            port = 0
-        if port <= 0:
-            missing.append("port")
-        if not (cfg.get("username") or "").strip():
-            missing.append("username")
-        if not (cfg.get("password") or "").strip():
-            missing.append("password")
-        return missing
-
-    def is_configured(self) -> bool:
-        return not self._missing_fields(self._config())
-
-    def send(self, to: list[str], subject: str, body_text: str,
-             attachments: list[dict] | None = None) -> dict:
-        """Send a plaintext mail. ``attachments`` items are
-        ``{"name": str, "content": bytes}``. Returns ``{ok, error?}``.
-        """
-        cfg = self._config()
-        missing = self._missing_fields(cfg)
-        if missing:
-            return {"ok": False, "error": f"SMTP-config onvolledig: {', '.join(missing)}"}
-        if not to:
-            return {"ok": False, "error": "Geen ontvangers."}
-        tls_mode = (cfg.get("tls_mode") or "starttls").strip().lower()
-        if tls_mode not in VALID_TLS_MODES:
-            return {"ok": False, "error": f"Onbekende TLS-modus: {tls_mode!r}"}
-
-        host = cfg["host"].strip()
-        try:
-            port = int(cfg["port"])
-        except (TypeError, ValueError):
-            return {"ok": False, "error": "Poort moet een getal zijn."}
-        username = cfg["username"].strip()
-        password = (cfg["password"] or "").replace(" ", "")  # Google copies with spaces
-        from_addr = (cfg.get("from_address") or "").strip() or username
-
-        msg = EmailMessage()
-        msg["Subject"] = (subject or "(geen onderwerp)")[:255]
-        msg["From"] = from_addr
-        msg["To"] = ", ".join(to)
-        msg.set_content(body_text or "")
-        for a in attachments or []:
-            content = a.get("content") or b""
-            name = a.get("name") or "attachment.txt"
-            try:
-                msg.add_attachment(content, maintype="text", subtype="plain", filename=name)
-            except Exception as exc:  # noqa: BLE001
-                return {"ok": False, "error": f"Bijlage afgewezen: {exc}"}
-
-        ssl_ctx = ssl.create_default_context()
-
-        with self._lock:
-            try:
-                if tls_mode == "ssl":
-                    smtp = smtplib.SMTP_SSL(host, port, timeout=30, context=ssl_ctx)
-                else:
-                    smtp = smtplib.SMTP(host, port, timeout=30)
-                with smtp:
-                    smtp.ehlo()
-                    if tls_mode == "starttls":
-                        smtp.starttls(context=ssl_ctx)
-                        smtp.ehlo()
-                    smtp.login(username, password)
-                    smtp.send_message(msg)
-                return {"ok": True}
-            except smtplib.SMTPAuthenticationError as exc:
-                hint = (
-                    " (gebruik een app-wachtwoord, niet je gewone Gmail-wachtwoord)"
-                    if "gmail" in host.lower() else ""
-                )
-                return {"ok": False, "error": f"Authenticatie geweigerd: {exc.smtp_code}{hint}"}
-            except smtplib.SMTPRecipientsRefused as exc:
-                return {"ok": False, "error": f"Ontvangers geweigerd: {list(exc.recipients.keys())}"}
-            except smtplib.SMTPSenderRefused as exc:
-                return {"ok": False, "error": f"Afzender geweigerd ({from_addr}): {exc.smtp_error.decode('utf-8', 'replace') if isinstance(exc.smtp_error, bytes) else exc.smtp_error}"}
-            except smtplib.SMTPConnectError as exc:
-                return {"ok": False, "error": f"Verbindingsfout {host}:{port} — {exc}"}
-            except smtplib.SMTPServerDisconnected as exc:
-                return {"ok": False, "error": f"Server brak verbinding af: {exc}"}
-            except smtplib.SMTPException as exc:
-                return {"ok": False, "error": f"SMTP-fout: {exc}"}
-            except (socket.gaierror, OSError, TimeoutError) as exc:
-                return {"ok": False, "error": f"Kan SMTP-server niet bereiken {host}:{port} — {exc}"}
-            except ssl.SSLError as exc:
-                return {"ok": False, "error": f"SSL-fout: {exc} (klopt de TLS-modus bij de poort?)"}
-            except Exception as exc:  # noqa: BLE001
-                return {"ok": False, "error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -1431,19 +1396,12 @@ def validate_schedule(payload: dict) -> tuple[dict, str | None]:
     if typ not in VALID_SCHEDULE_TYPES:
         return {}, f"Onbekend schedule-type: {typ!r}"
 
-    mail_trigger = (payload.get("mail_trigger") or "never").strip()
-    if mail_trigger not in VALID_MAIL_TRIGGERS:
-        return {}, f"Onbekende mail-trigger: {mail_trigger!r}"
-    mail_to = (payload.get("mail_to") or "").strip()
-
     clean: dict = {
         "name": name,
         "rel_path": rel_path,
         "type": typ,
         "enabled": bool(payload.get("enabled", True)),
         "skip_if_running": bool(payload.get("skip_if_running", True)),
-        "mail_trigger": mail_trigger,
-        "mail_to": mail_to,
     }
 
     if typ == "once":
@@ -1646,8 +1604,10 @@ class Api:
         self.sync = GitHubSync(settings_provider=lambda: self.settings)
         self.push = GitHubPush(settings_provider=lambda: self.settings)
         self.jobs = JobRunner()
-        self.runs = RunStore()
-        self.mailer = SmtpMailer(settings_provider=lambda: self.settings)
+        self.runs = RunStore(
+            settings_provider=lambda: self.settings,
+            fallback_log=self._note_runstore_fallback,
+        )
         self._sched_lock = threading.Lock()
         self.scheduler = Scheduler(
             settings_provider=lambda: self.settings,
@@ -1900,8 +1860,8 @@ class Api:
         NOT acquire it again here.
 
         Attaches an ``on_finish`` callback so the captured stdout, exit
-        code and duration are persisted as a run record (and mailed when
-        the schedule's ``mail_trigger`` says so).
+        code and duration are persisted as a run record (JSON + TXT) on
+        disk for later inspection.
         """
         rel_path = (sched.get("rel_path") or "").strip()
         if not rel_path:
@@ -1932,15 +1892,13 @@ class Api:
             "id": sched.get("id"),
             "name": sched.get("name"),
             "rel_path": sched.get("rel_path"),
-            "mail_trigger": sched.get("mail_trigger") or "never",
-            "mail_to": sched.get("mail_to") or "",
         }
 
         def on_finish(snapshot):
             try:
-                self._on_run_finished(sched_snapshot, snapshot)
+                self._record_finished_run(sched_snapshot, snapshot)
             except Exception as exc:  # noqa: BLE001
-                print(f"[api] on_run_finished error: {exc}", file=sys.stderr)
+                print(f"[api] _record_finished_run error: {exc}", file=sys.stderr)
 
         return self.launch_tool(str(abs_path), on_finish=on_finish)
 
@@ -1963,16 +1921,15 @@ class Api:
             "log": [message],
             "truncated": 0,
             "stopped_by_user": False,
-            "mail_status": "skipped",
         }
         try:
             self.runs.save(record)
         except (OSError, ValueError) as exc:
             print(f"[api] kan synthetisch run-record niet opslaan: {exc}", file=sys.stderr)
 
-    def _on_run_finished(self, sched_snapshot: dict, run_snapshot: dict) -> None:
+    def _record_finished_run(self, sched_snapshot: dict, run_snapshot: dict) -> None:
         """Called from a JobRunner thread after a scheduled tool exits.
-        Writes the run record to disk and conditionally fires mail.
+        Writes the run record (JSON + TXT) to disk; nothing else.
         """
         sid = sched_snapshot.get("id") or ""
         if not sid:
@@ -1990,57 +1947,21 @@ class Api:
             "log": run_snapshot.get("log") or [],
             "truncated": run_snapshot.get("truncated", 0),
             "stopped_by_user": run_snapshot.get("stopped_by_user", False),
-            "mail_status": "skipped",
         }
         try:
-            run_id = self.runs.save(record)
+            self.runs.save(record)
         except (OSError, ValueError) as exc:
             print(f"[api] kan run-record niet opslaan: {exc}", file=sys.stderr)
-            return
 
-        # Mail decision.
-        trigger = sched_snapshot.get("mail_trigger") or "never"
-        should_mail = (
-            trigger == "always"
-            or (trigger == "on_error" and status != "ok")
-        )
-        if not should_mail:
-            return
-
-        recipients = _split_recipients(sched_snapshot.get("mail_to") or "")
-        if not recipients:
-            default_to = (
-                (self.settings.get("smtp_mail") or {}).get("default_to") or ""
-            )
-            recipients = _split_recipients(default_to)
-        if not recipients:
-            self.runs.update(sid, run_id, {"mail_status": "skipped: geen ontvanger"})
-            return
-
-        subject = f"[Dashboard AI Worx] {record['schedule_name']} — {status}"
-        duration = (record["finished_at"] or 0) - (record["started_at"] or 0)
-        log_lines = record["log"] or []
-        log_text = "\n".join(log_lines)
-        body_text = (
-            f"Schedule: {record['schedule_name']}\n"
-            f"Tool: {record['rel_path']}\n"
-            f"Gestart : {datetime.fromtimestamp(record['started_at']).isoformat(timespec='seconds')}\n"
-            f"Geëindigd: {datetime.fromtimestamp(record['finished_at']).isoformat(timespec='seconds')}\n"
-            f"Duur    : {duration:.1f}s\n"
-            f"Exit code: {rc}\n"
-            f"Status  : {status}\n"
-            "\n--- Output ---\n"
-            f"{log_text[:8000]}\n"
-        )
-        attachments = None
-        if len(log_text) > 8000 or record.get("truncated"):
-            attachments = [{"name": "output.txt", "content": log_text.encode("utf-8")}]
-
-        result = self.mailer.send(recipients, subject, body_text, attachments)
-        if result.get("ok"):
-            self.runs.update(sid, run_id, {"mail_status": f"sent: {','.join(recipients)}"})
-        else:
-            self.runs.update(sid, run_id, {"mail_status": f"error: {result.get('error', '')}"})
+    def _note_runstore_fallback(self, msg: str) -> None:
+        """Surface a RunStore fallback (bad path, etc.) in the scheduler
+        tick log so the user can see it in the Runs page.
+        """
+        try:
+            with self._sched_lock:
+                self.scheduler._log_event("error", f"Runs-opslag: {msg}")
+        except Exception:  # noqa: BLE001
+            pass
 
     def _schedule_view(self, sched: dict) -> dict:
         """Add UI-friendly fields (next_run, pending) without mutating
@@ -2114,8 +2035,6 @@ class Api:
                     s["type"] = clean["type"]
                     s["enabled"] = clean["enabled"]
                     s["skip_if_running"] = clean["skip_if_running"]
-                    s["mail_trigger"] = clean["mail_trigger"]
-                    s["mail_to"] = clean["mail_to"]
                     for k in ("datetime", "interval_minutes", "time", "weekdays"):
                         if k in clean:
                             s[k] = clean[k]
@@ -2194,59 +2113,74 @@ class Api:
             return {"ok": False, "error": str(exc)}
         return {"ok": True, "removed": removed}
 
-    # ----- SMTP mail ---------------------------------------------------
+    # ----- runs storage (where output files land) ----------------------
 
-    def get_smtp_settings(self) -> dict:
-        cfg = (self.settings.get("smtp_mail") or {}).copy()
-        # Don't ship the raw password to the UI — render presence only.
-        password = cfg.pop("password", "") or ""
-        cfg["has_password"] = bool(password)
-        cfg["configured"] = self.mailer.is_configured()
-        return cfg
+    def get_runs_storage(self) -> dict:
+        cfg = (self.settings.get("runs_storage") or {}).copy()
+        resolved = self.runs.resolved_path()
+        is_default = resolved == DEFAULT_RUNS_DIR
+        configured = (cfg.get("path") or "").strip()
+        return {
+            "ok": True,
+            "path": configured,
+            "max_per_schedule": cfg.get("max_per_schedule", DEFAULT_MAX_RUNS_PER_SCHEDULE),
+            "resolved_path": str(resolved),
+            "default_path": str(DEFAULT_RUNS_DIR),
+            "is_default": is_default,
+            "fallback": bool(configured) and is_default,
+            "cap_min": RUNS_CAP_MIN,
+            "cap_max": RUNS_CAP_MAX,
+        }
 
-    def set_smtp_settings(self, payload: dict) -> dict:
+    def set_runs_storage(self, payload: dict) -> dict:
         if not isinstance(payload, dict):
             return {"ok": False, "error": "Ongeldige payload."}
-        cfg = self.settings.setdefault("smtp_mail", dict(DEFAULT_SETTINGS["smtp_mail"]))
-        for k in ("host", "username", "from_address", "default_to"):
-            if k in payload:
-                cfg[k] = (payload.get(k) or "").strip()
-        if "tls_mode" in payload:
-            mode = (payload.get("tls_mode") or "").strip().lower()
-            if mode and mode not in VALID_TLS_MODES:
-                return {"ok": False, "error": f"Onbekende TLS-modus: {mode!r}"}
-            cfg["tls_mode"] = mode or "starttls"
-        if "port" in payload:
-            try:
-                port = int(payload["port"])
-            except (TypeError, ValueError):
-                return {"ok": False, "error": "Poort moet een getal zijn."}
-            if not (1 <= port <= 65535):
-                return {"ok": False, "error": "Poort buiten bereik (1–65535)."}
-            cfg["port"] = port
-        # Password: empty string from the input = unchanged. To clear,
-        # the UI sends ``"clear_password": true``. Spaces stripped because
-        # Google copies app-passwords with spaces for readability.
-        if payload.get("clear_password"):
-            cfg["password"] = ""
-        elif (payload.get("password") or "").strip():
-            cfg["password"] = payload["password"].replace(" ", "").strip()
-        save_settings(self.settings)
-        return {"ok": True, **self.get_smtp_settings()}
-
-    def test_smtp_mail(self, recipient: str = "") -> dict:
-        cfg = self.settings.get("smtp_mail") or {}
-        to = (recipient or "").strip() or (cfg.get("default_to") or "").strip()
-        recipients = _split_recipients(to)
-        if not recipients:
-            return {"ok": False, "error": "Geen ontvanger opgegeven."}
-        body = (
-            "Dit is een testbericht van Dashboard AI Worx.\n\n"
-            f"Verzonden om: {datetime.now().isoformat(timespec='seconds')}\n"
-            f"Vanuit: {cfg.get('from_address') or cfg.get('username') or '?'}\n"
-            f"Server: {cfg.get('host')}:{cfg.get('port')} ({cfg.get('tls_mode')})\n"
+        cfg = self.settings.setdefault(
+            "runs_storage", dict(DEFAULT_SETTINGS["runs_storage"])
         )
-        return self.mailer.send(recipients, "[Dashboard AI Worx] Test", body)
+        if "path" in payload:
+            raw = (payload.get("path") or "").strip()
+            if raw:
+                p = Path(raw)
+                if not p.is_absolute():
+                    return {"ok": False, "error": "Pad moet absoluut zijn."}
+                try:
+                    p.mkdir(parents=True, exist_ok=True)
+                except OSError as exc:
+                    return {"ok": False, "error": f"Kan map niet aanmaken: {exc}"}
+                if not p.is_dir():
+                    return {"ok": False, "error": "Pad bestaat maar is geen map."}
+            cfg["path"] = raw
+        if "max_per_schedule" in payload:
+            try:
+                n = int(payload["max_per_schedule"])
+            except (TypeError, ValueError):
+                return {"ok": False, "error": "Maximum moet een getal zijn."}
+            if not (RUNS_CAP_MIN <= n <= RUNS_CAP_MAX):
+                return {
+                    "ok": False,
+                    "error": f"Maximum buiten bereik ({RUNS_CAP_MIN}–{RUNS_CAP_MAX}).",
+                }
+            cfg["max_per_schedule"] = n
+        save_settings(self.settings)
+        return self.get_runs_storage()
+
+    def open_runs_folder(self) -> dict:
+        path = self.runs.resolved_path()
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            return {"ok": False, "error": f"Kan map niet openen: {exc}"}
+        try:
+            if os.name == "nt":
+                os.startfile(str(path))  # type: ignore[attr-defined]
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(path)])
+            else:
+                subprocess.Popen(["xdg-open", str(path)])
+        except (OSError, FileNotFoundError) as exc:
+            return {"ok": False, "error": f"Kan map niet openen: {exc}"}
+        return {"ok": True, "path": str(path)}
 
     # Called by the HTTP server when the UI navigates away / closes.
     def shutdown(self) -> dict:
