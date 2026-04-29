@@ -83,9 +83,20 @@ DEFAULT_SETTINGS = {
     # Scheduled tool runs. See Scheduler / compute_next_run for the
     # accepted shape per entry.
     "schedules": [],
+    # Microsoft Graph / M365 mail config. App-only client-credentials
+    # flow — ``client_secret`` lives plain-text in this file (which is
+    # in .gitignore). See GraphMailer for the wire format.
+    "graph_mail": {
+        "tenant_id": "",
+        "client_id": "",
+        "client_secret": "",
+        "from_address": "",
+        "default_to": "",
+    },
 }
 
 VALID_SCHEDULE_TYPES = {"once", "daily", "weekly", "interval"}
+VALID_MAIL_TRIGGERS = {"never", "on_error", "always"}
 MAX_SCHEDULE_NAME = 80
 
 UNCATEGORIZED = "Ongecategoriseerd"
@@ -126,6 +137,15 @@ def load_settings() -> dict:
     if not isinstance(data.get("schedules"), list):
         data["schedules"] = []
         changed = True
+    gm = data.get("graph_mail")
+    if not isinstance(gm, dict):
+        data["graph_mail"] = dict(DEFAULT_SETTINGS["graph_mail"])
+        changed = True
+    else:
+        for k, v in DEFAULT_SETTINGS["graph_mail"].items():
+            if k not in gm:
+                gm[k] = v
+                changed = True
     if changed:
         save_settings(data)
     return data
@@ -822,7 +842,8 @@ class JobRunner:
 
     # ---- lifecycle ------------------------------------------------------
 
-    def start(self, cmd: list[str], cwd: str, name: str) -> str:
+    def start(self, cmd: list[str], cwd: str, name: str,
+              on_finish=None) -> str:
         popen_kwargs = {
             "cwd": cwd,
             "stdout": subprocess.PIPE,
@@ -855,6 +876,7 @@ class JobRunner:
             "truncated": 0,              # lines dropped due to MAX_LINES_PER_JOB
             "stopped_by_user": False,    # differentiates kill-by-user from crashes
             "relaunched_externally": False,
+            "on_finish": on_finish,      # called with a frozen snapshot when done
         }
         with self._lock:
             self._jobs[job_id] = state
@@ -886,6 +908,27 @@ class JobRunner:
                 state["exit_code"] = rc
                 state["finished_at"] = time.time()
                 state["log"].append(f"[proces beëindigd, exit code {rc}]")
+                cb = state.get("on_finish")
+                snapshot = {
+                    "id": state["id"],
+                    "name": state["name"],
+                    "cmd": state["cmd"],
+                    "cwd": state["cwd"],
+                    "started_at": state["started_at"],
+                    "finished_at": state["finished_at"],
+                    "exit_code": rc,
+                    "stopped_by_user": state["stopped_by_user"],
+                    "log": list(state["log"]),
+                    "truncated": state["truncated"],
+                } if cb else None
+        # Run callback OUTSIDE the lock — it may do I/O (write run record,
+        # send mail) and we mustn't block other JobRunner readers.
+        if cb is not None:
+            try:
+                cb(snapshot)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[jobrunner] on_finish error: {exc}", file=sys.stderr)
+
 
     def stop(self, job_id: str) -> dict:
         with self._lock:
@@ -999,10 +1042,311 @@ class JobRunner:
 
 
 # ---------------------------------------------------------------------------
+# Persistent run history (survives dashboard restarts)
+# ---------------------------------------------------------------------------
+
+RUNS_DIR = APP_DIR / "schedule_runs"
+MAX_RUNS_PER_SCHEDULE = 50
+SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+class RunStore:
+    """Append-only-ish per-schedule run archive on disk.
+
+    Layout: ``schedule_runs/<schedule_id>/<epoch_ms>.json`` — one file per
+    run holding the full captured log + meta. We trim the oldest files
+    after every write so a misbehaving schedule can't fill the disk.
+    """
+
+    def __init__(self, root: Path = RUNS_DIR):
+        self._root = root
+        self._lock = threading.Lock()
+
+    def _dir_for(self, schedule_id: str) -> Path:
+        if not SAFE_ID_RE.match(schedule_id or ""):
+            raise ValueError(f"Onveilig schedule_id: {schedule_id!r}")
+        return self._root / schedule_id
+
+    def save(self, record: dict) -> str:
+        """Write a run record. Returns the run_id (file stem)."""
+        sid = record.get("schedule_id") or ""
+        target_dir = self._dir_for(sid)
+        with self._lock:
+            target_dir.mkdir(parents=True, exist_ok=True)
+            run_id = f"{int(time.time() * 1000)}"
+            # Avoid collision when two runs land in the same millisecond.
+            path = target_dir / f"{run_id}.json"
+            while path.exists():
+                run_id = f"{int(time.time() * 1000)}-{os.urandom(2).hex()}"
+                path = target_dir / f"{run_id}.json"
+            record = dict(record)
+            record["run_id"] = run_id
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(record, fh, ensure_ascii=False)
+            self._trim(target_dir)
+        return run_id
+
+    def update(self, schedule_id: str, run_id: str, patch: dict) -> None:
+        """Merge ``patch`` into an existing run record (e.g. mail_status)."""
+        target_dir = self._dir_for(schedule_id)
+        path = target_dir / f"{run_id}.json"
+        with self._lock:
+            if not path.exists():
+                return
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    rec = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                return
+            rec.update(patch)
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(rec, fh, ensure_ascii=False)
+
+    def _trim(self, target_dir: Path) -> None:
+        try:
+            files = sorted(target_dir.glob("*.json"), key=lambda p: p.name)
+        except OSError:
+            return
+        excess = len(files) - MAX_RUNS_PER_SCHEDULE
+        for f in files[:max(0, excess)]:
+            try:
+                f.unlink()
+            except OSError:
+                pass
+
+    def list(self, schedule_id: str | None = None, limit: int = 50) -> list[dict]:
+        """Return run records (without ``log``) newest first.
+
+        ``schedule_id=None`` walks every subdir — handy for the global
+        "Alle runs" view.
+        """
+        out: list[dict] = []
+        if not self._root.exists():
+            return out
+        with self._lock:
+            try:
+                if schedule_id is None:
+                    sub_dirs = [p for p in self._root.iterdir() if p.is_dir()]
+                else:
+                    d = self._dir_for(schedule_id)
+                    sub_dirs = [d] if d.exists() else []
+            except (OSError, ValueError):
+                return out
+            for d in sub_dirs:
+                try:
+                    files = sorted(d.glob("*.json"), reverse=True)[:limit]
+                except OSError:
+                    continue
+                for f in files:
+                    try:
+                        with open(f, "r", encoding="utf-8") as fh:
+                            rec = json.load(fh)
+                    except (OSError, json.JSONDecodeError):
+                        continue
+                    rec.pop("log", None)
+                    out.append(rec)
+            out.sort(key=lambda r: r.get("started_at") or 0, reverse=True)
+            return out[:limit]
+
+    def get(self, schedule_id: str, run_id: str) -> dict | None:
+        target_dir = self._dir_for(schedule_id)
+        path = target_dir / f"{run_id}.json"
+        with self._lock:
+            if not path.exists():
+                return None
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    return json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                return None
+
+    def clear(self, schedule_id: str) -> int:
+        target_dir = self._dir_for(schedule_id)
+        with self._lock:
+            if not target_dir.exists():
+                return 0
+            removed = 0
+            for f in target_dir.glob("*.json"):
+                try:
+                    f.unlink()
+                    removed += 1
+                except OSError:
+                    pass
+            try:
+                target_dir.rmdir()
+            except OSError:
+                pass
+            return removed
+
+
+# ---------------------------------------------------------------------------
+# Microsoft Graph mail (M365 sendMail) — app-only, client-credentials flow
+# ---------------------------------------------------------------------------
+
+GRAPH_TOKEN_URL = "https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+GRAPH_SENDMAIL_URL = "https://graph.microsoft.com/v1.0/users/{addr}/sendMail"
+GRAPH_SCOPE = "https://graph.microsoft.com/.default"
+
+DEFAULT_GRAPH_MAIL = {
+    "tenant_id": "",
+    "client_id": "",
+    "client_secret": "",
+    "from_address": "",
+    "default_to": "",
+}
+
+
+def _split_recipients(raw: str) -> list[str]:
+    if not raw:
+        return []
+    parts = re.split(r"[,;\s]+", raw)
+    return [p.strip() for p in parts if p.strip()]
+
+
+class GraphMailer:
+    """Send mail via Microsoft Graph using app-only auth.
+
+    Requires `Mail.Send` (Application) permission with admin consent on
+    the configured tenant. Token is cached in-memory until ~60s before
+    expiry. All HTTP traffic goes through ``build_ssl_context`` so a
+    corporate root-CA is honoured (same setting as GitHub sync).
+    """
+
+    def __init__(self, settings_provider):
+        self._settings_provider = settings_provider
+        self._lock = threading.Lock()
+        self._token: str = ""
+        self._token_expires_at: float = 0.0
+
+    # ---- helpers --------------------------------------------------------
+
+    def _ssl_ctx(self) -> ssl.SSLContext:
+        verify = bool((self._settings_provider() or {}).get("ssl_verify", True))
+        return build_ssl_context(verify=verify)
+
+    def _config(self) -> dict:
+        cfg = (self._settings_provider() or {}).get("graph_mail") or {}
+        return {**DEFAULT_GRAPH_MAIL, **cfg}
+
+    def _missing_fields(self, cfg: dict) -> list[str]:
+        return [k for k in ("tenant_id", "client_id", "client_secret", "from_address")
+                if not (cfg.get(k) or "").strip()]
+
+    def is_configured(self) -> bool:
+        return not self._missing_fields(self._config())
+
+    # ---- token ----------------------------------------------------------
+
+    def _get_token(self, cfg: dict) -> str:
+        with self._lock:
+            if self._token and time.time() < self._token_expires_at - 60:
+                return self._token
+            url = GRAPH_TOKEN_URL.format(tenant=cfg["tenant_id"])
+            body = (
+                "grant_type=client_credentials"
+                f"&client_id={urllib.request.quote(cfg['client_id'])}"
+                f"&client_secret={urllib.request.quote(cfg['client_secret'])}"
+                f"&scope={urllib.request.quote(GRAPH_SCOPE)}"
+            ).encode("utf-8")
+            req = urllib.request.Request(url, data=body, method="POST", headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+                "User-Agent": "Dashboard-AI-Worx/1.0",
+            })
+            with urllib.request.urlopen(req, timeout=30, context=self._ssl_ctx()) as resp:
+                raw = resp.read()
+            data = json.loads(raw.decode("utf-8"))
+            tok = data.get("access_token") or ""
+            if not tok:
+                raise RuntimeError("Geen access_token in tokenrespons.")
+            self._token = tok
+            self._token_expires_at = time.time() + int(data.get("expires_in", 3600))
+            return tok
+
+    def invalidate_token(self) -> None:
+        with self._lock:
+            self._token = ""
+            self._token_expires_at = 0.0
+
+    # ---- send -----------------------------------------------------------
+
+    def send(self, to: list[str], subject: str, body_text: str,
+             attachments: list[dict] | None = None) -> dict:
+        """Send a plaintext mail. ``attachments`` items are
+        ``{"name": str, "content": bytes}``. Returns ``{ok, error?}``.
+        """
+        cfg = self._config()
+        missing = self._missing_fields(cfg)
+        if missing:
+            return {"ok": False, "error": f"Graph-config onvolledig: {', '.join(missing)}"}
+        if not to:
+            return {"ok": False, "error": "Geen ontvangers."}
+
+        message: dict = {
+            "subject": subject[:255] if subject else "(geen onderwerp)",
+            "body": {"contentType": "Text", "content": body_text or ""},
+            "toRecipients": [{"emailAddress": {"address": addr}} for addr in to],
+        }
+        if attachments:
+            message["attachments"] = [
+                {
+                    "@odata.type": "#microsoft.graph.fileAttachment",
+                    "name": a.get("name") or "attachment.txt",
+                    "contentBytes": base64.b64encode(a.get("content") or b"").decode("ascii"),
+                    "contentType": "text/plain",
+                }
+                for a in attachments
+            ]
+
+        payload = {"message": message, "saveToSentItems": True}
+        url = GRAPH_SENDMAIL_URL.format(addr=urllib.request.quote(cfg["from_address"]))
+        try:
+            token = self._get_token(cfg)
+        except urllib.error.HTTPError as exc:
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                err_body = ""
+            return {"ok": False, "error": f"Token HTTP {exc.code}: {err_body[:200]}"}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": f"Token-fout: {exc}"}
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            method="POST",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+                "User-Agent": "Dashboard-AI-Worx/1.0",
+            },
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60, context=self._ssl_ctx()) as resp:
+                # 202 Accepted is the success response for sendMail.
+                if 200 <= resp.status < 300:
+                    return {"ok": True}
+                return {"ok": False, "error": f"Onverwachte status {resp.status}"}
+        except urllib.error.HTTPError as exc:
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+            except Exception:
+                err_body = ""
+            # 401 typically means stale token / revoked secret — drop it.
+            if exc.code in (401, 403):
+                self.invalidate_token()
+            return {"ok": False, "error": f"sendMail HTTP {exc.code}: {err_body[:300]}"}
+        except urllib.error.URLError as exc:
+            return {"ok": False, "error": f"Netwerk: {exc.reason}"}
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": str(exc)}
+
+
+# ---------------------------------------------------------------------------
 # Scheduler — fires tool runs at planned moments
 # ---------------------------------------------------------------------------
 
 SCHEDULER_TICK_SECONDS = 15
+SCHEDULER_LOG_LINES = 200
 
 
 def _parse_hhmm(raw: str) -> tuple[int, int]:
@@ -1103,12 +1447,19 @@ def validate_schedule(payload: dict) -> tuple[dict, str | None]:
     if typ not in VALID_SCHEDULE_TYPES:
         return {}, f"Onbekend schedule-type: {typ!r}"
 
+    mail_trigger = (payload.get("mail_trigger") or "never").strip()
+    if mail_trigger not in VALID_MAIL_TRIGGERS:
+        return {}, f"Onbekende mail-trigger: {mail_trigger!r}"
+    mail_to = (payload.get("mail_to") or "").strip()
+
     clean: dict = {
         "name": name,
         "rel_path": rel_path,
         "type": typ,
         "enabled": bool(payload.get("enabled", True)),
         "skip_if_running": bool(payload.get("skip_if_running", True)),
+        "mail_trigger": mail_trigger,
+        "mail_to": mail_to,
     }
 
     if typ == "once":
@@ -1171,10 +1522,40 @@ class Scheduler:
         self._lock = lock
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        # Heartbeat / observability — read by Api.get_scheduler_status.
+        self._started_at: float | None = None
+        self._last_tick_at: float = 0.0
+        self._tick_count: int = 0
+        self._fired_count: int = 0
+        self._log: list[dict] = []   # ring buffer of recent events
+
+    def _log_event(self, kind: str, message: str, **extra) -> None:
+        entry = {"ts": time.time(), "kind": kind, "message": message}
+        if extra:
+            entry.update(extra)
+        self._log.append(entry)
+        overflow = len(self._log) - SCHEDULER_LOG_LINES
+        if overflow > 0:
+            self._log = self._log[overflow:]
+
+    def status(self) -> dict:
+        with self._lock:
+            return {
+                "started_at": self._started_at,
+                "last_tick_at": self._last_tick_at,
+                "tick_count": self._tick_count,
+                "fired_count": self._fired_count,
+                "tick_seconds": SCHEDULER_TICK_SECONDS,
+                "log": list(self._log),
+                "alive": bool(self._thread and self._thread.is_alive()),
+            }
 
     def start(self) -> None:
         if self._thread and self._thread.is_alive():
             return
+        with self._lock:
+            self._started_at = time.time()
+            self._log_event("started", "Scheduler gestart.")
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
 
@@ -1186,17 +1567,23 @@ class Scheduler:
             try:
                 self._tick()
             except Exception as exc:  # noqa: BLE001
-                print(f"[scheduler] tick error: {exc}", file=sys.stderr)
+                with self._lock:
+                    self._log_event("error", f"Tick crashte: {exc}")
             self._stop.wait(SCHEDULER_TICK_SECONDS)
 
     def _tick(self) -> None:
         now = time.time()
         with self._lock:
+            self._last_tick_at = now
+            self._tick_count += 1
+
             settings = self._settings_provider()
             scheds = settings.get("schedules")
             if not isinstance(scheds, list):
+                self._log_event("tick", "Tick: geen schedules-lijst.")
                 return
             changed = False
+            fired_this_tick = 0
             for s in scheds:
                 if not isinstance(s, dict):
                     continue
@@ -1220,13 +1607,34 @@ class Scheduler:
                 if result.get("skipped"):
                     s["last_status"] = "skipped"
                     s["last_message"] = result.get("error") or "Overgeslagen"
+                    self._log_event(
+                        "skipped",
+                        f"{s.get('name')}: {s['last_message']}",
+                        schedule_id=s.get("id"),
+                        schedule_name=s.get("name"),
+                    )
                 elif result.get("ok"):
                     s["last_status"] = "ok"
                     s["last_message"] = f"job {(result.get('job_id') or '')[:8]}"
                     s["last_job_id"] = result.get("job_id") or ""
+                    fired_this_tick += 1
+                    self._fired_count += 1
+                    self._log_event(
+                        "fired",
+                        f"{s.get('name')} → job {s['last_job_id'][:8]}",
+                        schedule_id=s.get("id"),
+                        schedule_name=s.get("name"),
+                        job_id=s["last_job_id"],
+                    )
                 else:
                     s["last_status"] = "error"
                     s["last_message"] = str(result.get("error") or "Onbekende fout")
+                    self._log_event(
+                        "error",
+                        f"{s.get('name')}: {s['last_message']}",
+                        schedule_id=s.get("id"),
+                        schedule_name=s.get("name"),
+                    )
 
                 s["last_run"] = now
                 if s.get("type") == "once":
@@ -1236,6 +1644,10 @@ class Scheduler:
                     s["next_run"] = compute_next_run(s, now + 1)
                 changed = True
 
+            self._log_event(
+                "tick",
+                f"Tick: {len(scheds)} schedules, {fired_this_tick} gevuurd.",
+            )
             if changed:
                 self._save()
 
@@ -1250,6 +1662,8 @@ class Api:
         self.sync = GitHubSync(settings_provider=lambda: self.settings)
         self.push = GitHubPush(settings_provider=lambda: self.settings)
         self.jobs = JobRunner()
+        self.runs = RunStore()
+        self.mailer = GraphMailer(settings_provider=lambda: self.settings)
         self._sched_lock = threading.Lock()
         self.scheduler = Scheduler(
             settings_provider=lambda: self.settings,
@@ -1435,7 +1849,7 @@ class Api:
     def get_push_status(self) -> dict:
         return self.push.status()
 
-    def launch_tool(self, script_path: str) -> dict:
+    def launch_tool(self, script_path: str, on_finish=None) -> dict:
         if not script_path:
             return {"ok": False, "error": "Geen pad opgegeven."}
         path = Path(script_path)
@@ -1464,7 +1878,9 @@ class Api:
             cmd = [launcher, *args, str(path)]
 
         try:
-            job_id = self.jobs.start(cmd, cwd=str(path.parent), name=path.stem)
+            job_id = self.jobs.start(
+                cmd, cwd=str(path.parent), name=path.stem, on_finish=on_finish,
+            )
         except FileNotFoundError:
             return {"ok": False, "error": f"Launcher '{launcher}' niet gevonden op PATH."}
         except OSError as exc:
@@ -1498,6 +1914,10 @@ class Api:
         tool by ``rel_path`` against the live repo and launches it. The
         scheduler holds ``self._sched_lock`` for the duration, so we do
         NOT acquire it again here.
+
+        Attaches an ``on_finish`` callback so the captured stdout, exit
+        code and duration are persisted as a run record (and mailed when
+        the schedule's ``mail_trigger`` says so).
         """
         rel_path = (sched.get("rel_path") or "").strip()
         if not rel_path:
@@ -1517,23 +1937,155 @@ class Api:
 
         abs_path = REPO_DIR / rel_path
         if not abs_path.exists() or not abs_path.is_file():
+            # Persist a stub run record so failures are visible too.
+            self._record_synthetic_run(sched, "error", f"Tool niet gevonden: {rel_path}")
             return {"ok": False, "error": f"Tool niet gevonden: {rel_path}"}
 
-        return self.launch_tool(str(abs_path))
+        # Snapshot only the fields the callback actually needs — we
+        # don't want it to hold a reference to a mutating dict from
+        # settings.json.
+        sched_snapshot = {
+            "id": sched.get("id"),
+            "name": sched.get("name"),
+            "rel_path": sched.get("rel_path"),
+            "mail_trigger": sched.get("mail_trigger") or "never",
+            "mail_to": sched.get("mail_to") or "",
+        }
+
+        def on_finish(snapshot):
+            try:
+                self._on_run_finished(sched_snapshot, snapshot)
+            except Exception as exc:  # noqa: BLE001
+                print(f"[api] on_run_finished error: {exc}", file=sys.stderr)
+
+        return self.launch_tool(str(abs_path), on_finish=on_finish)
+
+    def _record_synthetic_run(self, sched: dict, status: str, message: str) -> None:
+        """Persist a run record for a schedule that never actually ran a
+        process (e.g. the tool file was missing). Keeps Runs UI honest.
+        """
+        sid = sched.get("id") or ""
+        if not sid:
+            return
+        now = time.time()
+        record = {
+            "schedule_id": sid,
+            "schedule_name": sched.get("name") or "",
+            "rel_path": sched.get("rel_path") or "",
+            "started_at": now,
+            "finished_at": now,
+            "exit_code": None,
+            "status": status,
+            "log": [message],
+            "truncated": 0,
+            "stopped_by_user": False,
+            "mail_status": "skipped",
+        }
+        try:
+            self.runs.save(record)
+        except (OSError, ValueError) as exc:
+            print(f"[api] kan synthetisch run-record niet opslaan: {exc}", file=sys.stderr)
+
+    def _on_run_finished(self, sched_snapshot: dict, run_snapshot: dict) -> None:
+        """Called from a JobRunner thread after a scheduled tool exits.
+        Writes the run record to disk and conditionally fires mail.
+        """
+        sid = sched_snapshot.get("id") or ""
+        if not sid:
+            return
+        rc = run_snapshot.get("exit_code")
+        status = "ok" if rc == 0 else "error"
+        record = {
+            "schedule_id": sid,
+            "schedule_name": sched_snapshot.get("name") or "",
+            "rel_path": sched_snapshot.get("rel_path") or "",
+            "started_at": run_snapshot.get("started_at"),
+            "finished_at": run_snapshot.get("finished_at"),
+            "exit_code": rc,
+            "status": status,
+            "log": run_snapshot.get("log") or [],
+            "truncated": run_snapshot.get("truncated", 0),
+            "stopped_by_user": run_snapshot.get("stopped_by_user", False),
+            "mail_status": "skipped",
+        }
+        try:
+            run_id = self.runs.save(record)
+        except (OSError, ValueError) as exc:
+            print(f"[api] kan run-record niet opslaan: {exc}", file=sys.stderr)
+            return
+
+        # Mail decision.
+        trigger = sched_snapshot.get("mail_trigger") or "never"
+        should_mail = (
+            trigger == "always"
+            or (trigger == "on_error" and status != "ok")
+        )
+        if not should_mail:
+            return
+
+        recipients = _split_recipients(sched_snapshot.get("mail_to") or "")
+        if not recipients:
+            default_to = (
+                (self.settings.get("graph_mail") or {}).get("default_to") or ""
+            )
+            recipients = _split_recipients(default_to)
+        if not recipients:
+            self.runs.update(sid, run_id, {"mail_status": "skipped: geen ontvanger"})
+            return
+
+        subject = f"[Dashboard AI Worx] {record['schedule_name']} — {status}"
+        duration = (record["finished_at"] or 0) - (record["started_at"] or 0)
+        log_lines = record["log"] or []
+        log_text = "\n".join(log_lines)
+        body_text = (
+            f"Schedule: {record['schedule_name']}\n"
+            f"Tool: {record['rel_path']}\n"
+            f"Gestart : {datetime.fromtimestamp(record['started_at']).isoformat(timespec='seconds')}\n"
+            f"Geëindigd: {datetime.fromtimestamp(record['finished_at']).isoformat(timespec='seconds')}\n"
+            f"Duur    : {duration:.1f}s\n"
+            f"Exit code: {rc}\n"
+            f"Status  : {status}\n"
+            "\n--- Output ---\n"
+            f"{log_text[:8000]}\n"
+        )
+        attachments = None
+        if len(log_text) > 8000 or record.get("truncated"):
+            attachments = [{"name": "output.txt", "content": log_text.encode("utf-8")}]
+
+        result = self.mailer.send(recipients, subject, body_text, attachments)
+        if result.get("ok"):
+            self.runs.update(sid, run_id, {"mail_status": f"sent: {','.join(recipients)}"})
+        else:
+            self.runs.update(sid, run_id, {"mail_status": f"error: {result.get('error', '')}"})
 
     def _schedule_view(self, sched: dict) -> dict:
-        """Add UI-friendly fields (next_run, derived state) without
-        mutating the stored dict.
+        """Add UI-friendly fields (next_run, pending) without mutating
+        the stored dict.
+
+        Honours the stored ``next_run`` when it's still in the past — that
+        run is pending and the scheduler will fire it on the next tick.
+        Only when the stored value is in the future, or absent, do we
+        fall back to a freshly computed value so the UI stays accurate
+        across edits.
         """
         out = dict(sched)
-        # Recompute next_run for live display so editing in another
-        # window or a missed tick doesn't leave it stale.
-        if sched.get("enabled") and sched.get("type") != "once":
-            out["next_run"] = compute_next_run(sched, time.time())
-        elif sched.get("type") == "once":
-            out["next_run"] = compute_next_run(sched, time.time())
-        else:
+        out.pop("last_job_id", None)  # internal — don't leak to UI
+        now = time.time()
+        stored = sched.get("next_run")
+        enabled = bool(sched.get("enabled"))
+        pending = False
+        if not enabled:
             out["next_run"] = None
+        elif isinstance(stored, (int, float)) and stored > 0 and stored <= now:
+            # Past stored next_run = a missed/queued fire. Show that, not
+            # a misleading "tomorrow".
+            out["next_run"] = stored
+            pending = True
+        elif isinstance(stored, (int, float)) and stored > now:
+            out["next_run"] = stored
+        else:
+            out["next_run"] = compute_next_run(sched, now)
+        out["pending"] = pending
         return out
 
     def _schedules_payload(self) -> dict:
@@ -1578,6 +2130,8 @@ class Api:
                     s["type"] = clean["type"]
                     s["enabled"] = clean["enabled"]
                     s["skip_if_running"] = clean["skip_if_running"]
+                    s["mail_trigger"] = clean["mail_trigger"]
+                    s["mail_to"] = clean["mail_to"]
                     for k in ("datetime", "interval_minutes", "time", "weekdays"):
                         if k in clean:
                             s[k] = clean[k]
@@ -1622,6 +2176,80 @@ class Api:
                 return {"ok": False, "error": "Onbekend schedule-id."}
             result = self._fire_schedule(target) or {}
             return result
+
+    # ----- scheduler observability + run history -----------------------
+
+    def get_scheduler_status(self) -> dict:
+        return self.scheduler.status()
+
+    def list_runs(self, schedule_id: str | None = None, limit: int = 50) -> dict:
+        try:
+            limit = int(limit or 50)
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(1, min(500, limit))
+        try:
+            runs = self.runs.list(schedule_id, limit=limit)
+        except (OSError, ValueError) as exc:
+            return {"ok": False, "error": str(exc), "runs": []}
+        return {"ok": True, "runs": runs}
+
+    def get_run(self, schedule_id: str, run_id: str) -> dict:
+        try:
+            rec = self.runs.get(schedule_id, run_id)
+        except (OSError, ValueError) as exc:
+            return {"ok": False, "error": str(exc)}
+        if not rec:
+            return {"ok": False, "error": "Run niet gevonden."}
+        return {"ok": True, "run": rec}
+
+    def clear_runs(self, schedule_id: str) -> dict:
+        try:
+            removed = self.runs.clear(schedule_id)
+        except (OSError, ValueError) as exc:
+            return {"ok": False, "error": str(exc)}
+        return {"ok": True, "removed": removed}
+
+    # ----- Microsoft Graph mail ----------------------------------------
+
+    def get_graph_settings(self) -> dict:
+        cfg = (self.settings.get("graph_mail") or {}).copy()
+        # Don't ship the raw secret to the UI — render presence only.
+        secret = cfg.pop("client_secret", "") or ""
+        cfg["has_secret"] = bool(secret)
+        cfg["configured"] = self.mailer.is_configured()
+        return cfg
+
+    def set_graph_settings(self, payload: dict) -> dict:
+        if not isinstance(payload, dict):
+            return {"ok": False, "error": "Ongeldige payload."}
+        cfg = self.settings.setdefault("graph_mail", dict(DEFAULT_SETTINGS["graph_mail"]))
+        for k in ("tenant_id", "client_id", "from_address", "default_to"):
+            if k in payload:
+                cfg[k] = (payload.get(k) or "").strip()
+        # Secret: only overwrite when the UI actually sent one (empty
+        # string from the password input means "unchanged"). To clear it,
+        # the UI sends ``"clear_secret": true``.
+        if payload.get("clear_secret"):
+            cfg["client_secret"] = ""
+        elif (payload.get("client_secret") or "").strip():
+            cfg["client_secret"] = payload["client_secret"].strip()
+        save_settings(self.settings)
+        self.mailer.invalidate_token()
+        return {"ok": True, **self.get_graph_settings()}
+
+    def test_graph_mail(self, recipient: str = "") -> dict:
+        cfg = self.settings.get("graph_mail") or {}
+        to = (recipient or "").strip() or (cfg.get("default_to") or "").strip()
+        recipients = _split_recipients(to)
+        if not recipients:
+            return {"ok": False, "error": "Geen ontvanger opgegeven."}
+        body = (
+            "Dit is een testbericht van Dashboard AI Worx.\n\n"
+            f"Verzonden om: {datetime.now().isoformat(timespec='seconds')}\n"
+            f"Vanuit: {cfg.get('from_address', '?')}\n"
+        )
+        return self.mailer.send(recipients, "[Dashboard AI Worx] Test", body)
 
     # Called by the HTTP server when the UI navigates away / closes.
     def shutdown(self) -> dict:

@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 settings.json
 repo/
+schedule_runs/
 .browser_profile/
 build/
 dist/
