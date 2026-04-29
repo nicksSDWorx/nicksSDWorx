@@ -855,16 +855,25 @@ class JobRunner:
 
     def start(self, cmd: list[str], cwd: str, name: str,
               on_finish=None) -> str:
-        # Force UTF-8 stdout/stderr for child Python (and PyInstaller-frozen
-        # Python) processes. Without this, scripts that print non-cp1252
-        # characters (emoji, arrows, accented forms) crash with
-        # ``UnicodeEncodeError: 'charmap' codec can't encode character ...``
-        # because Windows defaults the console codec to cp1252. The
-        # ``:replace`` suffix swaps unencodable chars for ``?`` so a
-        # surprise glyph never halts a tool again. Inherits the rest of
-        # the parent environment so PATH etc. still resolve.
+        # Force UTF-8 everywhere for child Python (and PyInstaller-frozen
+        # Python) processes. Without this, scripts that print or write
+        # non-cp1252 characters (emoji, arrows, accented forms) crash
+        # with ``UnicodeEncodeError: 'charmap' codec can't encode ...``
+        # because Windows defaults the console codec to cp1252 *and*
+        # ``open()`` falls back to the locale encoding when called
+        # without an ``encoding=`` argument.
+        #
+        # ``PYTHONIOENCODING`` covers stdout/stderr; ``PYTHONUTF8=1``
+        # puts the entire interpreter in UTF-8 Mode (PEP 540) so
+        # ``open()`` and friends default to UTF-8 too. Both env-vars
+        # are honoured by PyInstaller-frozen apps because the bootloader
+        # reads them at interpreter init. The ``:replace`` suffix on
+        # PYTHONIOENCODING ensures a stray glyph never halts a tool.
+        # Inherits the rest of the parent environment so PATH etc.
+        # still resolve.
         child_env = os.environ.copy()
         child_env["PYTHONIOENCODING"] = "utf-8:replace"
+        child_env["PYTHONUTF8"] = "1"
 
         popen_kwargs = {
             "cwd": cwd,
