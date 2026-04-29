@@ -20,6 +20,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -79,7 +80,13 @@ DEFAULT_SETTINGS = {
     # rel_path → category name. The virtual "Ongecategoriseerd" bucket
     # is always rendered last and never stored here.
     "categories": {"order": [], "assignments": {}},
+    # Scheduled tool runs. See Scheduler / compute_next_run for the
+    # accepted shape per entry.
+    "schedules": [],
 }
+
+VALID_SCHEDULE_TYPES = {"once", "daily", "weekly", "interval"}
+MAX_SCHEDULE_NAME = 80
 
 UNCATEGORIZED = "Ongecategoriseerd"
 MAX_CATEGORY_NAME = 64
@@ -115,6 +122,9 @@ def load_settings() -> dict:
         changed = True
     if not isinstance(cats.get("assignments"), dict):
         cats["assignments"] = {}
+        changed = True
+    if not isinstance(data.get("schedules"), list):
+        data["schedules"] = []
         changed = True
     if changed:
         save_settings(data)
@@ -989,6 +999,248 @@ class JobRunner:
 
 
 # ---------------------------------------------------------------------------
+# Scheduler — fires tool runs at planned moments
+# ---------------------------------------------------------------------------
+
+SCHEDULER_TICK_SECONDS = 15
+
+
+def _parse_hhmm(raw: str) -> tuple[int, int]:
+    """Parse 'HH:MM'. Raises ValueError on bad input."""
+    parts = (raw or "").split(":")
+    if len(parts) != 2:
+        raise ValueError("verwacht HH:MM")
+    h, m = int(parts[0]), int(parts[1])
+    if not (0 <= h <= 23 and 0 <= m <= 59):
+        raise ValueError("uur/minuut buiten bereik")
+    return h, m
+
+
+def compute_next_run(sched: dict, after: float) -> float | None:
+    """Return the next epoch (>= after) when this schedule should fire,
+    or ``None`` if it never will (invalid config, or a 'once' run that's
+    already past).
+    """
+    typ = sched.get("type")
+    after_dt = datetime.fromtimestamp(after)
+
+    if typ == "once":
+        raw = sched.get("datetime") or ""
+        try:
+            target = datetime.fromisoformat(raw)
+        except ValueError:
+            return None
+        ts = target.timestamp()
+        return ts if ts >= after else None
+
+    if typ == "interval":
+        try:
+            mins = int(sched.get("interval_minutes") or 0)
+        except (TypeError, ValueError):
+            return None
+        if mins <= 0:
+            return None
+        anchor = sched.get("last_run") or sched.get("created_at") or after
+        step = mins * 60
+        nxt = anchor + step
+        if nxt < after:
+            # Skip past missed runs in one jump so we don't fire a backlog.
+            steps = int((after - anchor) // step) + 1
+            nxt = anchor + steps * step
+        return nxt
+
+    if typ == "daily":
+        try:
+            h, m = _parse_hhmm(sched.get("time") or "")
+        except (ValueError, AttributeError):
+            return None
+        cand = after_dt.replace(hour=h, minute=m, second=0, microsecond=0)
+        if cand.timestamp() < after:
+            cand += timedelta(days=1)
+        return cand.timestamp()
+
+    if typ == "weekly":
+        try:
+            h, m = _parse_hhmm(sched.get("time") or "")
+        except (ValueError, AttributeError):
+            return None
+        weekdays_raw = sched.get("weekdays") or []
+        try:
+            weekdays = sorted({int(w) for w in weekdays_raw if 0 <= int(w) <= 6})
+        except (TypeError, ValueError):
+            return None
+        if not weekdays:
+            return None
+        for offset in range(0, 8):
+            cand = (after_dt + timedelta(days=offset)).replace(
+                hour=h, minute=m, second=0, microsecond=0
+            )
+            if cand.weekday() in weekdays and cand.timestamp() >= after:
+                return cand.timestamp()
+        return None
+
+    return None
+
+
+def validate_schedule(payload: dict) -> tuple[dict, str | None]:
+    """Sanitize a schedule dict from the UI. Returns ``(clean, error)``.
+    On error, ``clean`` is empty.
+    """
+    if not isinstance(payload, dict):
+        return {}, "Ongeldige payload."
+
+    name = (payload.get("name") or "").strip()
+    if not name:
+        return {}, "Naam mag niet leeg zijn."
+    if len(name) > MAX_SCHEDULE_NAME:
+        return {}, f"Naam mag max. {MAX_SCHEDULE_NAME} tekens zijn."
+
+    rel_path = (payload.get("rel_path") or "").strip().replace("\\", "/").lstrip("/")
+    if not rel_path or ".." in rel_path.split("/"):
+        return {}, "Ongeldig tool-pad."
+
+    typ = (payload.get("type") or "").strip()
+    if typ not in VALID_SCHEDULE_TYPES:
+        return {}, f"Onbekend schedule-type: {typ!r}"
+
+    clean: dict = {
+        "name": name,
+        "rel_path": rel_path,
+        "type": typ,
+        "enabled": bool(payload.get("enabled", True)),
+        "skip_if_running": bool(payload.get("skip_if_running", True)),
+    }
+
+    if typ == "once":
+        raw = (payload.get("datetime") or "").strip()
+        try:
+            datetime.fromisoformat(raw)
+        except ValueError:
+            return {}, "Ongeldige datum/tijd voor 'eenmalig'."
+        clean["datetime"] = raw
+
+    elif typ == "interval":
+        try:
+            mins = int(payload.get("interval_minutes") or 0)
+        except (TypeError, ValueError):
+            return {}, "Interval moet een getal in minuten zijn."
+        if mins <= 0:
+            return {}, "Interval moet groter dan 0 minuten zijn."
+        clean["interval_minutes"] = mins
+
+    elif typ == "daily":
+        try:
+            _parse_hhmm(payload.get("time") or "")
+        except ValueError as exc:
+            return {}, f"Ongeldige tijd: {exc}"
+        clean["time"] = payload.get("time")
+
+    elif typ == "weekly":
+        try:
+            _parse_hhmm(payload.get("time") or "")
+        except ValueError as exc:
+            return {}, f"Ongeldige tijd: {exc}"
+        weekdays_raw = payload.get("weekdays") or []
+        if not isinstance(weekdays_raw, list) or not weekdays_raw:
+            return {}, "Kies minstens één weekdag."
+        try:
+            weekdays = sorted({int(w) for w in weekdays_raw if 0 <= int(w) <= 6})
+        except (TypeError, ValueError):
+            return {}, "Ongeldige weekdag-waarde."
+        if not weekdays:
+            return {}, "Kies minstens één weekdag."
+        clean["time"] = payload.get("time")
+        clean["weekdays"] = weekdays
+
+    return clean, None
+
+
+class Scheduler:
+    """Fires due schedules in a background thread.
+
+    The scheduler doesn't know about tools or jobs directly — it calls
+    ``fire(sched)`` (provided by ``Api``) which actually launches the
+    tool through the existing ``JobRunner``. Persistence happens via
+    ``settings.json`` (the same lock the Api uses for mutations).
+    """
+
+    def __init__(self, settings_provider, save_fn, fire, lock):
+        self._settings_provider = settings_provider
+        self._save = save_fn
+        self._fire = fire
+        self._lock = lock
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def start(self) -> None:
+        if self._thread and self._thread.is_alive():
+            return
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+
+    def _loop(self) -> None:
+        while not self._stop.is_set():
+            try:
+                self._tick()
+            except Exception as exc:  # noqa: BLE001
+                print(f"[scheduler] tick error: {exc}", file=sys.stderr)
+            self._stop.wait(SCHEDULER_TICK_SECONDS)
+
+    def _tick(self) -> None:
+        now = time.time()
+        with self._lock:
+            settings = self._settings_provider()
+            scheds = settings.get("schedules")
+            if not isinstance(scheds, list):
+                return
+            changed = False
+            for s in scheds:
+                if not isinstance(s, dict):
+                    continue
+                if not s.get("enabled"):
+                    continue
+                nxt = s.get("next_run")
+                if not isinstance(nxt, (int, float)) or nxt <= 0:
+                    nxt = compute_next_run(s, now)
+                    if nxt:
+                        s["next_run"] = nxt
+                        changed = True
+                if not nxt or nxt > now:
+                    continue
+
+                # Due. Try to fire.
+                try:
+                    result = self._fire(s) or {}
+                except Exception as exc:  # noqa: BLE001
+                    result = {"ok": False, "error": str(exc)}
+
+                if result.get("skipped"):
+                    s["last_status"] = "skipped"
+                    s["last_message"] = result.get("error") or "Overgeslagen"
+                elif result.get("ok"):
+                    s["last_status"] = "ok"
+                    s["last_message"] = f"job {(result.get('job_id') or '')[:8]}"
+                    s["last_job_id"] = result.get("job_id") or ""
+                else:
+                    s["last_status"] = "error"
+                    s["last_message"] = str(result.get("error") or "Onbekende fout")
+
+                s["last_run"] = now
+                if s.get("type") == "once":
+                    s["enabled"] = False
+                    s["next_run"] = None
+                else:
+                    s["next_run"] = compute_next_run(s, now + 1)
+                changed = True
+
+            if changed:
+                self._save()
+
+
+# ---------------------------------------------------------------------------
 # API (same surface as the old PyWebView js_api)
 # ---------------------------------------------------------------------------
 
@@ -998,6 +1250,13 @@ class Api:
         self.sync = GitHubSync(settings_provider=lambda: self.settings)
         self.push = GitHubPush(settings_provider=lambda: self.settings)
         self.jobs = JobRunner()
+        self._sched_lock = threading.Lock()
+        self.scheduler = Scheduler(
+            settings_provider=lambda: self.settings,
+            save_fn=lambda: save_settings(self.settings),
+            fire=self._fire_schedule,
+            lock=self._sched_lock,
+        )
 
     def get_tools(self) -> dict:
         return discover_tools(self.settings)
@@ -1232,6 +1491,138 @@ class Api:
     def list_jobs(self) -> dict:
         return {"jobs": self.jobs.list_all()}
 
+    # ----- scheduler ----------------------------------------------------
+
+    def _fire_schedule(self, sched: dict) -> dict:
+        """Called by the scheduler when a schedule is due. Resolves the
+        tool by ``rel_path`` against the live repo and launches it. The
+        scheduler holds ``self._sched_lock`` for the duration, so we do
+        NOT acquire it again here.
+        """
+        rel_path = (sched.get("rel_path") or "").strip()
+        if not rel_path:
+            return {"ok": False, "error": "Geen tool gekoppeld."}
+
+        if sched.get("skip_if_running"):
+            last_job_id = sched.get("last_job_id") or ""
+            if last_job_id:
+                with self.jobs._lock:  # noqa: SLF001 — internal but safe
+                    state = self.jobs._jobs.get(last_job_id)  # noqa: SLF001
+                    if state and state.get("running"):
+                        return {
+                            "ok": False,
+                            "skipped": True,
+                            "error": "Vorige run draait nog (overgeslagen).",
+                        }
+
+        abs_path = REPO_DIR / rel_path
+        if not abs_path.exists() or not abs_path.is_file():
+            return {"ok": False, "error": f"Tool niet gevonden: {rel_path}"}
+
+        return self.launch_tool(str(abs_path))
+
+    def _schedule_view(self, sched: dict) -> dict:
+        """Add UI-friendly fields (next_run, derived state) without
+        mutating the stored dict.
+        """
+        out = dict(sched)
+        # Recompute next_run for live display so editing in another
+        # window or a missed tick doesn't leave it stale.
+        if sched.get("enabled") and sched.get("type") != "once":
+            out["next_run"] = compute_next_run(sched, time.time())
+        elif sched.get("type") == "once":
+            out["next_run"] = compute_next_run(sched, time.time())
+        else:
+            out["next_run"] = None
+        return out
+
+    def _schedules_payload(self) -> dict:
+        scheds = self.settings.setdefault("schedules", [])
+        return {
+            "ok": True,
+            "schedules": [self._schedule_view(s) for s in scheds if isinstance(s, dict)],
+        }
+
+    def list_schedules(self) -> dict:
+        with self._sched_lock:
+            return self._schedules_payload()
+
+    def add_schedule(self, payload) -> dict:
+        clean, err = validate_schedule(payload or {})
+        if err:
+            return {"ok": False, "error": err}
+        with self._sched_lock:
+            now = time.time()
+            clean["id"] = os.urandom(6).hex()
+            clean["created_at"] = now
+            clean["last_run"] = None
+            clean["last_status"] = None
+            clean["last_message"] = ""
+            clean["last_job_id"] = ""
+            clean["next_run"] = compute_next_run(clean, now)
+            self.settings.setdefault("schedules", []).append(clean)
+            save_settings(self.settings)
+            return self._schedules_payload()
+
+    def update_schedule(self, schedule_id: str, payload) -> dict:
+        clean, err = validate_schedule(payload or {})
+        if err:
+            return {"ok": False, "error": err}
+        with self._sched_lock:
+            scheds = self.settings.setdefault("schedules", [])
+            for s in scheds:
+                if s.get("id") == schedule_id:
+                    # Preserve history fields; replace config fields.
+                    s["name"] = clean["name"]
+                    s["rel_path"] = clean["rel_path"]
+                    s["type"] = clean["type"]
+                    s["enabled"] = clean["enabled"]
+                    s["skip_if_running"] = clean["skip_if_running"]
+                    for k in ("datetime", "interval_minutes", "time", "weekdays"):
+                        if k in clean:
+                            s[k] = clean[k]
+                        else:
+                            s.pop(k, None)
+                    s["next_run"] = compute_next_run(s, time.time())
+                    save_settings(self.settings)
+                    return self._schedules_payload()
+            return {"ok": False, "error": "Onbekend schedule-id."}
+
+    def delete_schedule(self, schedule_id: str) -> dict:
+        with self._sched_lock:
+            scheds = self.settings.setdefault("schedules", [])
+            new = [s for s in scheds if s.get("id") != schedule_id]
+            if len(new) == len(scheds):
+                return {"ok": False, "error": "Onbekend schedule-id."}
+            self.settings["schedules"] = new
+            save_settings(self.settings)
+            return self._schedules_payload()
+
+    def toggle_schedule(self, schedule_id: str, enabled: bool) -> dict:
+        with self._sched_lock:
+            scheds = self.settings.setdefault("schedules", [])
+            for s in scheds:
+                if s.get("id") == schedule_id:
+                    s["enabled"] = bool(enabled)
+                    s["next_run"] = (
+                        compute_next_run(s, time.time()) if s["enabled"] else None
+                    )
+                    save_settings(self.settings)
+                    return self._schedules_payload()
+            return {"ok": False, "error": "Onbekend schedule-id."}
+
+    def run_schedule_now(self, schedule_id: str) -> dict:
+        """Manually fire a schedule (useful for testing). Doesn't update
+        ``last_run`` so the normal cadence isn't disturbed.
+        """
+        with self._sched_lock:
+            scheds = self.settings.setdefault("schedules", [])
+            target = next((s for s in scheds if s.get("id") == schedule_id), None)
+            if not target:
+                return {"ok": False, "error": "Onbekend schedule-id."}
+            result = self._fire_schedule(target) or {}
+            return result
+
     # Called by the HTTP server when the UI navigates away / closes.
     def shutdown(self) -> dict:
         threading.Thread(target=lambda: (time.sleep(0.2), os._exit(0)), daemon=True).start()
@@ -1398,6 +1789,7 @@ def main() -> None:
         ui_html = fh.read()
 
     api = Api()
+    api.scheduler.start()
     auth_token = os.urandom(16).hex()
     port = pick_free_port()
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(api, ui_html, auth_token))

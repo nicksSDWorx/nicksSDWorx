@@ -570,6 +570,153 @@
     background: var(--accent-dim-2);
   }
 
+  /* ---------- Planner ---------- */
+  table.schedules {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  table.schedules th, table.schedules td {
+    text-align: left;
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  table.schedules th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+  table.schedules tr:last-child td { border-bottom: 0; }
+  table.schedules td.mono { font-family: "DM Mono", monospace; font-size: 12px; color: var(--text); }
+  table.schedules td.actions { white-space: nowrap; }
+  table.schedules td.actions .btn { padding: 5px 10px; font-size: 12px; }
+  table.schedules .sched-name { font-weight: 600; color: var(--text); }
+  table.schedules .sched-sub  { color: var(--text-faint); font-size: 11.5px; margin-top: 2px; }
+
+  .pill {
+    display: inline-block;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #101010;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .pill.ok     { color: var(--ok);      border-color: rgba(74,222,128,0.35); }
+  .pill.error  { color: var(--danger);  border-color: rgba(248,113,113,0.35); }
+  .pill.skipped{ color: var(--brand-yellow); border-color: rgba(253,185,19,0.35); }
+  .pill.off    { color: var(--text-faint); }
+
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px; height: 20px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #2a2a2a;
+    border-radius: 999px;
+    transition: 150ms;
+  }
+  .switch .slider::before {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    background: var(--text-dim);
+    border-radius: 50%;
+    transition: 150ms;
+  }
+  .switch input:checked + .slider { background: var(--accent-dim); }
+  .switch input:checked + .slider::before { background: var(--accent); transform: translateX(16px); }
+
+  .planner-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .planner-form .field.span2 { grid-column: 1 / -1; }
+  .planner-form .field select,
+  .planner-form .field input[type="text"],
+  .planner-form .field input[type="number"],
+  .planner-form .field input[type="time"],
+  .planner-form .field input[type="datetime-local"] {
+    background: #0f0f0f;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 11px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+  }
+  .planner-form .field select:focus,
+  .planner-form .field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+  .type-radios { display: flex; gap: 8px; flex-wrap: wrap; }
+  .type-radios label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    background: #0f0f0f;
+    transition: 120ms;
+  }
+  .type-radios label:hover { color: var(--text); border-color: var(--border-strong); }
+  .type-radios input { accent-color: var(--accent); }
+  .type-radios label.is-active {
+    color: var(--text);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .weekday-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .weekday-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text-dim);
+    background: #0f0f0f;
+  }
+  .weekday-row label.is-active {
+    color: var(--text);
+    border-color: var(--accent);
+    background: var(--accent-dim);
+  }
+  .weekday-row input { accent-color: var(--accent); }
+
+  .planner-actions { display: flex; gap: 8px; align-items: center; }
+  .planner-actions .spacer { flex: 1; }
+  .planner-empty {
+    color: var(--text-faint);
+    font-size: 12.5px;
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    text-align: center;
+  }
+
   /* ---------- Embedded console ---------- */
   .console-panel {
     position: fixed;
@@ -755,6 +902,9 @@
       <button class="nav-btn active" data-page="dashboard" title="Dashboard">
         <span>&#x25A3;</span><span class="tip">Dashboard</span>
       </button>
+      <button class="nav-btn" data-page="planner" title="Planner">
+        <span>&#x29D7;</span><span class="tip">Planner</span>
+      </button>
       <button class="nav-btn" data-page="github" title="GitHub">
         <span>&#x29C9;</span><span class="tip">GitHub</span>
       </button>
@@ -769,6 +919,7 @@
         <div class="subtitle">Centrale hub om lokale tools te beheren en te starten.</div>
         <nav class="tabs" id="tabs">
           <button class="tab active" data-page="dashboard">Tools <span class="count" id="toolCount">0</span></button>
+          <button class="tab" data-page="planner">Planner <span class="count" id="schedCount">0</span></button>
           <button class="tab" data-page="github">GitHub Sync</button>
           <button class="tab" data-page="settings">Settings</button>
         </nav>
@@ -787,6 +938,86 @@
             <button class="btn primary" id="syncShortcut">Sync repo</button>
           </div>
           <div id="toolsContainer"></div>
+        </div>
+
+        <!-- Planner page -->
+        <div class="page" id="page-planner">
+          <div class="panel">
+            <h3>Geplande tools</h3>
+            <p class="hint">Laat tools automatisch starten op vaste momenten of intervallen. De scheduler controleert elke 15 seconden welke schedules &quot;due&quot; zijn en start ze via dezelfde console-panel als bij handmatig starten.</p>
+            <div id="schedulesContainer"></div>
+          </div>
+
+          <div class="panel">
+            <h3 id="plannerFormTitle">Nieuwe planning</h3>
+            <p class="hint">Kies welke tool je wilt plannen, en wanneer. Wijzigingen zijn direct opgeslagen in <code>settings.json</code>.</p>
+            <div class="planner-form">
+              <div class="field span2">
+                <label>Naam</label>
+                <input type="text" id="schedName" placeholder="Bijv. Dagelijkse URL-check">
+              </div>
+              <div class="field span2">
+                <label>Tool</label>
+                <select id="schedTool"></select>
+              </div>
+              <div class="field span2">
+                <label>Frequentie</label>
+                <div class="type-radios" id="schedTypeRadios">
+                  <label><input type="radio" name="schedType" value="once"> Eenmalig</label>
+                  <label><input type="radio" name="schedType" value="daily" checked> Dagelijks</label>
+                  <label><input type="radio" name="schedType" value="weekly"> Wekelijks</label>
+                  <label><input type="radio" name="schedType" value="interval"> Interval</label>
+                </div>
+              </div>
+
+              <div class="field" id="schedFieldDatetime" style="display:none;">
+                <label>Datum &amp; tijd</label>
+                <input type="datetime-local" id="schedDatetime">
+              </div>
+
+              <div class="field" id="schedFieldTime">
+                <label>Tijdstip (HH:MM)</label>
+                <input type="time" id="schedTime" value="09:00">
+              </div>
+
+              <div class="field span2" id="schedFieldWeekdays" style="display:none;">
+                <label>Weekdagen</label>
+                <div class="weekday-row" id="schedWeekdays">
+                  <label data-day="0"><input type="checkbox" value="0"> Ma</label>
+                  <label data-day="1"><input type="checkbox" value="1"> Di</label>
+                  <label data-day="2"><input type="checkbox" value="2"> Wo</label>
+                  <label data-day="3"><input type="checkbox" value="3"> Do</label>
+                  <label data-day="4"><input type="checkbox" value="4"> Vr</label>
+                  <label data-day="5"><input type="checkbox" value="5"> Za</label>
+                  <label data-day="6"><input type="checkbox" value="6"> Zo</label>
+                </div>
+              </div>
+
+              <div class="field" id="schedFieldInterval" style="display:none;">
+                <label>Interval (minuten)</label>
+                <input type="number" id="schedInterval" min="1" step="1" value="60">
+              </div>
+
+              <div class="field span2">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);">
+                  <input type="checkbox" id="schedSkipIfRunning" checked style="width:16px;height:16px;accent-color:var(--accent);">
+                  <span>Sla over als de vorige run nog draait</span>
+                </label>
+              </div>
+              <div class="field span2">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:13px;color:var(--text);">
+                  <input type="checkbox" id="schedEnabled" checked style="width:16px;height:16px;accent-color:var(--accent);">
+                  <span>Direct activeren</span>
+                </label>
+              </div>
+            </div>
+            <div class="planner-actions" style="margin-top:14px;">
+              <button class="btn primary" id="schedSaveBtn">Planning opslaan</button>
+              <button class="btn" id="schedCancelBtn" style="display:none;">Annuleer bewerking</button>
+              <span class="spacer"></span>
+              <span class="mono" id="schedFormState" style="color:var(--text-faint);font-size:12px;"></span>
+            </div>
+          </div>
         </div>
 
         <!-- GitHub page -->
@@ -2106,6 +2337,370 @@
     });
   }
 
+  // --- planner ---
+  var planner = {
+    schedules: [],
+    editing: null, // schedule object being edited, or null
+    pollTimer: null,
+  };
+  var WEEKDAY_LABELS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
+
+  function flatTools() {
+    var out = [];
+    var cats = (state.tools && state.tools.categories) || [];
+    cats.forEach(function (c) {
+      (c.tools || []).forEach(function (t) {
+        out.push({
+          rel_path: t.rel_path,
+          name: t.name,
+          extension: t.extension,
+          category: c.name,
+        });
+      });
+    });
+    out.sort(function (a, b) {
+      return (a.name || "").localeCompare(b.name || "");
+    });
+    return out;
+  }
+
+  function renderSchedToolOptions() {
+    var sel = $("#schedTool");
+    if (!sel) return;
+    var current = sel.value;
+    var tools = flatTools();
+    var html = '<option value="">— kies een tool —</option>';
+    tools.forEach(function (t) {
+      html += '<option value="' + esc(t.rel_path) + '">'
+            + esc(t.name) + ' (' + esc(t.extension || "") + ')'
+            + '</option>';
+    });
+    sel.innerHTML = html;
+    if (current) sel.value = current;
+  }
+
+  function pad2(n) { return (n < 10 ? "0" : "") + n; }
+  function fmtRelTime(ts) {
+    if (!ts) return "—";
+    var now = Date.now() / 1000;
+    var diff = ts - now;
+    var abs = Math.abs(diff);
+    var future = diff >= 0;
+    var s;
+    if (abs < 60) s = Math.round(abs) + "s";
+    else if (abs < 3600) s = Math.round(abs / 60) + "m";
+    else if (abs < 86400) s = Math.round(abs / 3600) + "u";
+    else s = Math.round(abs / 86400) + "d";
+    return future ? "over " + s : s + " geleden";
+  }
+  function fmtAbsTime(ts) {
+    if (!ts) return "—";
+    var d = new Date(ts * 1000);
+    return pad2(d.getDate()) + "/" + pad2(d.getMonth() + 1) + " "
+         + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  }
+
+  function describeSchedule(s) {
+    if (s.type === "once") {
+      var raw = s.datetime || "";
+      return "Eenmalig op " + raw.replace("T", " ");
+    }
+    if (s.type === "daily") return "Dagelijks om " + (s.time || "?");
+    if (s.type === "weekly") {
+      var days = (s.weekdays || []).slice().sort()
+        .map(function (i) { return WEEKDAY_LABELS[i] || "?"; }).join(", ");
+      return days + " om " + (s.time || "?");
+    }
+    if (s.type === "interval") {
+      var m = s.interval_minutes || 0;
+      if (m % 60 === 0) return "Elke " + (m / 60) + " uur";
+      return "Elke " + m + " min";
+    }
+    return s.type;
+  }
+
+  function renderSchedules() {
+    var container = $("#schedulesContainer");
+    var count = $("#schedCount");
+    if (!container) return;
+    var list = planner.schedules || [];
+    if (count) count.textContent = list.length;
+
+    if (!list.length) {
+      container.innerHTML =
+        '<div class="planner-empty">Nog geen geplande tools. Vul het formulier hieronder in om er een aan te maken.</div>';
+      return;
+    }
+
+    var rows = list.map(function (s) {
+      var statusPill;
+      if (!s.last_status) {
+        statusPill = '<span class="pill off">nooit gedraaid</span>';
+      } else {
+        var cls = s.last_status === "ok" ? "ok"
+                : s.last_status === "skipped" ? "skipped"
+                : "error";
+        statusPill = '<span class="pill ' + cls + '">' + esc(s.last_status) + '</span>';
+      }
+      var nextLine = s.enabled
+        ? (s.next_run
+            ? esc(fmtAbsTime(s.next_run)) + ' <span class="sched-sub">' + esc(fmtRelTime(s.next_run)) + '</span>'
+            : '<span class="sched-sub">geen volgende run</span>')
+        : '<span class="pill off">uit</span>';
+      var lastLine = s.last_run
+        ? esc(fmtAbsTime(s.last_run)) + ' ' + statusPill
+          + (s.last_message ? '<div class="sched-sub">' + esc(s.last_message) + '</div>' : '')
+        : statusPill;
+
+      return ''
+        + '<tr data-id="' + esc(s.id) + '">'
+        +   '<td>'
+        +     '<div class="sched-name">' + esc(s.name) + '</div>'
+        +     '<div class="sched-sub mono">' + esc(s.rel_path) + '</div>'
+        +   '</td>'
+        +   '<td>' + esc(describeSchedule(s)) + '</td>'
+        +   '<td>' + nextLine + '</td>'
+        +   '<td>' + lastLine + '</td>'
+        +   '<td>'
+        +     '<label class="switch" title="Aan/uit">'
+        +       '<input type="checkbox" data-act="toggle"' + (s.enabled ? " checked" : "") + '>'
+        +       '<span class="slider"></span>'
+        +     '</label>'
+        +   '</td>'
+        +   '<td class="actions">'
+        +     '<button class="btn" data-act="run" title="Nu uitvoeren">Run</button> '
+        +     '<button class="btn" data-act="edit" title="Bewerken">Bewerk</button> '
+        +     '<button class="btn danger" data-act="delete" title="Verwijderen">Wis</button>'
+        +   '</td>'
+        + '</tr>';
+    }).join("");
+
+    container.innerHTML =
+      '<table class="schedules">'
+      + '<thead><tr>'
+      +   '<th>Naam / tool</th>'
+      +   '<th>Wanneer</th>'
+      +   '<th>Volgende run</th>'
+      +   '<th>Laatste run</th>'
+      +   '<th style="width:60px;">Aan</th>'
+      +   '<th style="width:200px;"></th>'
+      + '</tr></thead>'
+      + '<tbody>' + rows + '</tbody>'
+      + '</table>';
+
+    container.querySelectorAll("tr[data-id]").forEach(function (tr) {
+      var id = tr.getAttribute("data-id");
+      tr.querySelectorAll("[data-act]").forEach(function (el) {
+        var act = el.getAttribute("data-act");
+        if (act === "toggle") {
+          el.addEventListener("change", function (e) {
+            toggleSchedule(id, !!e.target.checked);
+          });
+        } else {
+          el.addEventListener("click", function () {
+            if (act === "edit") editSchedule(id);
+            else if (act === "delete") deleteSchedule(id);
+            else if (act === "run") runScheduleNow(id);
+          });
+        }
+      });
+    });
+  }
+
+  function refreshSchedules() {
+    var api = pyApi();
+    if (!api) return Promise.resolve();
+    return api.list_schedules().then(function (res) {
+      if (res && res.ok) {
+        planner.schedules = res.schedules || [];
+        renderSchedules();
+      }
+    });
+  }
+
+  function readScheduleForm() {
+    var typeEl = document.querySelector('input[name="schedType"]:checked');
+    var type = typeEl ? typeEl.value : "daily";
+    var payload = {
+      name: $("#schedName").value.trim(),
+      rel_path: $("#schedTool").value,
+      type: type,
+      enabled: $("#schedEnabled").checked,
+      skip_if_running: $("#schedSkipIfRunning").checked,
+    };
+    if (type === "once") {
+      payload.datetime = $("#schedDatetime").value;
+    } else if (type === "interval") {
+      payload.interval_minutes = parseInt($("#schedInterval").value || "0", 10);
+    } else if (type === "daily") {
+      payload.time = $("#schedTime").value;
+    } else if (type === "weekly") {
+      payload.time = $("#schedTime").value;
+      payload.weekdays = $$('#schedWeekdays input[type="checkbox"]:checked')
+        .map(function (cb) { return parseInt(cb.value, 10); });
+    }
+    return payload;
+  }
+
+  function applyTypeVisibility() {
+    var typeEl = document.querySelector('input[name="schedType"]:checked');
+    var type = typeEl ? typeEl.value : "daily";
+    $("#schedFieldDatetime").style.display  = (type === "once")     ? "" : "none";
+    $("#schedFieldTime").style.display      = (type === "daily" || type === "weekly") ? "" : "none";
+    $("#schedFieldWeekdays").style.display  = (type === "weekly")   ? "" : "none";
+    $("#schedFieldInterval").style.display  = (type === "interval") ? "" : "none";
+    // Visual highlight on radio pills.
+    $$("#schedTypeRadios label").forEach(function (lbl) {
+      var r = lbl.querySelector("input");
+      lbl.classList.toggle("is-active", r && r.checked);
+    });
+  }
+
+  function applyWeekdayHighlight() {
+    $$("#schedWeekdays label").forEach(function (lbl) {
+      var cb = lbl.querySelector("input");
+      lbl.classList.toggle("is-active", cb && cb.checked);
+    });
+  }
+
+  function resetScheduleForm() {
+    planner.editing = null;
+    $("#schedName").value = "";
+    $("#schedTool").value = "";
+    $("#schedDatetime").value = "";
+    $("#schedTime").value = "09:00";
+    $("#schedInterval").value = "60";
+    $$('#schedWeekdays input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+    $("#schedSkipIfRunning").checked = true;
+    $("#schedEnabled").checked = true;
+    var dailyRadio = document.querySelector('input[name="schedType"][value="daily"]');
+    if (dailyRadio) dailyRadio.checked = true;
+    applyTypeVisibility();
+    applyWeekdayHighlight();
+    $("#plannerFormTitle").textContent = "Nieuwe planning";
+    $("#schedSaveBtn").textContent = "Planning opslaan";
+    $("#schedCancelBtn").style.display = "none";
+    $("#schedFormState").textContent = "";
+  }
+
+  function fillScheduleForm(s) {
+    planner.editing = s;
+    $("#schedName").value = s.name || "";
+    $("#schedTool").value = s.rel_path || "";
+    var radio = document.querySelector('input[name="schedType"][value="' + (s.type || "daily") + '"]');
+    if (radio) radio.checked = true;
+    $("#schedDatetime").value = s.datetime || "";
+    $("#schedTime").value = s.time || "09:00";
+    $("#schedInterval").value = s.interval_minutes || 60;
+    $$('#schedWeekdays input[type="checkbox"]').forEach(function (cb) {
+      cb.checked = (s.weekdays || []).indexOf(parseInt(cb.value, 10)) >= 0;
+    });
+    $("#schedSkipIfRunning").checked = s.skip_if_running !== false;
+    $("#schedEnabled").checked = !!s.enabled;
+    applyTypeVisibility();
+    applyWeekdayHighlight();
+    $("#plannerFormTitle").textContent = "Planning bewerken: " + (s.name || "");
+    $("#schedSaveBtn").textContent = "Wijzigingen opslaan";
+    $("#schedCancelBtn").style.display = "";
+    $("#schedFormState").textContent = "";
+  }
+
+  function saveSchedule() {
+    var api = pyApi();
+    if (!api) return;
+    var payload = readScheduleForm();
+    var stateLbl = $("#schedFormState");
+    stateLbl.textContent = "Opslaan...";
+    var call = planner.editing
+      ? api.update_schedule(planner.editing.id, payload)
+      : api.add_schedule(payload);
+    call.then(function (res) {
+      if (res && res.ok) {
+        planner.schedules = res.schedules || [];
+        renderSchedules();
+        toast(planner.editing ? "Planning bijgewerkt." : "Planning aangemaakt.");
+        resetScheduleForm();
+      } else {
+        var msg = (res && res.error) || "Onbekende fout.";
+        stateLbl.textContent = msg;
+        toast(msg, "error");
+      }
+    }).catch(function (err) {
+      stateLbl.textContent = err.message || String(err);
+      toast(err.message || String(err), "error");
+    });
+  }
+
+  function editSchedule(id) {
+    var s = planner.schedules.find(function (x) { return x.id === id; });
+    if (!s) return;
+    fillScheduleForm(s);
+    showPage("planner");
+    var formTitle = $("#plannerFormTitle");
+    if (formTitle && formTitle.scrollIntoView) {
+      formTitle.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
+
+  function deleteSchedule(id) {
+    var s = planner.schedules.find(function (x) { return x.id === id; });
+    var label = s ? s.name : id;
+    if (!window.confirm("Planning '" + label + "' verwijderen?")) return;
+    var api = pyApi();
+    if (!api) return;
+    api.delete_schedule(id).then(function (res) {
+      if (res && res.ok) {
+        planner.schedules = res.schedules || [];
+        if (planner.editing && planner.editing.id === id) resetScheduleForm();
+        renderSchedules();
+        toast("Planning verwijderd.");
+      } else {
+        toast((res && res.error) || "Verwijderen mislukt.", "error");
+      }
+    });
+  }
+
+  function toggleSchedule(id, enabled) {
+    var api = pyApi();
+    if (!api) return;
+    api.toggle_schedule(id, enabled).then(function (res) {
+      if (res && res.ok) {
+        planner.schedules = res.schedules || [];
+        renderSchedules();
+      } else {
+        toast((res && res.error) || "Schakelen mislukt.", "error");
+        refreshSchedules();
+      }
+    });
+  }
+
+  function runScheduleNow(id) {
+    var api = pyApi();
+    if (!api) return;
+    api.run_schedule_now(id).then(function (res) {
+      if (res && res.ok) {
+        toast("Tool gestart (zie console-panel).");
+        refreshSchedules();
+      } else if (res && res.skipped) {
+        toast(res.error || "Overgeslagen.", "error");
+      } else {
+        toast((res && res.error) || "Starten mislukt.", "error");
+      }
+    });
+  }
+
+  function startPlannerPolling() {
+    if (planner.pollTimer) return;
+    // Refresh every 30s so next_run / last_run / status stay current
+    // when the scheduler fires while the page is open.
+    planner.pollTimer = setInterval(function () {
+      var page = document.getElementById("page-planner");
+      if (page && page.classList.contains("active")) {
+        refreshSchedules();
+      }
+    }, 30000);
+  }
+
   // --- wiring ---
   function wire() {
     $$(".tab, .nav-btn").forEach(function (el) {
@@ -2204,6 +2799,24 @@
     $("#hLauncher").addEventListener("keydown", function (e) { if (e.key === "Enter") saveHandler(); });
     $("#hArgs").addEventListener("keydown", function (e) { if (e.key === "Enter") saveHandler(); });
     $("#hLabel").addEventListener("keydown", function (e) { if (e.key === "Enter") saveHandler(); });
+
+    // Planner
+    $$('#schedTypeRadios input[name="schedType"]').forEach(function (r) {
+      r.addEventListener("change", applyTypeVisibility);
+    });
+    $$('#schedWeekdays input[type="checkbox"]').forEach(function (cb) {
+      cb.addEventListener("change", applyWeekdayHighlight);
+    });
+    $("#schedSaveBtn").addEventListener("click", saveSchedule);
+    $("#schedCancelBtn").addEventListener("click", resetScheduleForm);
+    // Refresh tool dropdown when entering the planner page so newly
+    // synced tools show up without a full app reload.
+    $$('.tab[data-page="planner"], .nav-btn[data-page="planner"]').forEach(function (el) {
+      el.addEventListener("click", function () {
+        renderSchedToolOptions();
+        refreshSchedules();
+      });
+    });
   }
 
   // --- boot ---
@@ -2229,9 +2842,16 @@
           state.repo = info;
           renderRepoInfo();
         }),
-        refreshTools(),
+        refreshTools().then(function () {
+          renderSchedToolOptions();
+        }),
         refreshTokenStatus(),
-      ]);
+        refreshSchedules(),
+      ]).then(function () {
+        applyTypeVisibility();
+        applyWeekdayHighlight();
+        startPlannerPolling();
+      });
     });
   }
 
