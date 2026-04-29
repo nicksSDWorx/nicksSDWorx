@@ -33,7 +33,6 @@ python -m PyInstaller ^
   --noconsole ^
   --onefile ^
   --add-data "ui.html;." ^
-  --add-data "tool_window.html;." ^
   dashboard.py
 if errorlevel 1 goto :builderror
 

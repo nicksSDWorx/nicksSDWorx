@@ -39,7 +39,6 @@ else:
 REPO_DIR = APP_DIR / "repo"
 SETTINGS_PATH = APP_DIR / "settings.json"
 UI_PATH = BUNDLE_DIR / "ui.html"
-TOOL_WINDOW_PATH = BUNDLE_DIR / "tool_window.html"
 
 # ---------------------------------------------------------------------------
 # Config
@@ -1888,24 +1887,37 @@ class Api:
         }
 
     def spawn_tool_window(self, script_path: str) -> dict:
-        """Start a tool and open a dedicated chromeless pop-up window
-        showing its live output. The pop-up uses the same Edge/Chrome
-        ``--app=`` shell as the main dashboard, so it gets the same
-        look-and-feel without an address bar or browser chrome.
+        """Open the tool in its own real OS console window.
 
-        Replaces the old embedded-console flow: every manual launch
-        now goes through here. The pop-up polls ``get_job`` exactly
-        like the embedded console used to.
+        Pragmatic default: every manual launch gets a fresh ``cmd.exe``
+        (Windows ``CREATE_NEW_CONSOLE``) — that's what the old
+        ``relaunch_externally`` button did. No captured pipes, no
+        polling, no embedded UI. The OS console *is* the UI, which
+        means stdin/colour codes/console-only Windows APIs all work
+        natively. PyInstaller-frozen .exes that need their own
+        console (the URL checker, anything using ``msvcrt``, getpass,
+        etc.) just work.
+
+        Scheduled runs still go through ``launch_tool`` →
+        ``JobRunner.start`` so their output is captured to JSON+TXT
+        for later inspection in the Runs tab.
         """
         resolved = self._resolve_launch(script_path)
         if not resolved.get("ok"):
             return resolved
 
         cmd = resolved["cmd"]
+        popen_kwargs: dict = {"cwd": resolved["cwd"]}
+        if os.name == "nt":
+            popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
+        # On POSIX we inherit stdio from the dashboard process. If the
+        # dashboard was launched from a terminal the user sees output
+        # there; otherwise it's lost — but the tool still runs. Real
+        # terminal-emulator forking is dev-only and not worth the
+        # cross-distro fragility.
+
         try:
-            job_id = self.jobs.start(
-                cmd, cwd=resolved["cwd"], name=resolved["name"],
-            )
+            subprocess.Popen(cmd, **popen_kwargs)
         except FileNotFoundError:
             return {
                 "ok": False,
@@ -1914,39 +1926,7 @@ class Api:
         except OSError as exc:
             return {"ok": False, "error": f"Kan tool niet starten: {exc}"}
 
-        # Build URL for the pop-up. Server reads the auth token + base
-        # URL from class-level attributes set by ``main()`` once the
-        # HTTP server is up. Window dimensions are kept compact —
-        # console UX is vertical-scroll dominant.
-        token = getattr(type(self), "_AUTH_TOKEN", "")
-        port = getattr(type(self), "_PORT", 0)
-        if not token or not port:
-            return {"ok": True, "job_id": job_id, "name": resolved["name"], "window": False}
-
-        from urllib.parse import quote
-        url = (
-            f"http://127.0.0.1:{port}/tool-window"
-            f"?token={token}"
-            f"&job={quote(job_id)}"
-            f"&name={quote(resolved['name'])}"
-        )
-        try:
-            launch_browser(url, size="960,640")
-        except Exception as exc:  # noqa: BLE001 — never fail the launch over a window
-            return {
-                "ok": True,
-                "job_id": job_id,
-                "name": resolved["name"],
-                "window": False,
-                "window_error": str(exc),
-            }
-
-        return {
-            "ok": True,
-            "job_id": job_id,
-            "name": resolved["name"],
-            "window": True,
-        }
+        return {"ok": True, "name": resolved["name"]}
 
     # ----- job control ---------------------------------------------------
 
@@ -2303,7 +2283,7 @@ class Api:
 # HTTP server (serves ui.html + /api/<method> JSON-RPC)
 # ---------------------------------------------------------------------------
 
-def build_handler(api: Api, ui_html: bytes, tool_window_html: bytes, auth_token: str):
+def build_handler(api: Api, ui_html: bytes, auth_token: str):
     """Build a BaseHTTPRequestHandler subclass bound to the given api."""
 
     class Handler(BaseHTTPRequestHandler):
@@ -2341,17 +2321,6 @@ def build_handler(api: Api, ui_html: bytes, tool_window_html: bytes, auth_token:
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(ui_html)
-                return
-            if path == "/tool-window":
-                if not self._check_token():
-                    self.send_error(403, "Forbidden")
-                    return
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(tool_window_html)))
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                self.wfile.write(tool_window_html)
                 return
             self.send_error(404, "Not Found")
 
@@ -2474,25 +2443,18 @@ def launch_browser(url: str, size: str = "1280,820") -> subprocess.Popen | None:
 def main() -> None:
     if not UI_PATH.exists():
         raise SystemExit(f"ui.html ontbreekt (verwacht: {UI_PATH})")
-    if not TOOL_WINDOW_PATH.exists():
-        raise SystemExit(f"tool_window.html ontbreekt (verwacht: {TOOL_WINDOW_PATH})")
 
     load_settings()  # ensure settings.json exists
     with open(UI_PATH, "rb") as fh:
         ui_html = fh.read()
-    with open(TOOL_WINDOW_PATH, "rb") as fh:
-        tool_window_html = fh.read()
 
     api = Api()
     api.scheduler.start()
     auth_token = os.urandom(16).hex()
     port = pick_free_port()
-    # ``spawn_tool_window`` reads these to build pop-up URLs.
-    Api._AUTH_TOKEN = auth_token
-    Api._PORT = port
     server = ThreadingHTTPServer(
         ("127.0.0.1", port),
-        build_handler(api, ui_html, tool_window_html, auth_token),
+        build_handler(api, ui_html, auth_token),
     )
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)

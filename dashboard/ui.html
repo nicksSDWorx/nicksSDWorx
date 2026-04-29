@@ -1756,17 +1756,13 @@
   function launchTool(path) {
     var api = pyApi();
     if (!api) { toast("API niet klaar", "error"); return; }
-    // Each tool now opens its own chromeless pop-up window; the dashboard
-    // itself no longer hosts the live console. The pop-up handles
-    // polling, stop, exit-status, and the optional fallback to a real
-    // cmd console.
+    // Each tool opens in its own real cmd / Terminal window
+    // (CREATE_NEW_CONSOLE on Windows). No embedded console, no
+    // captured pipes — the OS console is the UI, so stdin / colour /
+    // console-only Windows APIs all work natively.
     api.spawn_tool_window(path).then(function (res) {
       if (res && res.ok) {
-        if (res.window === false) {
-          toast("Tool gestart, maar pop-up venster opende niet.", "warn");
-        } else {
-          toast("Gestart in nieuw venster: " + res.name);
-        }
+        toast("Geopend in console-venster: " + res.name);
       } else {
         toast((res && res.error) || "Kan tool niet starten.", "error");
       }
