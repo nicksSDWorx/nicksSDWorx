@@ -884,120 +884,6 @@
     word-break: break-all;
   }
 
-  /* ---------- Embedded console ---------- */
-  .console-panel {
-    position: fixed;
-    left: 64px;
-    right: 0;
-    bottom: 0;
-    height: 42vh;
-    min-height: 260px;
-    max-height: 70vh;
-    background: rgba(9, 9, 9, 0.97);
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -12px 32px rgba(0,0,0,0.5);
-    z-index: 40;
-    display: flex;
-    flex-direction: column;
-    transform: translateY(100%);
-    transition: transform 220ms cubic-bezier(.2,.7,.2,1);
-    backdrop-filter: blur(6px);
-  }
-  .console-panel.open { transform: translateY(0); }
-
-  .console-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    background: rgba(14,14,14,0.9);
-  }
-  .console-tabs {
-    display: flex;
-    gap: 6px;
-    flex: 1;
-    overflow-x: auto;
-    scrollbar-width: thin;
-  }
-  .console-tabs::-webkit-scrollbar { height: 4px; }
-
-  .console-tab {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #101010;
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    padding: 5px 10px 5px 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: inherit;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: 130ms;
-  }
-  .console-tab:hover { color: var(--text); border-color: var(--border-strong); }
-  .console-tab.active {
-    color: var(--text);
-    border-color: rgba(237, 26, 58, 0.45);
-    background: rgba(237, 26, 58, 0.10);
-  }
-  .console-tab .x {
-    opacity: 0.5;
-    margin-left: 2px;
-    font-size: 14px;
-    line-height: 1;
-    padding: 0 4px;
-    border-radius: 3px;
-  }
-  .console-tab .x:hover { opacity: 1; background: rgba(255,255,255,0.08); }
-
-  .status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: var(--brand-yellow);
-    box-shadow: 0 0 6px var(--brand-yellow);
-    flex-shrink: 0;
-    animation: pulse 1.4s ease-in-out infinite;
-  }
-  .status-dot.done  { background: var(--ok);     box-shadow: 0 0 6px var(--ok);     animation: none; }
-  .status-dot.error { background: var(--danger); box-shadow: 0 0 6px var(--danger); animation: none; }
-  .status-dot.idle  { background: var(--text-faint); box-shadow: none; animation: none; }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
-
-  .console-meta {
-    font-family: "DM Mono", monospace;
-    font-size: 11.5px;
-    color: var(--text-faint);
-  }
-
-  .console-actions { display: flex; gap: 8px; }
-
-  .console-body {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: auto;
-    padding: 12px 16px 16px 16px;
-    font-family: "DM Mono", ui-monospace, monospace;
-    font-size: 12.5px;
-    line-height: 1.55;
-    color: #c7c7c7;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-  .console-body .prompt { color: var(--brand-yellow); }
-  .console-body .exit-ok    { color: var(--ok); }
-  .console-body .exit-error { color: var(--danger); }
-  .console-body .empty-hint {
-    color: var(--text-faint);
-    font-style: italic;
-  }
-
-  /* Leave room at the bottom of the tool grid when the console is open. */
-  .app.with-console .main { padding-bottom: calc(42vh + 20px); }
-
   /* ---------- Toasts ---------- */
   .toasts {
     position: fixed;
@@ -1123,7 +1009,7 @@
 
           <div class="panel">
             <h3>Geplande tools</h3>
-            <p class="hint">Laat tools automatisch starten op vaste momenten of intervallen. De scheduler controleert elke 15 seconden welke schedules &quot;due&quot; zijn en start ze via dezelfde console-panel als bij handmatig starten.</p>
+            <p class="hint">Laat tools automatisch starten op vaste momenten of intervallen. De scheduler controleert elke 15 seconden welke schedules &quot;due&quot; zijn. Geplande runs draaien stil op de achtergrond; de output landt automatisch in het Runs-tabblad.</p>
             <div id="schedulesContainer"></div>
           </div>
 
@@ -1416,22 +1302,6 @@
         </div>
       </section>
     </main>
-  </div>
-
-  <!-- Embedded console panel. Slides up from the bottom when you launch
-       a tool. Holds a tab per running/recent job, live stdout/stderr and
-       a Stop button. -->
-  <div class="console-panel" id="consolePanel" aria-hidden="true">
-    <div class="console-head">
-      <div class="console-tabs" id="consoleTabs"></div>
-      <div class="console-actions">
-        <span class="console-meta" id="consoleMeta"></span>
-        <button class="btn" id="consoleExternal" title="Start deze tool in een nieuw console-venster" style="padding:5px 12px;font-size:12px;">Open in venster</button>
-        <button class="btn danger" id="consoleStop" style="padding:5px 12px;font-size:12px;">Stop</button>
-        <button class="btn" id="consoleClose" style="padding:5px 12px;font-size:12px;">Sluit</button>
-      </div>
-    </div>
-    <div class="console-body" id="consoleBody"></div>
   </div>
 
   <div class="toasts" id="toasts"></div>
@@ -1886,10 +1756,17 @@
   function launchTool(path) {
     var api = pyApi();
     if (!api) { toast("API niet klaar", "error"); return; }
-    api.launch_tool(path).then(function (res) {
+    // Each tool now opens its own chromeless pop-up window; the dashboard
+    // itself no longer hosts the live console. The pop-up handles
+    // polling, stop, exit-status, and the optional fallback to a real
+    // cmd console.
+    api.spawn_tool_window(path).then(function (res) {
       if (res && res.ok) {
-        Console.open(res.job_id, res.name);
-        toast("Gestart: " + res.name);
+        if (res.window === false) {
+          toast("Tool gestart, maar pop-up venster opende niet.", "warn");
+        } else {
+          toast("Gestart in nieuw venster: " + res.name);
+        }
       } else {
         toast((res && res.error) || "Kan tool niet starten.", "error");
       }
@@ -1898,272 +1775,6 @@
     });
   }
 
-  // ---------------------------------------------------------------
-  // Embedded console subsystem. Handles tab strip, live-log polling,
-  // stop/close, and status-dot states per job.
-  // ---------------------------------------------------------------
-  var Console = (function () {
-    var state = {
-      jobs: [],          // [{id, name}]
-      status: {},        // id -> { running, exit_code, elapsed, nextOffset, lines: [] }
-      active: null,      // job id currently shown in body
-      timer: null,
-    };
-
-    function fmtDuration(sec) {
-      if (sec == null || !isFinite(sec)) return "";
-      if (sec < 60) return sec.toFixed(1) + "s";
-      var m = Math.floor(sec / 60);
-      var s = Math.floor(sec % 60);
-      return m + "m " + (s < 10 ? "0" : "") + s + "s";
-    }
-
-    function statusClass(st) {
-      if (!st) return "idle";
-      if (st.running) return "";
-      if (st.exit_code === 0) return "done";
-      return "error";
-    }
-
-    function renderTabs() {
-      var wrap = $("#consoleTabs");
-      wrap.innerHTML = "";
-      state.jobs.forEach(function (job) {
-        var st = state.status[job.id];
-        var cls = "console-tab" + (state.active === job.id ? " active" : "");
-        var dotCls = "status-dot " + statusClass(st);
-        var btn = document.createElement("button");
-        btn.className = cls;
-        btn.setAttribute("data-job-id", job.id);
-        btn.innerHTML =
-          '<span class="' + dotCls + '"></span>' +
-          '<span>' + esc(job.name) + '</span>' +
-          '<span class="x" title="Sluit tabblad">&#x00D7;</span>';
-        btn.addEventListener("click", function (ev) {
-          if (ev.target && ev.target.classList && ev.target.classList.contains("x")) {
-            ev.stopPropagation();
-            removeTab(job.id);
-          } else {
-            show(job.id);
-          }
-        });
-        wrap.appendChild(btn);
-      });
-    }
-
-    function renderBody() {
-      var body = $("#consoleBody");
-      var id = state.active;
-      if (!id) {
-        body.innerHTML = '<div class="empty-hint">Geen actieve tool.</div>';
-        return;
-      }
-      var st = state.status[id];
-      if (!st) {
-        body.innerHTML = '<div class="empty-hint">Wachten op output...</div>';
-        return;
-      }
-      var html = "";
-      st.lines.forEach(function (line, idx) {
-        var cls = "";
-        if (idx === 0 && line.indexOf("$ ") === 0) cls = "prompt";
-        else if (line.indexOf("[proces be") === 0) {
-          cls = st.exit_code === 0 ? "exit-ok" : "exit-error";
-        }
-        html += cls
-          ? '<span class="' + cls + '">' + esc(line) + '</span>\n'
-          : esc(line) + '\n';
-      });
-      body.innerHTML = html;
-    }
-
-    function renderMeta() {
-      var meta = $("#consoleMeta");
-      var stop = $("#consoleStop");
-      var st = state.active ? state.status[state.active] : null;
-      if (!st) { meta.textContent = ""; stop.disabled = true; return; }
-      var parts = [];
-      if (st.running) parts.push("running");
-      else parts.push("exit " + st.exit_code);
-      parts.push(fmtDuration(st.elapsed));
-      meta.textContent = parts.join(" · ");
-      stop.disabled = !st.running;
-    }
-
-    function appendLog(id, lines) {
-      var st = state.status[id];
-      if (!st) return;
-      var body = $("#consoleBody");
-      var atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 12;
-      Array.prototype.push.apply(st.lines, lines);
-      // Cap client-side buffer too.
-      if (st.lines.length > 6000) st.lines = st.lines.slice(-3000);
-      if (state.active === id) {
-        renderBody();
-        if (atBottom) body.scrollTop = body.scrollHeight;
-      }
-    }
-
-    // Auto-fallback heuristic: if a tool exits quickly with a non-zero
-    // exit code and the user didn't stop it themselves, re-launch it in
-    // a real console window. Many tools can't operate without a real
-    // TTY (interactive prompts, colour detection, Windows console APIs,
-    // etc.) and this saves the user having to diagnose it.
-    var AUTO_FALLBACK_EXIT_WINDOW_SEC = 3.0;
-    function maybeAutoFallback(job, res) {
-      if (res.running) return;
-      if (res.exit_code === 0) return;
-      if (res.stopped_by_user) return;
-      if (res.relaunched_externally) return;
-      if ((res.elapsed || 0) > AUTO_FALLBACK_EXIT_WINDOW_SEC) return;
-
-      var api = pyApi();
-      if (!api) return;
-      // Mark locally so we never retry twice from the UI side.
-      state.status[job.id].autoFallbackDone = true;
-      api.relaunch_externally(job.id).then(function (r) {
-        if (r && r.ok) {
-          toast(
-            '"' + job.name + '" werkte niet in het dashboard — geopend in nieuw venster.',
-            "warn"
-          );
-        }
-      });
-    }
-
-    function poll() {
-      var api = pyApi();
-      if (!api || !state.jobs.length) return;
-      state.jobs.forEach(function (job) {
-        var prev = state.status[job.id];
-        var since = prev ? prev.nextOffset : 0;
-        var wasRunning = prev ? prev.running !== false : true;
-        api.get_job(job.id, since).then(function (res) {
-          if (!res || !res.ok) return;
-          var cur = state.status[job.id] || { lines: [], nextOffset: 0 };
-          cur.running = res.running;
-          cur.exit_code = res.exit_code;
-          cur.elapsed = res.elapsed;
-          cur.nextOffset = res.next_offset;
-          cur.stopped_by_user = res.stopped_by_user;
-          cur.relaunched_externally = res.relaunched_externally;
-          state.status[job.id] = cur;
-          if (res.log && res.log.length) appendLog(job.id, res.log);
-          renderTabs();
-          if (state.active === job.id) renderMeta();
-
-          // Just-finished transition triggers the auto-fallback check.
-          if (wasRunning && !res.running && !cur.autoFallbackDone) {
-            maybeAutoFallback(job, res);
-          }
-        });
-      });
-      // Stop polling once nothing is running.
-      var anyRunning = state.jobs.some(function (j) {
-        var s = state.status[j.id]; return !s || s.running;
-      });
-      if (!anyRunning && state.timer) {
-        clearInterval(state.timer);
-        state.timer = null;
-      }
-    }
-
-    function ensurePolling() {
-      if (state.timer) return;
-      state.timer = setInterval(poll, 400);
-      poll();
-    }
-
-    function show(id) {
-      state.active = id;
-      renderTabs();
-      renderBody();
-      renderMeta();
-      var body = $("#consoleBody");
-      body.scrollTop = body.scrollHeight;
-    }
-
-    function open(id, name) {
-      if (!state.jobs.some(function (j) { return j.id === id; })) {
-        state.jobs.push({ id: id, name: name });
-      }
-      state.active = id;
-      $("#consolePanel").classList.add("open");
-      $("#consolePanel").setAttribute("aria-hidden", "false");
-      document.querySelector(".app").classList.add("with-console");
-      renderTabs();
-      renderBody();
-      renderMeta();
-      ensurePolling();
-    }
-
-    function close() {
-      $("#consolePanel").classList.remove("open");
-      $("#consolePanel").setAttribute("aria-hidden", "true");
-      document.querySelector(".app").classList.remove("with-console");
-    }
-
-    function removeTab(id) {
-      var st = state.status[id];
-      var api = pyApi();
-      if (st && st.running && api) {
-        // Killing is safer than leaving an invisible process running.
-        api.stop_job(id);
-      }
-      state.jobs = state.jobs.filter(function (j) { return j.id !== id; });
-      delete state.status[id];
-      if (state.active === id) {
-        state.active = state.jobs.length ? state.jobs[state.jobs.length - 1].id : null;
-      }
-      if (!state.jobs.length) { close(); return; }
-      renderTabs();
-      renderBody();
-      renderMeta();
-    }
-
-    function stopActive() {
-      if (!state.active) return;
-      var api = pyApi();
-      if (!api) return;
-      api.stop_job(state.active).then(function (res) {
-        if (res && res.ok) {
-          toast("Stop-signaal verstuurd.");
-          ensurePolling();
-        } else {
-          toast((res && res.error) || "Kon niet stoppen.", "error");
-        }
-      });
-    }
-
-    function openActiveExternally() {
-      if (!state.active) return;
-      var api = pyApi();
-      if (!api) return;
-      var jobName = (state.jobs.find(function (j) { return j.id === state.active; }) || {}).name || "tool";
-      // If the headless job is still running, stop it first so we don't
-      // end up with two copies fighting over resources.
-      var st = state.status[state.active];
-      var pre = (st && st.running) ? api.stop_job(state.active) : Promise.resolve({ ok: true });
-      pre.then(function () {
-        return api.relaunch_externally(state.active);
-      }).then(function (res) {
-        if (res && res.ok) {
-          toast('"' + jobName + '" geopend in nieuw venster.');
-          ensurePolling();
-        } else {
-          toast((res && res.error) || "Kon niet openen in nieuw venster.", "error");
-        }
-      });
-    }
-
-    function wire() {
-      $("#consoleStop").addEventListener("click", stopActive);
-      $("#consoleClose").addEventListener("click", close);
-      $("#consoleExternal").addEventListener("click", openActiveExternally);
-    }
-
-    return { open: open, close: close, wire: wire };
-  })();
 
   function refreshTools() {
     var api = pyApi();
@@ -2936,7 +2547,7 @@
     if (!api) return;
     api.run_schedule_now(id).then(function (res) {
       if (res && res.ok) {
-        toast("Tool gestart (zie console-panel).");
+        toast("Geplande run gestart op de achtergrond.");
         refreshSchedules();
       } else if (res && res.skipped) {
         toast(res.error || "Overgeslagen.", "error");
@@ -3406,7 +3017,6 @@
   // PyWebView. Data-loading calls are deferred to whenReady().
   function boot() {
     wire();
-    Console.wire();
     // Render an initial empty state so the dashboard is never blank.
     renderTools();
 

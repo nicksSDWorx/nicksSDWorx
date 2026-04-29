@@ -39,6 +39,7 @@ else:
 REPO_DIR = APP_DIR / "repo"
 SETTINGS_PATH = APP_DIR / "settings.json"
 UI_PATH = BUNDLE_DIR / "ui.html"
+TOOL_WINDOW_PATH = BUNDLE_DIR / "tool_window.html"
 
 # ---------------------------------------------------------------------------
 # Config
@@ -1814,7 +1815,15 @@ class Api:
     def get_push_status(self) -> dict:
         return self.push.status()
 
-    def launch_tool(self, script_path: str, on_finish=None) -> dict:
+    def _resolve_launch(self, script_path: str) -> dict:
+        """Resolve a tool path to an executable command + cwd + name.
+
+        Shared by ``launch_tool`` (manual + scheduler) and
+        ``spawn_tool_window`` (manual pop-up). Returns either
+        ``{"ok": True, "cmd": [...], "cwd": str, "name": str, "launcher": str}``
+        or ``{"ok": False, "error": str}`` so callers can short-circuit
+        with the same error UX.
+        """
         if not script_path:
             return {"ok": False, "error": "Geen pad opgegeven."}
         path = Path(script_path)
@@ -1842,20 +1851,101 @@ class Api:
         else:
             cmd = [launcher, *args, str(path)]
 
+        return {
+            "ok": True,
+            "cmd": cmd,
+            "cwd": str(path.parent),
+            "name": path.stem,
+            "launcher": launcher,
+        }
+
+    def launch_tool(self, script_path: str, on_finish=None) -> dict:
+        resolved = self._resolve_launch(script_path)
+        if not resolved.get("ok"):
+            return resolved
+
+        cmd = resolved["cmd"]
         try:
             job_id = self.jobs.start(
-                cmd, cwd=str(path.parent), name=path.stem, on_finish=on_finish,
+                cmd,
+                cwd=resolved["cwd"],
+                name=resolved["name"],
+                on_finish=on_finish,
             )
         except FileNotFoundError:
-            return {"ok": False, "error": f"Launcher '{launcher}' niet gevonden op PATH."}
+            return {
+                "ok": False,
+                "error": f"Launcher '{resolved['launcher']}' niet gevonden op PATH.",
+            }
         except OSError as exc:
             return {"ok": False, "error": f"Kan tool niet starten: {exc}"}
 
         return {
             "ok": True,
             "job_id": job_id,
-            "name": path.stem,
+            "name": resolved["name"],
             "cmd": " ".join(cmd),
+        }
+
+    def spawn_tool_window(self, script_path: str) -> dict:
+        """Start a tool and open a dedicated chromeless pop-up window
+        showing its live output. The pop-up uses the same Edge/Chrome
+        ``--app=`` shell as the main dashboard, so it gets the same
+        look-and-feel without an address bar or browser chrome.
+
+        Replaces the old embedded-console flow: every manual launch
+        now goes through here. The pop-up polls ``get_job`` exactly
+        like the embedded console used to.
+        """
+        resolved = self._resolve_launch(script_path)
+        if not resolved.get("ok"):
+            return resolved
+
+        cmd = resolved["cmd"]
+        try:
+            job_id = self.jobs.start(
+                cmd, cwd=resolved["cwd"], name=resolved["name"],
+            )
+        except FileNotFoundError:
+            return {
+                "ok": False,
+                "error": f"Launcher '{resolved['launcher']}' niet gevonden op PATH.",
+            }
+        except OSError as exc:
+            return {"ok": False, "error": f"Kan tool niet starten: {exc}"}
+
+        # Build URL for the pop-up. Server reads the auth token + base
+        # URL from class-level attributes set by ``main()`` once the
+        # HTTP server is up. Window dimensions are kept compact —
+        # console UX is vertical-scroll dominant.
+        token = getattr(type(self), "_AUTH_TOKEN", "")
+        port = getattr(type(self), "_PORT", 0)
+        if not token or not port:
+            return {"ok": True, "job_id": job_id, "name": resolved["name"], "window": False}
+
+        from urllib.parse import quote
+        url = (
+            f"http://127.0.0.1:{port}/tool-window"
+            f"?token={token}"
+            f"&job={quote(job_id)}"
+            f"&name={quote(resolved['name'])}"
+        )
+        try:
+            launch_browser(url, size="960,640")
+        except Exception as exc:  # noqa: BLE001 — never fail the launch over a window
+            return {
+                "ok": True,
+                "job_id": job_id,
+                "name": resolved["name"],
+                "window": False,
+                "window_error": str(exc),
+            }
+
+        return {
+            "ok": True,
+            "job_id": job_id,
+            "name": resolved["name"],
+            "window": True,
         }
 
     # ----- job control ---------------------------------------------------
@@ -2213,7 +2303,7 @@ class Api:
 # HTTP server (serves ui.html + /api/<method> JSON-RPC)
 # ---------------------------------------------------------------------------
 
-def build_handler(api: Api, ui_html: bytes, auth_token: str):
+def build_handler(api: Api, ui_html: bytes, tool_window_html: bytes, auth_token: str):
     """Build a BaseHTTPRequestHandler subclass bound to the given api."""
 
     class Handler(BaseHTTPRequestHandler):
@@ -2251,6 +2341,17 @@ def build_handler(api: Api, ui_html: bytes, auth_token: str):
                 self.send_header("Cache-Control", "no-store")
                 self.end_headers()
                 self.wfile.write(ui_html)
+                return
+            if path == "/tool-window":
+                if not self._check_token():
+                    self.send_error(403, "Forbidden")
+                    return
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(tool_window_html)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                self.wfile.write(tool_window_html)
                 return
             self.send_error(404, "Not Found")
 
@@ -2329,7 +2430,12 @@ def find_chromium_browser() -> str | None:
     return None
 
 
-def launch_browser(url: str) -> subprocess.Popen | None:
+def launch_browser(url: str, size: str = "1280,820") -> subprocess.Popen | None:
+    """Open ``url`` in a chromeless Edge/Chrome ``--app=`` window.
+
+    ``size`` is forwarded as ``--window-size``; the default fits the main
+    dashboard, while tool pop-ups pass a compacter ``"960,640"``.
+    """
     browser = find_chromium_browser()
     profile_dir = APP_DIR / ".browser_profile"
     profile_dir.mkdir(exist_ok=True)
@@ -2338,7 +2444,12 @@ def launch_browser(url: str) -> subprocess.Popen | None:
             browser,
             f"--app={url}",
             f"--user-data-dir={profile_dir}",
-            "--window-size=1280,820",
+            # ``--new-window`` defends against Chromium reusing a window
+            # when two ``--app=`` invocations share the same profile and
+            # arrive close in time. The unique ``?job=<id>`` in the URL
+            # already differentiates them, but this is gratis insurance.
+            "--new-window",
+            f"--window-size={size}",
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-features=TranslateUI",
@@ -2363,16 +2474,26 @@ def launch_browser(url: str) -> subprocess.Popen | None:
 def main() -> None:
     if not UI_PATH.exists():
         raise SystemExit(f"ui.html ontbreekt (verwacht: {UI_PATH})")
+    if not TOOL_WINDOW_PATH.exists():
+        raise SystemExit(f"tool_window.html ontbreekt (verwacht: {TOOL_WINDOW_PATH})")
 
     load_settings()  # ensure settings.json exists
     with open(UI_PATH, "rb") as fh:
         ui_html = fh.read()
+    with open(TOOL_WINDOW_PATH, "rb") as fh:
+        tool_window_html = fh.read()
 
     api = Api()
     api.scheduler.start()
     auth_token = os.urandom(16).hex()
     port = pick_free_port()
-    server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(api, ui_html, auth_token))
+    # ``spawn_tool_window`` reads these to build pop-up URLs.
+    Api._AUTH_TOKEN = auth_token
+    Api._PORT = port
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", port),
+        build_handler(api, ui_html, tool_window_html, auth_token),
+    )
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
