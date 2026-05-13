@@ -16,11 +16,16 @@ Excel. Werkt lokaal op Windows, draait offline, en wijzigt het bronbestand nooit
    - Per-implementatie detailblokken voor relevante gevallen
 5. Opent het rapport automatisch.
 
-## Eenmalige installatie
+## Eenmalige installatie — VERPLICHT bij eerste gebruik
+
+> Zonder deze stap zie je bij dubbelklik op `run_report.bat` een melding
+> "Benodigde Python-packages ontbreken". Dat is normaal — voer deze stap uit
+> en de tool werkt daarna.
 
 1. Installeer Python 3.10 of hoger (https://www.python.org). Bij installatie:
-   vink "Add Python to PATH" aan.
-2. Open een Command Prompt in deze projectmap.
+   vink **"Add Python to PATH"** aan.
+2. Open een Command Prompt **in deze projectmap** (in Verkenner: klik in de
+   adresbalk, typ `cmd` en druk Enter).
 3. Maak een virtuele omgeving en installeer dependencies:
 
    ```bat
@@ -29,7 +34,7 @@ Excel. Werkt lokaal op Windows, draait offline, en wijzigt het bronbestand nooit
    pip install -r requirements.txt
    ```
 
-4. Sluit het venster.
+4. Sluit het venster. Dubbelklik daarna `run_report.bat` om te draaien.
 
 ## Draaien
 
@@ -38,16 +43,29 @@ Excel. Werkt lokaal op Windows, draait offline, en wijzigt het bronbestand nooit
 Het script activeert de virtuele omgeving (indien aanwezig), draait `monitor.py`
 en opent het rapport. Bij een fout blijft het venster open zodat je de melding kunt lezen.
 
-## Belangrijke locatie
+## ⚠️ Belangrijke locatie — lees dit eerst
 
-Plaats deze projectmap **niet** in een OneDrive- of SharePoint-gesynchroniseerde
-map. Aanbevolen locatie:
+Plaats deze projectmap **niet** in:
+- `C:\Users\<naam>\OneDrive - ...\` (incl. `Documents`, `Desktop`, `Pictures`)
+- Een SharePoint- of Teams-gesynchroniseerde map
 
+In een gesynchroniseerde map worden snapshots met klantdata automatisch naar
+de cloud geüpload. Dat is in strijd met de compliance-afspraken.
+
+**Aanbevolen locatie**:
 ```
 C:\Tools\voortgangsrapport\
 ```
 
-In een gesynchroniseerde map kunnen snapshots ongewenst uploaden naar de cloud.
+De tool detecteert bij elke run of het project in een verdacht pad staat en
+toont dan een waarschuwing. Negeer die waarschuwing niet — verplaats het
+project naar een lokale, niet-gesynchroniseerde locatie.
+
+### Hoe controleer ik of mijn `Documents`-map gesynced wordt?
+
+Open Verkenner, klik op `Documents` in de zijbalk. Als bovenin "OneDrive"
+of een wolk-icoontje staat, is de map gesynced — niet gebruiken voor dit
+project.
 
 ## Configuratie (`config.json`)
 

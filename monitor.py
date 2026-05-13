@@ -20,8 +20,22 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-import pandas as pd
-from openpyxl import load_workbook
+try:
+    import pandas as pd
+    from openpyxl import load_workbook
+except ImportError as _import_err:
+    print("[FOUT] Benodigde Python-packages ontbreken: "
+          f"{_import_err.name}.", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Eenmalig installeren via Command Prompt in deze projectmap:",
+          file=sys.stderr)
+    print("    python -m venv .venv", file=sys.stderr)
+    print("    .venv\\Scripts\\activate", file=sys.stderr)
+    print("    pip install -r requirements.txt", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Daarna kan run_report.bat normaal worden gebruikt.",
+          file=sys.stderr)
+    sys.exit(2)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 CONFIG_PATH = PROJECT_ROOT / "config.json"
@@ -724,8 +738,29 @@ def open_report(path: Path, cfg: Config) -> None:
         log(f"Rapport openen mislukt ({type(e).__name__}). Open handmatig: {path}")
 
 
+def check_sync_location() -> None:
+    """Waarschuwt als de projectmap mogelijk in een gesynchroniseerd pad ligt."""
+    path_lower = str(PROJECT_ROOT).lower()
+    sync_markers = ["onedrive", "sharepoint", "\\teams\\", "/teams/"]
+    hits = [m for m in sync_markers if m in path_lower]
+    if not hits:
+        return
+    print("", file=sys.stderr)
+    print("=" * 68, file=sys.stderr)
+    print("WAARSCHUWING: projectmap lijkt in een gesynchroniseerde map te liggen",
+          file=sys.stderr)
+    print(f"Gevonden indicator(en): {', '.join(hits)}", file=sys.stderr)
+    print("Snapshots en rapporten kunnen ongewenst naar de cloud uploaden.",
+          file=sys.stderr)
+    print("Aanbeveling: verplaats de projectmap naar bv. C:\\Tools\\voortgangsrapport\\",
+          file=sys.stderr)
+    print("=" * 68, file=sys.stderr)
+    print("", file=sys.stderr)
+
+
 def main() -> int:
     try:
+        check_sync_location()
         cfg = load_config()
         today = date.today()
         general_df, customer_tabs = read_excel(cfg)
