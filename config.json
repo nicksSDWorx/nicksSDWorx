@@ -1,0 +1,122 @@
+{
+  "excel_path": "dummy_tracker.xlsx",
+  "general_sheet": "GENERAL",
+  "general_header_row": 1,
+  "skip_sheets": [
+    "draaitabel",
+    "GENERAL"
+  ],
+  "columns": {
+    "klantnummer": "Klantnummer",
+    "customer": "Customer",
+    "owner": "Owner",
+    "service": "Service",
+    "hrm": "HRM",
+    "go_live": "Go-live",
+    "overall_status": "Overall status",
+    "aanleverdatum": "Aanleverdatum",
+    "eerste_dag_hrm": "Eerste dag HRM",
+    "wns": "# wns",
+    "laatste_update": "Laatste update",
+    "phase_columns": [
+      "Launch",
+      "Discovery",
+      "Setup",
+      "Invoer klantgege",
+      "salarisadmin",
+      "loonheffingen",
+      "Instellingen",
+      "Loonstroken en jaaropgave",
+      "Import mw",
+      "Diversen",
+      "HRM",
+      "Testopvraag",
+      "Documenten",
+      "Test 1",
+      "Test 2",
+      "Journaal",
+      "Go Live"
+    ]
+  },
+  "customer_sheet": {
+    "header_row": 12,
+    "metadata_cells": {
+      "klantnaam": "A2",
+      "verantwoordelijke": "B4",
+      "go_live": "D4",
+      "dienstverlening": "B5",
+      "twk": "D5",
+      "affiliate": "F5",
+      "wns": "F6",
+      "hrm_consultant": "B7",
+      "eerste_dag_hrm": "B9"
+    },
+    "phase_scorecard": {
+      "Launch": "Q5",
+      "Discovery": "Q6",
+      "Setup": "Q7",
+      "Test": "Q8",
+      "Go Live": "Q9",
+      "Overall": "Q10"
+    },
+    "task_columns": {
+      "taak": "Taak",
+      "verantwoordelijke": "Verantwoordelijke",
+      "datum_invoer": "Datum invoer",
+      "status_pct": "Status %",
+      "hide": "Hide"
+    },
+    "skip_when_hide_in": [
+      1
+    ]
+  },
+  "status_definition": {
+    "primary_source": "general_overall_status",
+    "fallback_chain": [
+      "customer_tab_overall",
+      "task_avg_pct"
+    ],
+    "treat_as_empty": [
+      " ",
+      "",
+      "-",
+      "0"
+    ],
+    "done_values": [
+      "Done",
+      "Afgerond",
+      "Klaar",
+      "100",
+      "100%"
+    ],
+    "active_values": [
+      "In progress",
+      "Open",
+      "Actief",
+      "Bezig"
+    ]
+  },
+  "thresholds": {
+    "deadline_warning_days": 7,
+    "critical_date_window_days": 60,
+    "no_progress_window_days": 90,
+    "stagnation_weeks": 3,
+    "flag_missing_owner": true,
+    "flag_missing_deadline": true,
+    "ntb_values": [
+      "Ntb",
+      "ntb",
+      "Ntv",
+      "ntv",
+      "Nvt",
+      "nvt",
+      "N.t.b.",
+      "N.t.v."
+    ]
+  },
+  "report": {
+    "open_after_generate": true,
+    "include_per_customer_blocks": true,
+    "per_customer_only_with_changes_or_bottlenecks": true
+  }
+}

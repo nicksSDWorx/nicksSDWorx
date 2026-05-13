@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Gegenereerde output blijft lokaal
+data/snapshots/*.json
+data/reports/*.md
+
+# Dev-only test-kopie
+dummy_tracker_week2.xlsx
