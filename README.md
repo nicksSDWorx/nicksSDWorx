@@ -18,23 +18,21 @@ Excel. Werkt lokaal op Windows, draait offline, en wijzigt het bronbestand nooit
 
 ## Eenmalige installatie — VERPLICHT bij eerste gebruik
 
-> Zonder deze stap zie je bij dubbelklik op `run_report.bat` een melding
-> "Benodigde Python-packages ontbreken". Dat is normaal — voer deze stap uit
-> en de tool werkt daarna.
+> Goed nieuws: hoef je niets in een command prompt te typen.
+> `run_report.bat` regelt de installatie zelf bij de eerste run.
 
-1. Installeer Python 3.10 of hoger (https://www.python.org). Bij installatie:
-   vink **"Add Python to PATH"** aan.
-2. Open een Command Prompt **in deze projectmap** (in Verkenner: klik in de
-   adresbalk, typ `cmd` en druk Enter).
-3. Maak een virtuele omgeving en installeer dependencies:
+1. **Python installeren** (eenmalig per computer):
+   - Ga naar https://www.python.org/downloads/
+   - Download de laatste versie (3.10 of nieuwer).
+   - Tijdens de installatie: vink **"Add Python to PATH"** aan.
+   - Klik op Install Now.
 
-   ```bat
-   python -m venv .venv
-   .venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
+2. **Dubbelklik `run_report.bat`**.
+   Bij de eerste run zie je: _"Eerste keer draaien — benodigde packages worden
+   nu geinstalleerd."_ Dit duurt 1–2 minuten en gebeurt maar één keer. Daarna
+   draait het rapport.
 
-4. Sluit het venster. Dubbelklik daarna `run_report.bat` om te draaien.
+3. Bij elke volgende dubbelklik: rapport draait direct, geen installatie meer.
 
 ## Draaien
 

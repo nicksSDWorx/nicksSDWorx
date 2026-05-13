@@ -1,0 +1,47 @@
+==========================================================
+  WEKELIJKS VOORTGANGSRAPPORT - SNELSTART
+==========================================================
+
+STAP 0 - Verplaats deze map (BELANGRIJK voor compliance)
+--------------------------------------------------------
+Deze map mag NIET in OneDrive of SharePoint staan, anders
+worden klantgegevens naar de cloud gesynchroniseerd.
+
+Hoe verplaatsen?
+  1. Druk op de Windows-toets, typ "Verkenner", Enter.
+  2. Ga naar C:\ (klik in de adresbalk, typ "C:\", Enter).
+  3. Klik met de rechtermuisknop -> Nieuwe map -> noem hem
+     "Tools".
+  4. Knip deze hele projectmap (Ctrl+X) uit OneDrive en
+     plak hem (Ctrl+V) in C:\Tools\.
+
+Eindresultaat:
+  C:\Tools\nicksSDWorx-claude-weekly-progress-report-tool-vYaBB\
+
+
+STAP 1 - Python installeren (alleen eerste keer per pc)
+--------------------------------------------------------
+  1. Ga naar https://www.python.org/downloads/
+  2. Download de meest recente versie.
+  3. Open het installatiebestand.
+  4. VINK AAN: "Add Python to PATH"  <-- niet vergeten
+  5. Klik op "Install Now" en wacht tot klaar.
+
+
+STAP 2 - Rapport draaien
+--------------------------------------------------------
+Dubbelklik op:  run_report.bat
+
+Bij de eerste keer zie je "Eerste keer draaien - benodigde
+packages worden nu geinstalleerd." Wacht 1-2 minuten, het
+gebeurt maar een keer. Daarna opent het rapport vanzelf.
+
+
+STAP 3 - Automatisch wekelijks laten draaien (optioneel)
+--------------------------------------------------------
+Zie README.md, sectie "Wekelijks automatisch draaien".
+
+
+Vragen of fouten? Open README.md voor uitleg en
+troubleshooting.
+==========================================================
