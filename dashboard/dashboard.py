@@ -842,6 +842,39 @@ class GitHubPush:
 
 MAX_LINES_PER_JOB = 5000  # cap per-job log memory; keep the tail when exceeded
 
+# Appended to a run's log when a captured child dies on the classic
+# Windows cp1252 trap. We can't fix this from the parent: a PyInstaller
+# *frozen* .exe initialises its embedded Python with an isolated config
+# (use_environment=0), so it ignores PYTHONUTF8 / PYTHONIOENCODING and,
+# when its stdout is a pipe (no real console), falls back to the ANSI
+# code page (cp1252) and crashes on the first non-Latin glyph. The fix
+# lives in the tool or the OS, so we surface it instead of leaving a
+# cryptic traceback in the Runs tab.
+CP1252_CRASH_HINT = (
+    "[dashboard] Tip: deze tool crashte op een cp1252/charmap "
+    "UnicodeEncodeError. Een PyInstaller-.exe negeert PYTHONUTF8/"
+    "PYTHONIOENCODING en valt bij gevangen uitvoer terug op cp1252. "
+    "Oplossing: zet bovenin de tool "
+    "`sys.stdout.reconfigure(encoding='utf-8', errors='replace')` "
+    "(idem stderr) en herbouw de .exe, OF schakel in Windows "
+    "'Beta: Unicode UTF-8 voor wereldwijde taalondersteuning' in."
+)
+
+
+def _looks_like_charmap_crash(log_lines: list[str]) -> bool:
+    """True when the captured output shows the Windows cp1252/charmap
+    UnicodeEncodeError signature. Scans the tail only (the crash is at
+    the end) so it's cheap even on long logs.
+    """
+    has_unicode_err = False
+    has_charmap = False
+    for line in log_lines[-40:]:
+        if "UnicodeEncodeError" in line:
+            has_unicode_err = True
+        if "cp1252" in line or "charmap" in line:
+            has_charmap = True
+    return has_unicode_err and has_charmap
+
 
 class JobRunner:
     """Runs child processes with captured stdout/stderr so output can be
@@ -865,10 +898,19 @@ class JobRunner:
         #
         # ``PYTHONIOENCODING`` covers stdout/stderr; ``PYTHONUTF8=1``
         # puts the entire interpreter in UTF-8 Mode (PEP 540) so
-        # ``open()`` and friends default to UTF-8 too. Both env-vars
-        # are honoured by PyInstaller-frozen apps because the bootloader
-        # reads them at interpreter init. The ``:replace`` suffix on
-        # PYTHONIOENCODING ensures a stray glyph never halts a tool.
+        # ``open()`` and friends default to UTF-8 too. The ``:replace``
+        # suffix on PYTHONIOENCODING ensures a stray glyph never halts a
+        # tool.
+        #
+        # CAVEAT: these env-vars only help *.py* tools (launched via the
+        # real ``python`` interpreter with ``-X utf8``). A PyInstaller
+        # *frozen* .exe initialises its embedded Python with an isolated
+        # config (use_environment=0) and therefore IGNORES all PYTHON*
+        # env-vars. With captured stdout (a pipe, no console) it falls
+        # back to the ANSI code page (cp1252) and crashes on non-Latin
+        # output. There is no parent-side cure for that; see
+        # ``CP1252_CRASH_HINT``. The vars are still set because they DO
+        # fix the common .py case and are harmless for frozen .exes.
         # ``PYTHONLEGACYWINDOWSSTDIO=0`` disables the cp1252 fallback on
         # Windows even when the parent is wrapping us oddly.
         # ``LC_ALL`` / ``LANG`` cover non-Python libraries (libcurl,
@@ -947,6 +989,8 @@ class JobRunner:
                 state["exit_code"] = rc
                 state["finished_at"] = time.time()
                 state["log"].append(f"[proces beëindigd, exit code {rc}]")
+                if rc != 0 and _looks_like_charmap_crash(state["log"]):
+                    state["log"].append(CP1252_CRASH_HINT)
                 cb = state.get("on_finish")
                 snapshot = {
                     "id": state["id"],
