@@ -1636,7 +1636,13 @@ class Api:
             settings_provider=lambda: self.settings,
             fallback_log=self._note_runstore_fallback,
         )
-        self._sched_lock = threading.Lock()
+        # RLock (reentrant) is required: ``_tick`` / ``run_schedule_now``
+        # hold this lock while firing a schedule, and the fire path can
+        # re-enter it on the SAME thread when a run record triggers a
+        # RunStore fallback (``_note_runstore_fallback``). A plain Lock
+        # deadlocks there; RLock lets the owning thread re-acquire while
+        # cross-thread mutual exclusion stays identical.
+        self._sched_lock = threading.RLock()
         self.scheduler = Scheduler(
             settings_provider=lambda: self.settings,
             save_fn=lambda: save_settings(self.settings),
