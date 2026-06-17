@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>HTML App Studio</title>
+<style>
+  :root{
+    --editor-font: 14px;
+    --bg:#0c0f1f; --bg-2:#11152b; --panel:#151a33; --panel-2:#1a2040;
+    --line:#272e54; --line-2:#323b6b;
+    --ink:#eaecff; --muted:#9aa3cf; --faint:#6b74a3;
+    --accent:#7c5cff; --accent-2:#5cc8ff; --accent-ink:#ffffff;
+    --good:#39d98a; --bad:#ff6b6b; --warn:#ffce5c;
+    --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f8; --bg-2:#e6eaf5; --panel:#ffffff; --panel-2:#f4f6fc;
+    --line:#dfe4f2; --line-2:#cdd5ec;
+    --ink:#161a2e; --muted:#5a6386; --faint:#8b93b6;
+    --shadow:0 10px 30px rgba(40,50,90,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; display:flex; flex-direction:column; overflow:hidden;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+    background:radial-gradient(1100px 600px at 85% -15%, var(--bg-2), var(--bg)); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit}
+  ::selection{background:rgba(124,92,255,.35)}
+
+  /* ---------- Header ---------- */
+  .app-header{
+    display:flex; align-items:center; gap:10px; padding:10px 14px;
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border-bottom:1px solid var(--line); z-index:20;
+  }
+  .brand{display:flex; align-items:center; gap:9px; font-weight:700; letter-spacing:.2px; white-space:nowrap}
+  .logo{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 4px 12px rgba(124,92,255,.45)}
+  .logo svg{width:16px;height:16px}
+  .brand small{color:var(--muted);font-weight:500;font-size:11px;display:block;margin-top:-3px}
+  .project-name-wrap{display:flex;align-items:center;gap:6px;margin-left:6px;min-width:0;flex:1}
+  #projectName{
+    background:var(--bg-2); border:1px solid transparent; color:var(--ink);
+    padding:7px 10px; border-radius:10px; font-size:14px; font-weight:600; min-width:0; width:100%; max-width:280px;
+  }
+  #projectName:hover{border-color:var(--line-2)}
+  #projectName:focus{outline:none;border-color:var(--accent);background:var(--panel)}
+  .header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .autorun{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);user-select:none;white-space:nowrap}
+  .autorun input{accent-color:var(--accent);width:15px;height:15px}
+
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);
+    background:var(--panel-2);color:var(--ink);padding:8px 12px;border-radius:10px;font-size:13px;
+    font-weight:600;cursor:pointer;transition:transform .06s ease,background .15s,border-color .15s;
+  }
+  .btn:hover{border-color:var(--accent);background:var(--panel)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#6b4cff);border-color:transparent;color:var(--accent-ink);
+    box-shadow:0 4px 14px rgba(124,92,255,.4)}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .btn.danger{border-color:rgba(255,107,107,.5);color:var(--bad);background:transparent}
+  .btn.danger:hover{background:rgba(255,107,107,.12)}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn.ghost:hover{background:var(--bg-2);color:var(--ink)}
+  .icon-btn{
+    width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line-2);
+    background:var(--panel-2);color:var(--ink);border-radius:10px;cursor:pointer;font-size:17px;
+    transition:background .15s,border-color .15s,transform .06s;
+  }
+  .icon-btn:hover{border-color:var(--accent);background:var(--panel)}
+  .icon-btn:active{transform:translateY(1px)}
+  .icon-btn svg{width:18px;height:18px}
+
+  /* ---------- Info tooltip (hover + tap + keyboard) ---------- */
+  .info{
+    width:17px;height:17px;flex:none;border-radius:50%;border:1px solid var(--line-2);
+    background:var(--bg-2);color:var(--muted);font-size:11px;font-weight:700;font-style:italic;
+    line-height:1;cursor:help;position:relative;display:inline-grid;place-items:center;padding:0;font-family:Georgia,serif;
+  }
+  .info:hover,.info:focus-visible{border-color:var(--accent);color:var(--ink);outline:none}
+  .info::after{
+    content:attr(data-tip);position:absolute;bottom:calc(100% + 9px);left:50%;transform:translateX(-50%) translateY(4px);
+    width:max-content;max-width:260px;background:#0a0d1c;color:#eef1ff;border:1px solid var(--line-2);
+    padding:9px 11px;border-radius:10px;font-size:12px;font-weight:500;font-style:normal;line-height:1.45;text-align:left;
+    box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:60;white-space:normal;
+  }
+  .info::before{
+    content:"";position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:#0a0d1c;opacity:0;transition:opacity .15s;z-index:61;
+  }
+  .info:hover::after,.info:focus-visible::after,.info.open::after,
+  .info:hover::before,.info:focus-visible::before,.info.open::before{opacity:1;transform:translateX(-50%) translateY(0)}
+  .info.tip-right::after{left:0;transform:translateX(-12px) translateY(4px)}
+  .info.tip-right:hover::after,.info.tip-right.open::after{transform:translateX(-12px) translateY(0)}
+
+  /* ---------- Layout ---------- */
+  .layout{flex:1;min-height:0;display:grid;grid-template-columns:1fr}
+  .sidebar{
+    background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0;
+    position:fixed;top:0;left:0;height:100%;width:268px;transform:translateX(-100%);transition:transform .22s ease;z-index:50;
+  }
+  body.sidebar-open .sidebar{transform:none;box-shadow:var(--shadow)}
+  .scrim{position:fixed;inset:0;background:rgba(5,7,16,.55);opacity:0;pointer-events:none;transition:opacity .2s;z-index:45}
+  body.sidebar-open .scrim{opacity:1;pointer-events:auto}
+  .sidebar-head{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px;gap:8px}
+  .sidebar-head h2{margin:0;font-size:13px;text-transform:uppercase;letter-spacing:.12em;color:var(--faint)}
+  .project-list{list-style:none;margin:0;padding:6px 8px;overflow:auto;flex:1;min-height:0}
+  .project-item{
+    display:flex;align-items:center;gap:8px;padding:10px 10px;border-radius:10px;cursor:pointer;margin-bottom:3px;
+    border:1px solid transparent;transition:background .12s;
+  }
+  .project-item:hover{background:var(--bg-2)}
+  .project-item.active{background:var(--panel-2);border-color:var(--line-2)}
+  .project-item .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex:none;opacity:.25}
+  .project-item.active .dot{opacity:1;box-shadow:0 0 8px var(--accent)}
+  .project-item .pname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;font-weight:600}
+  .project-item .meta{font-size:11px;color:var(--faint);white-space:nowrap}
+  .row-actions{display:flex;gap:2px;opacity:0;transition:opacity .12s}
+  .project-item:hover .row-actions,.project-item.active .row-actions{opacity:1}
+  .row-actions button{width:26px;height:26px;border-radius:7px;border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:14px;display:grid;place-items:center}
+  .row-actions button:hover{background:var(--bg);color:var(--ink)}
+  .sidebar-foot{padding:10px 12px;border-top:1px solid var(--line);font-size:11px;color:var(--faint);display:flex;justify-content:space-between;align-items:center}
+
+  .pane{min-height:0;display:flex;flex-direction:column;overflow:hidden;position:relative}
+  .editor-pane{border-right:1px solid var(--line);background:var(--bg)}
+  .tabs{display:flex;align-items:center;gap:2px;padding:8px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .tab{
+    border:0;background:transparent;color:var(--muted);padding:8px 14px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;
+    display:flex;align-items:center;gap:7px;transition:background .12s,color .12s;
+  }
+  .tab:hover{color:var(--ink);background:var(--bg-2)}
+  .tab.active{color:var(--ink);background:var(--panel-2);box-shadow:inset 0 -2px 0 var(--accent)}
+  .tab .badge{font-size:10px;color:var(--faint);font-weight:600}
+  .editor-status{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:12px;color:var(--faint)}
+  #saveStatus{display:inline-flex;align-items:center;gap:5px;transition:color .2s}
+  #saveStatus.saved{color:var(--good)}
+  #saveStatus.saving{color:var(--warn)}
+  #saveStatus.error{color:var(--bad)}
+  #editor{
+    flex:1;width:100%;min-height:0;resize:none;border:0;outline:none;padding:16px 16px 80px;
+    background:transparent;color:var(--ink);font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+    font-size:var(--editor-font);line-height:1.6;tab-size:2;white-space:pre;overflow:auto;
+  }
+  #editor::placeholder{color:var(--faint)}
+  #editor:disabled{opacity:.5}
+
+  .preview-pane{background:var(--panel)}
+  .preview-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .preview-title{font-size:13px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:7px}
+  .preview-actions{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .preview-actions .icon-btn{width:34px;height:34px;font-size:15px}
+  #preview{flex:1;width:100%;border:0;background:#fff}
+
+  /* Empty state */
+  .empty-state{
+    position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    text-align:center;padding:30px;background:var(--bg);z-index:5;
+  }
+  body.no-projects .empty-state{display:flex}
+  .empty-state .big{font-size:46px;line-height:1}
+  .empty-state h3{margin:0;font-size:20px}
+  .empty-state p{margin:0;color:var(--muted);max-width:340px}
+
+  /* Pane switch (mobile only) */
+  .pane-switch{display:none;background:var(--bg-2);border:1px solid var(--line-2);border-radius:10px;padding:3px;gap:2px}
+  .pane-switch button{border:0;background:transparent;color:var(--muted);padding:7px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+  .pane-switch button.active{background:var(--accent);color:#fff}
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(5,7,16,.6);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:18px;z-index:80;opacity:0;transition:opacity .18s;
+  }
+  .modal-overlay[hidden]{display:none}
+  .modal-overlay.show{opacity:1}
+  .modal{
+    background:var(--panel);border:1px solid var(--line-2);border-radius:18px;box-shadow:var(--shadow);
+    width:100%;max-width:480px;max-height:90vh;overflow:auto;transform:translateY(8px) scale(.99);transition:transform .18s;
+  }
+  .modal-overlay.show .modal{transform:none}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .modal-head h2{margin:0;font-size:17px;display:flex;align-items:center;gap:9px}
+  .modal-body{padding:8px 20px 20px}
+  .setting{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--line)}
+  .setting:last-child{border-bottom:0}
+  .setting .label{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600}
+  .setting .desc{font-size:12px;color:var(--muted);margin-top:2px;font-weight:400}
+  .setting .control{flex:none;display:flex;align-items:center;gap:8px}
+  select,input[type="number"]{
+    background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);padding:8px 10px;border-radius:9px;font-size:13px;font-family:inherit;
+  }
+  select:focus,input[type="number"]:focus{outline:none;border-color:var(--accent)}
+  input[type="number"]{width:74px}
+  .switch{position:relative;width:44px;height:25px;flex:none}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .switch .track{position:absolute;inset:0;background:var(--line-2);border-radius:99px;transition:background .15s;cursor:pointer}
+  .switch .track::before{content:"";position:absolute;width:19px;height:19px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .15s}
+  .switch input:checked + .track{background:var(--accent)}
+  .switch input:checked + .track::before{transform:translateX(19px)}
+  .switch input:focus-visible + .track{box-shadow:0 0 0 3px rgba(124,92,255,.4)}
+  .section-title{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--faint);margin:18px 0 2px}
+  .data-row{display:flex;gap:8px;flex-wrap:wrap;padding-top:12px}
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);
+    background:#0a0d1c;color:#eef1ff;border:1px solid var(--line-2);padding:11px 16px;border-radius:12px;
+    font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:90;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:90vw;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.bad{border-color:rgba(255,107,107,.6)}
+  .toast.good{border-color:rgba(57,217,138,.6)}
+
+  /* ---------- Responsive ---------- */
+  @media (min-width:761px){
+    .layout{grid-template-columns:1fr 1fr}
+    .pane-switch{display:none !important}
+    .editor-pane,.preview-pane{display:flex !important}
+  }
+  @media (min-width:1024px){
+    .layout{grid-template-columns:268px 1fr 1fr}
+    .sidebar{position:static;transform:none;height:auto;width:auto;box-shadow:none}
+    .scrim{display:none}
+    .menu-toggle{display:none}
+  }
+  @media (max-width:760px){
+    .pane-switch{display:flex}
+    body[data-pane="code"] .preview-pane{display:none}
+    body[data-pane="preview"] .editor-pane{display:none}
+    .brand small{display:none}
+    #projectName{max-width:none}
+    .autorun span{display:none}
+    .header-actions{gap:6px}
+  }
+  @media (max-width:480px){
+    .app-header{flex-wrap:wrap}
+    .project-name-wrap{order:3;flex-basis:100%;margin-left:0}
+    #projectName{max-width:none}
+  }
+</style>
+</head>
+<body data-pane="preview">
+
+  <header class="app-header">
+    <button class="icon-btn menu-toggle" id="menuBtn" aria-label="Toggle app list" title="Apps">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6l-5 6 5 6M16 6l5 6-5 6"/></svg>
+      </span>
+      <span>App Studio<small>build &amp; preview HTML apps</small></span>
+    </div>
+
+    <div class="project-name-wrap">
+      <input id="projectName" type="text" placeholder="App name" aria-label="App name" maxlength="80" autocomplete="off">
+    </div>
+
+    <div class="header-actions">
+      <div class="pane-switch" role="tablist" aria-label="View">
+        <button data-pane-btn="code" type="button">Code</button>
+        <button data-pane-btn="preview" type="button" class="active">Preview</button>
+      </div>
+      <label class="autorun">
+        <input type="checkbox" id="autoRun"><span>Auto-run</span>
+      </label>
+      <button class="info" data-tip="When on, the preview refreshes automatically a moment after you stop typing. When off, press Run (or Ctrl/Cmd+Enter)." aria-label="About auto-run">i</button>
+      <button class="btn primary" id="runBtn" title="Run (Ctrl/Cmd+Enter)">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Run
+      </button>
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Theme">☀</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Settings" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar" id="sidebar" aria-label="Your apps">
+      <div class="sidebar-head">
+        <h2>Your apps</h2>
+        <button class="btn" id="newBtn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>New
+        </button>
+      </div>
+      <ul class="project-list" id="projectList"></ul>
+      <div class="sidebar-foot">
+        <span id="projectCount">0 apps</span>
+        <span>autosaved</span>
+      </div>
+    </aside>
+
+    <section class="pane editor-pane">
+      <div class="tabs" role="tablist" aria-label="Editor tabs">
+        <button class="tab active" data-tab="html" role="tab">HTML <span class="badge" data-len="html"></span></button>
+        <button class="tab" data-tab="css" role="tab">CSS <span class="badge" data-len="css"></span></button>
+        <button class="tab" data-tab="js" role="tab">JS <span class="badge" data-len="js"></span></button>
+        <button class="info" data-tip="HTML = the body markup. The &lt;head&gt;, &lt;style&gt; and &lt;script&gt; wrappers are generated for you when running or downloading, so just write your content, CSS and JavaScript in the three tabs." aria-label="About the editor tabs">i</button>
+        <div class="editor-status">
+          <span id="charCount">0 chars</span>
+          <span id="saveStatus" aria-live="polite"></span>
+        </div>
+      </div>
+      <textarea id="editor" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" placeholder="Write your code here…"></textarea>
+    </section>
+
+    <section class="pane preview-pane">
+      <div class="preview-bar">
+        <span class="preview-title">
+          Preview
+          <button class="info tip-right" data-tip="Live result of your code. The preview shares your browser's storage, so localStorage works while testing. For a fully isolated run, download the .html and open it." aria-label="About the preview">i</button>
+        </span>
+        <div class="preview-actions">
+          <button class="icon-btn" id="refreshBtn" aria-label="Refresh preview" title="Refresh">⟳</button>
+          <button class="icon-btn" id="openTabBtn" aria-label="Open preview in new tab" title="Open in new tab">↗</button>
+          <button class="btn" id="downloadBtn" title="Download as a single .html file">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Download
+          </button>
+        </div>
+      </div>
+      <iframe id="preview" title="App preview" sandbox="allow-scripts allow-same-origin allow-modals allow-forms allow-popups allow-popups-to-escape-sandbox"></iframe>
+      <div class="empty-state">
+        <div class="big">🛠️</div>
+        <h3>No app yet</h3>
+        <p>Create your first app to start building. Everything you make is saved automatically in your browser.</p>
+        <button class="btn primary" id="emptyNewBtn">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Create your first app
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <div class="scrim" id="scrim"></div>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settingsModal" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="settingsTitle">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M4.5 12a7.5 7.5 0 0 0 .1 1.2l-1.6 1.2 1.5 2.6 1.9-.6a7.6 7.6 0 0 0 2 1.2l.3 2h3l.3-2a7.6 7.6 0 0 0 2-1.2l1.9.6 1.5-2.6-1.6-1.2a7.6 7.6 0 0 0 0-2.4l1.6-1.2-1.5-2.6-1.9.6a7.6 7.6 0 0 0-2-1.2l-.3-2h-3l-.3 2a7.6 7.6 0 0 0-2 1.2l-1.9-.6L2.9 9.6l1.6 1.2A7.5 7.5 0 0 0 4.5 12z"/></svg>
+          Settings
+        </h2>
+        <button class="icon-btn" id="closeSettings" aria-label="Close settings">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting">
+          <div>
+            <div class="label">Theme</div>
+            <div class="desc">Light or dark interface.</div>
+          </div>
+          <div class="control">
+            <select id="setTheme"><option value="dark">Dark</option><option value="light">Light</option></select>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div>
+            <div class="label">Editor font size</div>
+            <div class="desc">Size of the code text.</div>
+          </div>
+          <div class="control"><input type="number" id="setFont" min="12" max="22" step="1"> px</div>
+        </div>
+
+        <div class="setting">
+          <div>
+            <div class="label">Indent size
+              <button class="info" data-tip="How many spaces the Tab key inserts in the editor." aria-label="About indent size">i</button>
+            </div>
+            <div class="desc">Spaces inserted by Tab.</div>
+          </div>
+          <div class="control">
+            <select id="setTab"><option value="2">2 spaces</option><option value="4">4 spaces</option></select>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div>
+            <div class="label">Auto-run</div>
+            <div class="desc">Refresh preview while typing.</div>
+          </div>
+          <div class="control">
+            <label class="switch"><input type="checkbox" id="setAutoRun"><span class="track"></span></label>
+          </div>
+        </div>
+
+        <div class="setting">
+          <div>
+            <div class="label">Auto-run delay
+              <button class="info" data-tip="How long to wait after you stop typing before the preview refreshes. Higher = fewer refreshes while typing fast." aria-label="About auto-run delay">i</button>
+            </div>
+            <div class="desc">Debounce before refreshing.</div>
+          </div>
+          <div class="control">
+            <select id="setDelay">
+              <option value="300">300 ms</option><option value="600">600 ms</option>
+              <option value="1000">1 s</option><option value="1500">1.5 s</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">Data</div>
+        <p class="desc" style="margin:6px 0 0">All your apps and settings live in this browser's localStorage. Back them up to a file, restore them, or wipe everything.</p>
+        <div class="data-row">
+          <button class="btn" id="backupBtn">⬇ Backup (.json)</button>
+          <button class="btn" id="restoreBtn">⬆ Restore</button>
+          <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+          <button class="btn danger" id="resetBtn">Reset everything</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Seed + starter templates (not executed; read as plain text) -->
+  <script type="text/plain" id="seed-html">
+<main class="wrap">
+  <header>
+    <h1>My Tasks</h1>
+    <p class="sub">A tiny demo app — your data saves automatically.</p>
+  </header>
+  <form id="add">
+    <input id="text" placeholder="Add a task and press Enter" autocomplete="off" aria-label="New task">
+    <button type="submit">Add</button>
+  </form>
+  <ul id="list" class="list"></ul>
+  <p id="empty" class="empty">Nothing here yet. Add your first task above.</p>
+  <button id="clear" class="clear" hidden>Clear all</button>
+</main>
+  </script>
+  <script type="text/plain" id="seed-css">
+:root{ --bg:#0f1226; --card:#1a1f3a; --ink:#eef1ff; --muted:#9aa3c7; --accent:#7c5cff; }
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  background:radial-gradient(900px 500px at 75% -10%, #2a2f5a, #0f1226);color:var(--ink)}
+.wrap{max-width:520px;margin:0 auto;padding:48px 20px}
+h1{margin:0 0 4px;font-size:30px}
+.sub{margin:0 0 22px;color:var(--muted)}
+form{display:flex;gap:8px;margin-bottom:18px}
+input{flex:1;padding:13px 14px;border-radius:12px;border:1px solid #2c335e;background:var(--card);color:var(--ink);font-size:15px}
+input:focus{outline:2px solid var(--accent)}
+button{padding:13px 18px;border:0;border-radius:12px;background:var(--accent);color:#fff;font-weight:600;cursor:pointer;font-size:15px}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid #2c335e;padding:13px 14px;border-radius:12px;animation:pop .15s ease}
+.item.done span{text-decoration:line-through;color:var(--muted)}
+.item span{flex:1;cursor:pointer}
+.item .del{background:transparent;color:var(--muted);padding:6px 10px;font-weight:500}
+.empty{color:var(--muted);text-align:center;padding:24px}
+.clear{display:block;margin:18px auto 0;background:transparent;color:var(--muted);border:1px solid #2c335e}
+.clear[hidden]{display:none}
+@keyframes pop{from{transform:scale(.96);opacity:0}to{transform:none;opacity:1}}
+  </script>
+  <script type="text/plain" id="seed-js">
+const KEY = 'demo-tasks';
+let tasks = [];
+try { tasks = JSON.parse(localStorage.getItem(KEY)) || []; } catch (e) { tasks = []; }
+
+const list = document.getElementById('list');
+const empty = document.getElementById('empty');
+const clearBtn = document.getElementById('clear');
+
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(tasks)); } catch (e) {} }
+
+function render(){
+  list.innerHTML = '';
+  tasks.forEach(function (t, i) {
+    const li = document.createElement('li');
+    li.className = 'item' + (t.done ? ' done' : '');
+    const span = document.createElement('span');
+    span.textContent = t.text;
+    span.addEventListener('click', function () { t.done = !t.done; save(); render(); });
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = 'Delete';
+    del.addEventListener('click', function () { tasks.splice(i, 1); save(); render(); });
+    li.appendChild(span); li.appendChild(del); list.appendChild(li);
+  });
+  empty.hidden = tasks.length > 0;
+  clearBtn.hidden = tasks.length === 0;
+}
+document.getElementById('add').addEventListener('submit', function (e) {
+  e.preventDefault();
+  const input = document.getElementById('text');
+  const v = input.value.trim();
+  if (!v) return;
+  tasks.push({ text: v, done: false });
+  input.value = '';
+  save(); render();
+});
+clearBtn.addEventListener('click', function () { tasks = []; save(); render(); });
+render();
+  </script>
+  <script type="text/plain" id="starter-html">
+<main class="card">
+  <h1>Hello 👋</h1>
+  <p>Edit the HTML, CSS and JS tabs — the preview updates live.</p>
+  <button id="btn">Clicked 0 times</button>
+</main>
+  </script>
+  <script type="text/plain" id="starter-css">
+body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:#0f1226;color:#eef1ff}
+.card{background:#1a1f3a;padding:34px 38px;border-radius:16px;border:1px solid #2c335e;text-align:center;max-width:360px}
+h1{margin:0 0 8px}
+p{color:#9aa3c7;margin:0 0 22px}
+button{padding:12px 20px;border:0;border-radius:12px;background:#7c5cff;color:#fff;font-weight:600;font-size:15px;cursor:pointer}
+button:active{transform:translateY(1px)}
+  </script>
+  <script type="text/plain" id="starter-js">
+let count = 0;
+const btn = document.getElementById('btn');
+btn.addEventListener('click', function () {
+  count++;
+  btn.textContent = 'Clicked ' + count + (count === 1 ? ' time' : ' times');
+});
+  </script>
+
+<script>
+"use strict";
+/* ============================================================
+   HTML App Studio — single-file app builder
+   ============================================================ */
+const APP_VERSION = "1.0.0";
+const LS_KEY = "html-app-studio:v1";
+const LOG = "[AppStudio]";
+const log  = (...a) => console.log(LOG, ...a);
+const warn = (...a) => console.warn(LOG, ...a);
+const errl = (...a) => console.error(LOG, ...a);
+
+/* ---------- small helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+const genId = () => "app_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const slugify = (s) => (String(s).toLowerCase().trim()
+  .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "app");
+const tplText = (id) => { const el = $(id); return el ? el.textContent.replace(/^\n/, "").replace(/\s+$/, "") : ""; };
+
+/* ---------- DOM refs ---------- */
+const editorEl = $("editor");
+const previewEl = $("preview");
+const projectListEl = $("projectList");
+const projectNameEl = $("projectName");
+const saveStatusEl = $("saveStatus");
+const charCountEl = $("charCount");
+const themeBtn = $("themeBtn");
+const toastEl = $("toast");
+
+/* ---------- state ---------- */
+let state = null;
+let runTimer = null;
+
+function defaultSettings() {
+  return { theme: "dark", fontSize: 14, tabSize: 2, autoRun: true, autoRunDelay: 600 };
+}
+function defaultState() {
+  return { version: 1, projects: [], activeId: null, settings: defaultSettings(), ui: { activeTab: "html" } };
+}
+function newProject(name, html, css, js) {
+  const now = Date.now();
+  return { id: genId(), name: name || "Untitled app", html: html || "", css: css || "", js: js || "", createdAt: now, updatedAt: now };
+}
+function seedDemo(s) {
+  const p = newProject("✨ Welcome — Todo demo", tplText("seed-html"), tplText("seed-css"), tplText("seed-js"));
+  s.projects.push(p);
+  s.activeId = p.id;
+  log("Seeded first-run demo app.");
+}
+
+/* ---------- validation / load / save ---------- */
+function validateState(raw) {
+  if (!raw || typeof raw !== "object") throw new Error("state is not an object");
+  const s = defaultState();
+  if (Array.isArray(raw.projects)) {
+    s.projects = raw.projects.filter((p) => p && typeof p === "object").map((p) => ({
+      id: typeof p.id === "string" ? p.id : genId(),
+      name: (typeof p.name === "string" && p.name.trim()) ? p.name.slice(0, 80) : "Untitled app",
+      html: typeof p.html === "string" ? p.html : "",
+      css: typeof p.css === "string" ? p.css : "",
+      js: typeof p.js === "string" ? p.js : "",
+      createdAt: Number(p.createdAt) || Date.now(),
+      updatedAt: Number(p.updatedAt) || Date.now(),
+    }));
+  }
+  if (raw.settings && typeof raw.settings === "object") {
+    const rs = raw.settings;
+    s.settings.theme = rs.theme === "light" ? "light" : "dark";
+    s.settings.fontSize = clamp(parseInt(rs.fontSize, 10) || 14, 12, 22);
+    s.settings.tabSize = [2, 4].includes(parseInt(rs.tabSize, 10)) ? parseInt(rs.tabSize, 10) : 2;
+    s.settings.autoRun = rs.autoRun !== false;
+    s.settings.autoRunDelay = clamp(parseInt(rs.autoRunDelay, 10) || 600, 200, 2000);
+  }
+  const ids = new Set(s.projects.map((p) => p.id));
+  s.activeId = ids.has(raw.activeId) ? raw.activeId : (s.projects[0] ? s.projects[0].id : null);
+  s.ui.activeTab = ["html", "css", "js"].includes(raw.ui && raw.ui.activeTab) ? raw.ui.activeTab : "html";
+  return s;
+}
+function loadState() {
+  let raw = null;
+  try { raw = localStorage.getItem(LS_KEY); }
+  catch (e) { warn("localStorage not readable — running in memory only.", e.message); }
+  if (!raw) { const s = defaultState(); seedDemo(s); return s; }
+  try {
+    const s = validateState(JSON.parse(raw));
+    log("State loaded OK —", s.projects.length, "app(s).");
+    return s;
+  } catch (e) {
+    errl("Saved state was corrupted — falling back to safe defaults.", e.message);
+    showToast("Saved data was unreadable — started fresh.", "bad");
+    const s = defaultState(); seedDemo(s); return s;
+  }
+}
+const persist = debounce(() => {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    setSaveStatus("saved");
+    log("State saved —", state.projects.length, "app(s).");
+  } catch (e) {
+    errl("Save FAILED.", e.message);
+    setSaveStatus("error");
+    showToast("Couldn't save — storage may be full.", "bad");
+  }
+}, 350);
+
+/* ---------- status / toast ---------- */
+let savedTimer = null;
+function setSaveStatus(kind) {
+  if (!saveStatusEl) return;
+  saveStatusEl.className = kind;
+  saveStatusEl.textContent = kind === "saved" ? "✓ Saved" : kind === "saving" ? "Saving…" : kind === "error" ? "⚠ Save failed" : "";
+  if (kind === "saved") {
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(() => { if (saveStatusEl.classList.contains("saved")) { saveStatusEl.textContent = ""; saveStatusEl.className = ""; } }, 1600);
+  }
+}
+let toastTimer = null;
+function showToast(msg, kind) {
+  toastEl.textContent = msg;
+  toastEl.className = "toast show" + (kind ? " " + kind : "");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastEl.className = "toast" + (kind ? " " + kind : ""); }, 2600);
+}
+
+/* ---------- active project ---------- */
+function getActive() { return state.projects.find((p) => p.id === state.activeId) || null; }
+
+/* ---------- document builder (preview + export use the same output) ---------- */
+function buildDocument(p) {
+  const title = escapeHtml(p.name || "App");
+  return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n" +
+    "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n" +
+    "<title>" + title + "</title>\n<style>\n" + (p.css || "") + "\n</style>\n</head>\n<body>\n" +
+    (p.html || "") + "\n<scr" + "ipt>\n" + (p.js || "") + "\n</scr" + "ipt>\n</body>\n</html>";
+}
+
+/* ---------- run / preview ---------- */
+function run() {
+  const p = getActive();
+  if (!p) { previewEl.srcdoc = "<!doctype html><meta charset=utf-8><body style='font-family:system-ui;color:#888;display:grid;place-items:center;height:100vh;margin:0'>No app selected</body>"; return; }
+  try {
+    previewEl.srcdoc = buildDocument(p);
+    log("Preview rendered:", p.name);
+  } catch (e) {
+    errl("Preview render failed.", e.message);
+    showToast("Preview failed to render.", "bad");
+  }
+}
+function scheduleRun() {
+  clearTimeout(runTimer);
+  runTimer = setTimeout(run, state.settings.autoRunDelay);
+}
+
+/* ---------- rendering ---------- */
+function renderProjects() {
+  projectListEl.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  state.projects.forEach((p) => {
+    const li = document.createElement("li");
+    li.className = "project-item" + (p.id === state.activeId ? " active" : "");
+    li.dataset.id = p.id;
+
+    const dot = document.createElement("span"); dot.className = "dot"; li.appendChild(dot);
+
+    const name = document.createElement("span");
+    name.className = "pname"; name.textContent = p.name; li.appendChild(name);
+
+    const actions = document.createElement("span");
+    actions.className = "row-actions";
+    const dup = document.createElement("button");
+    dup.dataset.action = "duplicate"; dup.title = "Duplicate"; dup.setAttribute("aria-label", "Duplicate app"); dup.textContent = "⧉";
+    const del = document.createElement("button");
+    del.dataset.action = "delete"; del.title = "Delete"; del.setAttribute("aria-label", "Delete app"); del.textContent = "🗑";
+    actions.appendChild(dup); actions.appendChild(del);
+    li.appendChild(actions);
+
+    frag.appendChild(li);
+  });
+  projectListEl.appendChild(frag);
+  $("projectCount").textContent = state.projects.length + (state.projects.length === 1 ? " app" : " apps");
+  document.body.classList.toggle("no-projects", state.projects.length === 0);
+}
+function renderTabs() {
+  document.querySelectorAll(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === state.ui.activeTab));
+  const p = getActive();
+  ["html", "css", "js"].forEach((k) => {
+    const b = document.querySelector('[data-len="' + k + '"]');
+    if (b) { const n = p ? (p[k] || "").length : 0; b.textContent = n ? String(n) : ""; }
+  });
+}
+function loadEditor() {
+  const p = getActive();
+  editorEl.disabled = !p;
+  editorEl.value = p ? (p[state.ui.activeTab] || "") : "";
+  updateCharCount();
+}
+function updateCharCount() {
+  charCountEl.textContent = (editorEl.value.length) + " chars";
+}
+function syncProjectName() {
+  const p = getActive();
+  projectNameEl.value = p ? p.name : "";
+  projectNameEl.disabled = !p;
+}
+function renderAll() {
+  renderProjects();
+  renderTabs();
+  syncProjectName();
+  loadEditor();
+}
+
+/* ---------- settings ---------- */
+function applySettings() {
+  const s = state.settings;
+  document.documentElement.setAttribute("data-theme", s.theme);
+  document.documentElement.style.setProperty("--editor-font", s.fontSize + "px");
+  editorEl.style.tabSize = String(s.tabSize);
+  $("autoRun").checked = s.autoRun;
+  themeBtn.textContent = s.theme === "dark" ? "☀" : "☾";
+  // modal controls
+  $("setTheme").value = s.theme;
+  $("setFont").value = s.fontSize;
+  $("setTab").value = String(s.tabSize);
+  $("setAutoRun").checked = s.autoRun;
+  $("setDelay").value = String(s.autoRunDelay);
+}
+
+/* ---------- project actions ---------- */
+function selectProject(id, { fromList } = {}) {
+  if (state.activeId === id) { if (fromList) closeSidebar(); return; }
+  state.activeId = id;
+  renderAll();
+  run();
+  persist();
+  if (fromList) closeSidebar();
+  log("Selected app:", id);
+}
+function createProject() {
+  const p = newProject("Untitled app", tplText("starter-html"), tplText("starter-css"), tplText("starter-js"));
+  state.projects.unshift(p);
+  state.activeId = p.id;
+  state.ui.activeTab = "html";
+  renderAll(); run(); persist();
+  closeSidebar();
+  projectNameEl.focus(); projectNameEl.select();
+  showToast("New app created.", "good");
+  log("Created app:", p.id);
+}
+function duplicateProject(id) {
+  const src = state.projects.find((p) => p.id === id);
+  if (!src) return;
+  const copy = newProject(src.name + " copy", src.html, src.css, src.js);
+  const idx = state.projects.findIndex((p) => p.id === id);
+  state.projects.splice(idx + 1, 0, copy);
+  state.activeId = copy.id;
+  renderAll(); run(); persist();
+  showToast("App duplicated.", "good");
+  log("Duplicated app:", id, "->", copy.id);
+}
+function deleteProject(id) {
+  const p = state.projects.find((x) => x.id === id);
+  if (!p) return;
+  if (!confirm('Delete "' + p.name + '"? This cannot be undone.')) return;
+  const idx = state.projects.findIndex((x) => x.id === id);
+  state.projects.splice(idx, 1);
+  if (state.activeId === id) state.activeId = state.projects[Math.max(0, idx - 1)] ? state.projects[Math.max(0, idx - 1)].id : (state.projects[0] ? state.projects[0].id : null);
+  renderAll(); run(); persist();
+  showToast("App deleted.");
+  log("Deleted app:", id);
+}
+
+/* ---------- export / backup / restore / reset ---------- */
+function downloadBlob(content, filename, type) {
+  try {
+    const blob = new Blob([content], { type: type || "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    return true;
+  } catch (e) { errl("Download failed.", e.message); showToast("Download failed.", "bad"); return false; }
+}
+function downloadProject() {
+  const p = getActive();
+  if (!p) { showToast("No app selected.", "bad"); return; }
+  if (downloadBlob(buildDocument(p), slugify(p.name) + ".html", "text/html")) {
+    showToast("Downloaded " + slugify(p.name) + ".html", "good");
+    log("Exported .html:", p.id);
+  }
+}
+function openInNewTab() {
+  const p = getActive();
+  if (!p) return;
+  try {
+    const url = URL.createObjectURL(new Blob([buildDocument(p)], { type: "text/html" }));
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    log("Opened preview in new tab:", p.id);
+  } catch (e) { errl("Open in new tab failed.", e.message); showToast("Couldn't open new tab.", "bad"); }
+}
+function backupData() {
+  const data = JSON.stringify({ type: "html-app-studio-backup", version: 1, exportedAt: new Date().toISOString(), projects: state.projects }, null, 2);
+  if (downloadBlob(data, "app-studio-backup.json", "application/json")) {
+    showToast("Backup downloaded.", "good");
+    log("Backup exported —", state.projects.length, "app(s).");
+  }
+}
+function restoreData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const arr = Array.isArray(parsed) ? parsed : parsed.projects;
+      if (!Array.isArray(arr)) throw new Error("no projects array found");
+      let added = 0;
+      arr.forEach((p) => {
+        if (!p || typeof p !== "object") return;
+        state.projects.push(newProject(
+          (typeof p.name === "string" && p.name.trim()) ? p.name.slice(0, 80) : "Imported app",
+          typeof p.html === "string" ? p.html : "",
+          typeof p.css === "string" ? p.css : "",
+          typeof p.js === "string" ? p.js : ""
+        ));
+        added++;
+      });
+      if (added === 0) throw new Error("nothing valid to import");
+      state.activeId = state.projects[state.projects.length - 1].id;
+      renderAll(); applySettings(); run(); persist();
+      showToast("Restored " + added + " app" + (added === 1 ? "" : "s") + ".", "good");
+      log("Restore OK — imported", added, "app(s).");
+    } catch (e) {
+      errl("Restore failed — invalid file.", e.message);
+      showToast("Couldn't read that backup file.", "bad");
+    }
+  };
+  reader.onerror = () => { errl("Restore read error."); showToast("Couldn't read that file.", "bad"); };
+  reader.readAsText(file);
+}
+function resetAll() {
+  if (!confirm("Delete ALL apps and settings and start fresh? This cannot be undone.")) return;
+  try { localStorage.removeItem(LS_KEY); } catch (e) { warn("Could not clear storage.", e.message); }
+  state = defaultState();
+  seedDemo(state);
+  applySettings(); renderAll(); run(); persist();
+  closeSettings();
+  showToast("Everything reset.", "good");
+  log("Full reset done.");
+}
+
+/* ---------- sidebar / panes / modal ---------- */
+function openSidebar() { document.body.classList.add("sidebar-open"); }
+function closeSidebar() { document.body.classList.remove("sidebar-open"); }
+function setPane(which) {
+  document.body.dataset.pane = which;
+  document.querySelectorAll("[data-pane-btn]").forEach((b) => b.classList.toggle("active", b.dataset.paneBtn === which));
+}
+let lastFocused = null;
+function openSettings() {
+  lastFocused = document.activeElement;
+  const m = $("settingsModal");
+  m.hidden = false;
+  requestAnimationFrame(() => m.classList.add("show"));
+  $("closeSettings").focus();
+}
+function closeSettings() {
+  const m = $("settingsModal");
+  m.classList.remove("show");
+  setTimeout(() => { m.hidden = true; }, 180);
+  if (lastFocused && lastFocused.focus) lastFocused.focus();
+}
+
+/* ---------- events ---------- */
+function wireEvents() {
+  // editor input
+  editorEl.addEventListener("input", () => {
+    const p = getActive();
+    if (!p) return;
+    p[state.ui.activeTab] = editorEl.value;
+    p.updatedAt = Date.now();
+    setSaveStatus("saving");
+    updateCharCount();
+    renderTabs();
+    persist();
+    if (state.settings.autoRun) scheduleRun();
+  });
+  // Tab key inserts spaces
+  editorEl.addEventListener("keydown", (e) => {
+    if (e.key === "Tab") {
+      e.preventDefault();
+      const spaces = " ".repeat(state.settings.tabSize);
+      const s = editorEl.selectionStart, en = editorEl.selectionEnd;
+      editorEl.setRangeText(spaces, s, en, "end");
+      editorEl.dispatchEvent(new Event("input"));
+    }
+  });
+
+  // tabs (event delegation)
+  document.querySelector(".tabs").addEventListener("click", (e) => {
+    const t = e.target.closest(".tab");
+    if (!t) return;
+    state.ui.activeTab = t.dataset.tab;
+    renderTabs(); loadEditor(); editorEl.focus(); persist();
+  });
+
+  // project list (event delegation)
+  projectListEl.addEventListener("click", (e) => {
+    const item = e.target.closest(".project-item");
+    if (!item) return;
+    const id = item.dataset.id;
+    const actionBtn = e.target.closest("[data-action]");
+    if (actionBtn) {
+      e.stopPropagation();
+      if (actionBtn.dataset.action === "duplicate") duplicateProject(id);
+      else if (actionBtn.dataset.action === "delete") deleteProject(id);
+      return;
+    }
+    selectProject(id, { fromList: true });
+  });
+  projectListEl.addEventListener("dblclick", (e) => {
+    if (e.target.closest(".project-item")) { projectNameEl.focus(); projectNameEl.select(); }
+  });
+
+  // project name
+  projectNameEl.addEventListener("input", () => {
+    const p = getActive();
+    if (!p) return;
+    p.name = projectNameEl.value;
+    p.updatedAt = Date.now();
+    const item = projectListEl.querySelector('.project-item[data-id="' + p.id + '"] .pname');
+    if (item) item.textContent = p.name || "Untitled app";
+    setSaveStatus("saving"); persist();
+  });
+  projectNameEl.addEventListener("blur", () => {
+    const p = getActive();
+    if (p && !p.name.trim()) { p.name = "Untitled app"; projectNameEl.value = p.name; renderProjects(); persist(); warn("Empty app name — reset to 'Untitled app'."); }
+  });
+  projectNameEl.addEventListener("keydown", (e) => { if (e.key === "Enter") editorEl.focus(); });
+
+  // buttons
+  $("runBtn").addEventListener("click", () => { run(); showToast("Ran preview.", "good"); });
+  $("refreshBtn").addEventListener("click", run);
+  $("openTabBtn").addEventListener("click", openInNewTab);
+  $("downloadBtn").addEventListener("click", downloadProject);
+  $("newBtn").addEventListener("click", createProject);
+  $("emptyNewBtn").addEventListener("click", createProject);
+  $("menuBtn").addEventListener("click", openSidebar);
+  $("scrim").addEventListener("click", closeSidebar);
+  themeBtn.addEventListener("click", () => {
+    state.settings.theme = state.settings.theme === "dark" ? "light" : "dark";
+    applySettings(); persist(); log("Theme:", state.settings.theme);
+  });
+
+  // pane switch
+  document.querySelectorAll("[data-pane-btn]").forEach((b) => b.addEventListener("click", () => setPane(b.dataset.paneBtn)));
+
+  // auto-run header toggle
+  $("autoRun").addEventListener("change", (e) => {
+    state.settings.autoRun = e.target.checked;
+    $("setAutoRun").checked = e.target.checked;
+    if (state.settings.autoRun) run();
+    persist(); log("Auto-run:", state.settings.autoRun);
+  });
+
+  // settings modal
+  $("settingsBtn").addEventListener("click", openSettings);
+  $("closeSettings").addEventListener("click", closeSettings);
+  $("settingsModal").addEventListener("click", (e) => { if (e.target.id === "settingsModal") closeSettings(); });
+  $("setTheme").addEventListener("change", (e) => { state.settings.theme = e.target.value; applySettings(); persist(); });
+  $("setFont").addEventListener("change", (e) => { state.settings.fontSize = clamp(parseInt(e.target.value, 10) || 14, 12, 22); applySettings(); persist(); });
+  $("setTab").addEventListener("change", (e) => { state.settings.tabSize = parseInt(e.target.value, 10) === 4 ? 4 : 2; applySettings(); persist(); });
+  $("setAutoRun").addEventListener("change", (e) => { state.settings.autoRun = e.target.checked; $("autoRun").checked = e.target.checked; if (e.target.checked) run(); persist(); });
+  $("setDelay").addEventListener("change", (e) => { state.settings.autoRunDelay = clamp(parseInt(e.target.value, 10) || 600, 200, 2000); persist(); });
+  $("backupBtn").addEventListener("click", backupData);
+  $("restoreBtn").addEventListener("click", () => $("restoreFile").click());
+  $("restoreFile").addEventListener("change", (e) => { if (e.target.files[0]) restoreData(e.target.files[0]); e.target.value = ""; });
+  $("resetBtn").addEventListener("click", resetAll);
+
+  // info icons: tap-to-toggle (hover/focus handled by CSS)
+  document.addEventListener("click", (e) => {
+    const info = e.target.closest(".info");
+    document.querySelectorAll(".info.open").forEach((el) => { if (el !== info) el.classList.remove("open"); });
+    if (info) { e.preventDefault(); info.classList.toggle("open"); }
+  });
+
+  // global keyboard
+  document.addEventListener("keydown", (e) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === "s") { e.preventDefault(); persist(); setSaveStatus("saved"); showToast("Saved.", "good"); }
+    else if (mod && e.key === "Enter") { e.preventDefault(); run(); }
+    else if (e.key === "Escape") {
+      if (!$("settingsModal").hidden) closeSettings();
+      else if (document.body.classList.contains("sidebar-open")) closeSidebar();
+      document.querySelectorAll(".info.open").forEach((el) => el.classList.remove("open"));
+    }
+  });
+
+  // warn if storage looks unavailable
+  try { const k = "__test__"; localStorage.setItem(k, "1"); localStorage.removeItem(k); }
+  catch (e) { warn("localStorage unavailable — changes will NOT persist."); showToast("Storage blocked — changes won't be saved.", "bad"); }
+}
+
+/* ---------- boot ---------- */
+function boot() {
+  log("HTML App Studio v" + APP_VERSION + " booting…");
+  state = loadState();
+  applySettings();
+  renderAll();
+  wireEvents();
+  setPane(window.matchMedia("(max-width:760px)").matches ? "code" : "preview");
+  run();
+  log("Ready. Tip: paste these logs back if something looks off.");
+}
+document.addEventListener("DOMContentLoaded", boot);
+</script>
+</body>
+</html>
