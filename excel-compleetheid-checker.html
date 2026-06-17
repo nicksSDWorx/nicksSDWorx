@@ -1,0 +1,891 @@
+<!doctype html>
+<html lang="nl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Excel Compleetheidscheck</title>
+<style>
+  :root{
+    --bg:#0c0f1f; --bg-2:#11152b; --panel:#151a33; --panel-2:#1a2040;
+    --line:#272e54; --line-2:#323b6b;
+    --ink:#eaecff; --muted:#9aa3cf; --faint:#6b74a3;
+    --accent:#7c5cff; --accent-2:#5cc8ff;
+    --good:#39d98a; --bad:#ff6b6b; --warn:#ffce5c;
+    --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f8; --bg-2:#e6eaf5; --panel:#ffffff; --panel-2:#f4f6fc;
+    --line:#dfe4f2; --line-2:#cdd5ec;
+    --ink:#161a2e; --muted:#5a6386; --faint:#8b93b6;
+    --shadow:0 10px 30px rgba(40,50,90,.12);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; display:flex; flex-direction:column; min-height:100%;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
+    background:radial-gradient(1100px 600px at 85% -15%, var(--bg-2), var(--bg)); color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font-family:inherit}
+  ::selection{background:rgba(124,92,255,.35)}
+
+  .app-header{
+    display:flex;align-items:center;gap:10px;padding:12px 18px;
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;
+  }
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
+  .logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 4px 12px rgba(124,92,255,.45)}
+  .logo svg{width:18px;height:18px}
+  .brand small{color:var(--muted);font-weight:500;font-size:11px;display:block;margin-top:-3px}
+  .header-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+  .btn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line-2);background:var(--panel-2);
+    color:var(--ink);padding:9px 13px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;
+    transition:transform .06s,background .15s,border-color .15s}
+  .btn:hover{border-color:var(--accent);background:var(--panel)}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#6b4cff);border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(124,92,255,.4)}
+  .btn.primary:hover{filter:brightness(1.07)}
+  .btn.danger{border-color:rgba(255,107,107,.5);color:var(--bad);background:transparent}
+  .btn.danger:hover{background:rgba(255,107,107,.12)}
+  .icon-btn{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line-2);background:var(--panel-2);
+    color:var(--ink);border-radius:10px;cursor:pointer;font-size:17px;transition:background .15s,border-color .15s,transform .06s}
+  .icon-btn:hover{border-color:var(--accent);background:var(--panel)}
+  .icon-btn:active{transform:translateY(1px)}
+  .icon-btn svg{width:19px;height:19px}
+
+  .info{width:17px;height:17px;flex:none;border-radius:50%;border:1px solid var(--line-2);background:var(--bg-2);
+    color:var(--muted);font-size:11px;font-weight:700;line-height:1;cursor:help;position:relative;display:inline-grid;
+    place-items:center;padding:0;font-family:Georgia,serif;font-style:italic;vertical-align:middle}
+  .info:hover,.info:focus-visible{border-color:var(--accent);color:var(--ink);outline:none}
+  .info::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 9px);left:50%;
+    transform:translateX(-50%) translateY(4px);width:max-content;max-width:280px;background:#0a0d1c;color:#eef1ff;
+    border:1px solid var(--line-2);padding:9px 11px;border-radius:10px;font-size:12px;font-weight:500;font-style:normal;
+    line-height:1.45;text-align:left;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .15s,transform .15s;z-index:60;white-space:normal}
+  .info::before{content:"";position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);
+    border:6px solid transparent;border-top-color:#0a0d1c;opacity:0;transition:opacity .15s;z-index:61}
+  .info:hover::after,.info:focus-visible::after,.info.open::after,
+  .info:hover::before,.info:focus-visible::before,.info.open::before{opacity:1;transform:translateX(-50%) translateY(0)}
+  .info.tip-left::after{left:auto;right:0;transform:translateX(10px) translateY(4px)}
+  .info.tip-left:hover::after,.info.tip-left.open::after{transform:translateX(10px) translateY(0)}
+
+  main{flex:1;width:100%;max-width:1080px;margin:0 auto;padding:22px 18px 60px}
+
+  /* Dropzone / empty */
+  .dropzone{
+    border:2px dashed var(--line-2);border-radius:20px;padding:54px 28px;text-align:center;background:var(--panel);
+    transition:border-color .15s,background .15s;cursor:pointer;
+  }
+  .dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--panel-2)}
+  .dropzone .big{font-size:54px;line-height:1;margin-bottom:8px}
+  .dropzone h2{margin:6px 0 6px;font-size:21px}
+  .dropzone p{margin:0 auto;color:var(--muted);max-width:460px;line-height:1.55}
+  .dz-cta{margin-top:18px}
+  .privacy{margin-top:22px;font-size:12.5px;color:var(--faint);display:inline-flex;align-items:center;gap:8px;
+    background:var(--bg-2);border:1px solid var(--line);padding:8px 13px;border-radius:99px}
+  .hint-list{margin:24px auto 0;max-width:520px;text-align:left;color:var(--muted);font-size:13px;line-height:1.7}
+  .hint-list code{background:var(--bg-2);padding:1px 6px;border-radius:6px;color:var(--ink);font-size:12px}
+
+  .banner{display:none;align-items:center;gap:10px;padding:12px 15px;border-radius:12px;margin-bottom:18px;font-size:13.5px}
+  .banner.show{display:flex}
+  .banner.err{background:rgba(255,107,107,.12);border:1px solid rgba(255,107,107,.4);color:#ffd0d0}
+  .banner.warn{background:rgba(255,206,92,.12);border:1px solid rgba(255,206,92,.4);color:#ffe9b0}
+
+  /* Result toolbar */
+  .filebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
+    border-radius:14px;padding:13px 16px;margin-bottom:18px}
+  .filebar .fname{font-weight:700;display:flex;align-items:center;gap:9px;min-width:0}
+  .filebar .fname .ic{width:30px;height:30px;border-radius:8px;background:var(--bg-2);display:grid;place-items:center;flex:none}
+  .filebar .fname .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .filebar .spacer{flex:1}
+  .filebar label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  select{background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);padding:8px 10px;border-radius:9px;font-size:13px;font-family:inherit}
+  select:focus,input:focus{outline:none;border-color:var(--accent)}
+
+  /* Summary cards */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
+  .card .k{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:7px}
+  .card .v{font-size:27px;font-weight:800;line-height:1}
+  .card .sub{font-size:11.5px;color:var(--faint);margin-top:5px}
+  .card.good .v{color:var(--good)} .card.bad .v{color:var(--bad)} .card.warn .v{color:var(--warn)}
+  .ring{--p:0;width:62px;height:62px;border-radius:50%;flex:none;
+    background:conic-gradient(var(--good) calc(var(--p)*1%), var(--line) 0);display:grid;place-items:center}
+  .ring::after{content:"";width:46px;height:46px;border-radius:50%;background:var(--panel);position:absolute}
+  .ring span{position:relative;font-size:15px;font-weight:800}
+  .card.pct{display:flex;align-items:center;gap:14px}
+  .card.pct .right .k{margin-bottom:3px}
+
+  section.block{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px}
+  section.block > h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+  section.block > .desc{margin:0 0 14px;color:var(--muted);font-size:13px}
+
+  /* Column list */
+  .col-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .col-row:last-child{border-bottom:0}
+  .col-name{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;flex:1;min-width:0}
+  .col-name .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .col-letter{font-size:11px;color:var(--faint);background:var(--bg-2);border-radius:6px;padding:2px 6px;font-weight:700;flex:none}
+  .bar{flex:1.2;height:9px;background:var(--bg-2);border-radius:99px;overflow:hidden;min-width:80px}
+  .bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--good),#27c47a)}
+  .col-count{font-size:13px;color:var(--muted);white-space:nowrap;min-width:96px;text-align:right}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+  .pill.empty{background:rgba(255,107,107,.16);color:#ff9a9a}
+  .pill.ok{background:rgba(57,217,138,.16);color:#7ef0b6}
+  .pill.some{background:rgba(255,206,92,.16);color:#ffdd8f}
+  .ignored-wrap{margin-top:14px;font-size:13px;color:var(--muted)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{font-size:12px;background:var(--bg-2);border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--muted)}
+  .chip.miss{background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.35);color:#ffb3b3}
+
+  /* Issues table */
+  .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:540px}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  thead th{position:sticky;top:0;background:var(--panel-2);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line-2);
+    font-size:12px;color:var(--muted);white-space:nowrap;z-index:1}
+  tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  tbody tr:hover{background:var(--bg-2)}
+  td.rownum{font-variant-numeric:tabular-nums;color:var(--faint);font-weight:700;white-space:nowrap}
+  td.idcell{font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .more{font-size:11px;color:var(--faint);margin-left:4px}
+  .cap-note{font-size:12px;color:var(--faint);margin-top:10px}
+  .empty-good{text-align:center;padding:30px;color:var(--good);font-weight:600}
+  .empty-good .big{font-size:40px;display:block;margin-bottom:6px}
+
+  /* Modal */
+  .modal-overlay{position:fixed;inset:0;background:rgba(5,7,16,.6);backdrop-filter:blur(3px);display:flex;align-items:center;
+    justify-content:center;padding:18px;z-index:80;opacity:0;transition:opacity .18s}
+  .modal-overlay[hidden]{display:none}
+  .modal-overlay.show{opacity:1}
+  .modal{background:var(--panel);border:1px solid var(--line-2);border-radius:18px;box-shadow:var(--shadow);width:100%;
+    max-width:520px;max-height:90vh;overflow:auto;transform:translateY(8px) scale(.99);transition:transform .18s}
+  .modal-overlay.show .modal{transform:none}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line)}
+  .modal-head h2{margin:0;font-size:17px;display:flex;align-items:center;gap:9px}
+  .modal-body{padding:6px 20px 20px}
+  .field{padding:15px 0;border-bottom:1px solid var(--line)}
+  .field:last-child{border-bottom:0}
+  .field .label{display:flex;align-items:center;gap:7px;font-size:14px;font-weight:600;margin-bottom:6px}
+  .field .desc{font-size:12px;color:var(--muted);margin-bottom:9px}
+  textarea{width:100%;min-height:120px;resize:vertical;background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);
+    border-radius:10px;padding:11px 12px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.6}
+  textarea:focus{outline:none;border-color:var(--accent)}
+  .field-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+  input[type="number"]{width:80px;background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);padding:8px 10px;border-radius:9px;font-size:13px;font-family:inherit}
+  .switch{position:relative;width:44px;height:25px;flex:none}
+  .switch input{opacity:0;width:0;height:0;position:absolute}
+  .switch .track{position:absolute;inset:0;background:var(--line-2);border-radius:99px;transition:background .15s;cursor:pointer}
+  .switch .track::before{content:"";position:absolute;width:19px;height:19px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .15s}
+  .switch input:checked + .track{background:var(--accent)}
+  .switch input:checked + .track::before{transform:translateX(19px)}
+  .mini{font-size:12px;color:var(--faint);margin-top:8px}
+  .modal-foot{display:flex;gap:8px;flex-wrap:wrap;padding-top:6px}
+
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);background:#0a0d1c;color:#eef1ff;
+    border:1px solid var(--line-2);padding:11px 16px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--shadow);
+    z-index:90;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none;max-width:90vw}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.bad{border-color:rgba(255,107,107,.6)} .toast.good{border-color:rgba(57,217,138,.6)}
+
+  @media (max-width:640px){
+    main{padding:16px 12px 50px}
+    .filebar{padding:12px}
+    .col-row{flex-wrap:wrap}
+    .bar{order:5;flex-basis:100%}
+    .col-count{min-width:0}
+  }
+</style>
+</head>
+<body>
+
+  <header class="app-header">
+    <span class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M3 9h18M3 15h18M15 3v18"/></svg>
+      </span>
+      <span>Compleetheidscheck<small>controleer een Excel op lege velden</small></span>
+    </span>
+    <div class="header-actions">
+      <button class="btn" id="newFileBtn" hidden>Ander bestand</button>
+      <button class="icon-btn" id="themeBtn" aria-label="Thema" title="Thema">☀</button>
+      <button class="icon-btn" id="settingsBtn" aria-label="Instellingen" title="Instellingen">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="banner" id="banner"></div>
+
+    <!-- EMPTY / DROP VIEW -->
+    <div id="emptyView">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Kies of sleep een bestand">
+        <div class="big">📋</div>
+        <h2>Sleep je Excel hierheen</h2>
+        <p>Of klik om een bestand te kiezen. De tool controleert elke kolom op lege cellen en signaleert wat niet is ingevuld.</p>
+        <div class="dz-cta"><button class="btn primary" id="chooseBtn" type="button">Bestand kiezen…</button></div>
+        <div class="privacy">🔒 Je bestand wordt volledig lokaal in je browser verwerkt — er wordt niets geüpload of opgeslagen.</div>
+        <div class="hint-list">
+          <strong>Goed om te weten</strong><br>
+          • Ondersteund: <code>.xlsx</code>, <code>.xlsm</code> en <code>.csv</code>.<br>
+          • De <em>kopregel</em> (rij met kolomnamen) is standaard rij&nbsp;1 — aan te passen via <span style="white-space:nowrap">⚙ Instellingen</span>.<br>
+          • Bepaalde kolommen worden genegeerd (zoals <code>Bedrijfsnr</code>, <code>CodeActief</code>…). Die lijst pas je zelf aan.
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT VIEW -->
+    <div id="resultView" hidden>
+      <div class="filebar">
+        <span class="fname">
+          <span class="ic">📄</span>
+          <span class="txt" id="fileName">bestand.xlsx</span>
+        </span>
+        <label id="sheetWrap" hidden>Werkblad
+          <select id="sheetSelect"></select>
+        </label>
+        <label>Kopregel
+          <input type="number" id="headerRowInput" min="1" max="100" step="1" style="width:64px">
+          <button class="info" data-tip="De rij met de kolomnamen. Meestal rij 1. Pas dit aan als er titelregels boven de kopregel staan." aria-label="Uitleg kopregel">i</button>
+        </label>
+        <span class="spacer"></span>
+        <button class="btn" id="exportRowsBtn">⬇ Probleemrijen (CSV)</button>
+        <button class="btn" id="exportColsBtn">⬇ Kolomoverzicht (CSV)</button>
+      </div>
+
+      <div class="cards" id="cards"></div>
+
+      <section class="block" id="colBlock">
+        <h3>Per kolom <button class="info" data-tip="Per gecontroleerde kolom: hoeveel datacellen leeg zijn. 'Volledig leeg' betekent dat de hele kolom niet is ingevuld." aria-label="Uitleg per kolom">i</button></h3>
+        <div class="desc" id="colDesc"></div>
+        <div id="colList"></div>
+        <div class="ignored-wrap" id="ignoredWrap"></div>
+      </section>
+
+      <section class="block" id="rowBlock">
+        <h3>Rijen met ontbrekende gegevens</h3>
+        <div class="desc" id="rowDesc"></div>
+        <div id="rowResult"></div>
+      </section>
+    </div>
+  </main>
+
+  <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv" hidden>
+
+  <!-- Settings modal -->
+  <div class="modal-overlay" id="settingsModal" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="setTitle">⚙ Instellingen</h2>
+        <button class="icon-btn" id="closeSettings" aria-label="Sluiten">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <div class="label">Te negeren kolommen
+            <button class="info" data-tip="Kolommen in deze lijst worden NIET gecontroleerd op lege cellen. Eén kolomnaam per regel (of gescheiden door komma's)." aria-label="Uitleg negeren">i</button>
+          </div>
+          <div class="desc">Deze kolommen worden overgeslagen bij de controle. Eén per regel of komma-gescheiden.</div>
+          <textarea id="ignoreText" spellcheck="false" placeholder="Bedrijfsnr&#10;WrknmGroep&#10;…"></textarea>
+          <div class="field-row" style="margin-top:8px">
+            <span class="mini" id="ignoreCount">0 kolommen</span>
+            <button class="btn" id="resetIgnoreBtn" type="button">Herstel standaard (18)</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <div>
+              <div class="label">Kopregel (rijnummer)</div>
+              <div class="desc" style="margin:0">De rij met kolomnamen. Standaard 1.</div>
+            </div>
+            <input type="number" id="setHeaderRow" min="1" max="100" step="1">
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <div>
+              <div class="label">Spaties tellen als leeg
+                <button class="info" data-tip="Aan: een cel met alleen spaties geldt als niet ingevuld. Uit: alleen écht lege cellen tellen mee." aria-label="Uitleg spaties">i</button>
+              </div>
+              <div class="desc" style="margin:0">Cellen met alleen spaties als leeg behandelen.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="setTrim"><span class="track"></span></label>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <div>
+              <div class="label">Hoofdletterongevoelig vergelijken</div>
+              <div class="desc" style="margin:0">'BEDRIJFSNR' = 'Bedrijfsnr' bij het negeren.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="setCase"><span class="track"></span></label>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="field-row">
+            <div>
+              <div class="label">Thema</div>
+              <div class="desc" style="margin:0">Licht of donker.</div>
+            </div>
+            <select id="setTheme"><option value="dark">Donker</option><option value="light">Licht</option></select>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="label">Gegevens</div>
+          <div class="desc">Alleen je instellingen worden in deze browser bewaard — nooit de inhoud van je bestanden.</div>
+          <div class="modal-foot">
+            <button class="btn danger" id="resetAllBtn" type="button">Instellingen wissen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   Excel Compleetheidscheck — single-file, offline, no libraries
+   ============================================================ */
+const APP_VERSION = "1.0.0";
+const LS_KEY = "excel-compleetheid:v1";
+const LOG = "[Compleetheid]";
+const log  = (...a) => console.log(LOG, ...a);
+const warn = (...a) => console.warn(LOG, ...a);
+const errl = (...a) => console.error(LOG, ...a);
+
+const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","KleurTabel","SpecTabel",
+  "CodeTijdvak","SoortInkomen","CodeLoonHeffing","CodeZW","CodeWW","CodeWAO","CdZvw","IABZvw","CdAard",
+  "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE"];
+
+/* ---------- helpers ---------- */
+const $ = (id) => document.getElementById(id);
+const clamp = (n,lo,hi)=>Math.max(lo,Math.min(hi,n));
+const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
+const escapeHtml=(s)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function colToNum(c){let n=0;for(let i=0;i<c.length;i++)n=n*26+(c.charCodeAt(i)-64);return n-1;}
+function numToCol(n){let s="";n++;while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;}
+function xmlEntities(s){return String(s).replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g,(m,e)=>{
+  if(e[0]==="#"){const code=(e[1]==="x"||e[1]==="X")?parseInt(e.slice(2),16):parseInt(e.slice(1),10);
+    return Number.isFinite(code)?String.fromCodePoint(code):m;}
+  return {amp:"&",lt:"<",gt:">",quot:'"',apos:"'"}[e]||m;});}
+
+/* ---------- state ---------- */
+let settings = loadSettings();
+let wb = null;            // parsed workbook (transient, never persisted)
+let sheetData = null;     // current sheet grid
+let currentSheetIndex = 0;
+let filename = "";
+let lastResult = null;
+
+/* ---------- settings persistence ---------- */
+function defaultSettings(){
+  return { ignore:[...DEFAULT_IGNORE], headerRow:1, trimWhitespace:true, caseInsensitive:true, theme:"dark" };
+}
+function loadSettings(){
+  let raw=null;
+  try{raw=localStorage.getItem(LS_KEY);}catch(e){warn("localStorage niet leesbaar:",e.message);}
+  if(!raw){ log("Geen opgeslagen instellingen — standaard gebruikt."); return defaultSettings(); }
+  try{
+    const o=JSON.parse(raw); const s=defaultSettings(); const rs=(o&&o.settings)||o;
+    if(Array.isArray(rs.ignore)) s.ignore=rs.ignore.filter(x=>typeof x==="string");
+    s.headerRow=clamp(parseInt(rs.headerRow,10)||1,1,1000);
+    s.trimWhitespace=rs.trimWhitespace!==false;
+    s.caseInsensitive=rs.caseInsensitive!==false;
+    s.theme=rs.theme==="light"?"light":"dark";
+    log("Instellingen geladen.");
+    return s;
+  }catch(e){ errl("Instellingen onleesbaar — standaard gebruikt.",e.message); return defaultSettings(); }
+}
+const persist=debounce(()=>{
+  try{ localStorage.setItem(LS_KEY,JSON.stringify({version:1,settings})); log("Instellingen opgeslagen."); }
+  catch(e){ errl("Opslaan mislukt:",e.message); }
+},300);
+
+/* ---------- ZIP (xlsx) reader using native DecompressionStream ---------- */
+function readZip(buf){
+  const dv=new DataView(buf), u8=new Uint8Array(buf), n=buf.byteLength;
+  let eocd=-1;
+  for(let i=n-22;i>=0 && i>=n-22-65536;i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  if(eocd<0) throw new Error("geen geldig zip/xlsx-bestand (kop niet gevonden)");
+  const count=dv.getUint16(eocd+10,true), cdOff=dv.getUint32(eocd+16,true);
+  const entries=new Map(); let p=cdOff;
+  for(let e=0;e<count;e++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true);
+    let compSize=dv.getUint32(p+20,true);
+    const nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), commentLen=dv.getUint16(p+32,true);
+    const localOff=dv.getUint32(p+42,true);
+    const name=new TextDecoder("utf-8").decode(u8.subarray(p+46,p+46+nameLen));
+    if(compSize===0xFFFFFFFF||localOff===0xFFFFFFFF) throw new Error("ZIP64 wordt niet ondersteund (bestand te groot)");
+    entries.set(name,{method,compSize,localOff});
+    p+=46+nameLen+extraLen+commentLen;
+  }
+  return {dv,u8,entries};
+}
+async function inflateRaw(bytes){
+  if(typeof DecompressionStream==="undefined") throw new Error("NO_DECOMPRESSION");
+  const ds=new DecompressionStream("deflate-raw");
+  const ab=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(ab);
+}
+async function readEntryText(zip,name){
+  const ent=zip.entries.get(name);
+  if(!ent) return null;
+  const lo=ent.localOff;
+  if(zip.dv.getUint32(lo,true)!==0x04034b50) throw new Error("lokale header ongeldig: "+name);
+  const nameLen=zip.dv.getUint16(lo+26,true), extraLen=zip.dv.getUint16(lo+28,true);
+  const start=lo+30+nameLen+extraLen;
+  const comp=zip.u8.subarray(start,start+ent.compSize);
+  let out;
+  if(ent.method===0) out=comp;
+  else if(ent.method===8) out=await inflateRaw(comp);
+  else throw new Error("onbekende compressie ("+ent.method+")");
+  return new TextDecoder("utf-8").decode(out);
+}
+
+/* ---------- xlsx XML parsing ---------- */
+function parseSharedStrings(xml){
+  const out=[]; const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let m;
+  while((m=re.exec(xml))){
+    let text=""; m[1].replace(/<t[^>]*>([\s\S]*?)<\/t>/g,(_,x)=>{text+=x;return"";});
+    out.push(xmlEntities(text));
+  }
+  return out;
+}
+function parseStyles(xml){
+  const fmt={}; let m;
+  const nf=/<numFmt\b[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;
+  while((m=nf.exec(xml))) fmt[m[1]]=xmlEntities(m[2]);
+  const xfs=[]; const block=xml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);
+  if(block){ const xre=/<xf\b[^>]*?\/?>/g; let x;
+    while((x=xre.exec(block[1]))){ const id=x[0].match(/numFmtId="(\d+)"/); xfs.push(id?parseInt(id[1],10):0); } }
+  return {fmt,xfs};
+}
+function isDateFmtId(id,code){
+  if([14,15,16,17,22].includes(id)) return true;
+  if([18,19,20,21,45,46,47].includes(id)) return false;
+  if(code){ const c=code.replace(/\[[^\]]*\]/g,"").replace(/"[^"]*"/g,""); if(/[dy]/i.test(c)&&!/[#0%]/.test(c)) return true; }
+  return false;
+}
+function isDateStyle(sIdx,styles){
+  if(!Number.isFinite(sIdx)) return false;
+  const id=styles.xfs[sIdx]; if(id===undefined) return false;
+  return isDateFmtId(id,styles.fmt[id]);
+}
+function excelDate(serial){
+  if(!Number.isFinite(serial)||serial<=0) return String(serial);
+  const d=new Date(Math.round((serial-25569)*86400000));
+  if(isNaN(d.getTime())) return String(serial);
+  const dd=String(d.getUTCDate()).padStart(2,"0"), mm=String(d.getUTCMonth()+1).padStart(2,"0");
+  return dd+"-"+mm+"-"+d.getUTCFullYear();
+}
+function parseSheetXml(xml,shared,styles){
+  const dataM=xml.match(/<sheetData\b[^>]*>([\s\S]*?)<\/sheetData>/);
+  const bodyXml=dataM?dataM[1]:"";
+  const rows=[]; let maxCol=0;
+  const rowRe=/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g; let rm;
+  while((rm=rowRe.exec(bodyXml))){
+    const rNum=parseInt((rm[1].match(/\br="(\d+)"/)||[])[1],10)||(rows.length+1);
+    const cells=[]; const inner=rm[2];
+    if(inner){
+      const cRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g; let cm;
+      while((cm=cRe.exec(inner))){
+        const a=cm[1]||"", cbody=cm[2];
+        const ref=(a.match(/\br="([A-Z]+)\d+"/)||[])[1];
+        const colIdx=ref?colToNum(ref):cells.length;
+        const t=(a.match(/\bt="([^"]+)"/)||[])[1]||"n";
+        const sIdx=parseInt((a.match(/\bs="(\d+)"/)||[])[1],10);
+        let value="";
+        if(cbody!==undefined&&cbody!==""){
+          if(t==="inlineStr"){ let txt=""; cbody.replace(/<t[^>]*>([\s\S]*?)<\/t>/g,(_,x)=>{txt+=x;return"";}); value=xmlEntities(txt); }
+          else{
+            const vm=cbody.match(/<v>([\s\S]*?)<\/v>/); const raw=vm?vm[1]:"";
+            if(t==="s") value=shared[parseInt(raw,10)]??"";
+            else if(t==="b") value=raw==="1"?"WAAR":"ONWAAR";
+            else if(t==="e"||t==="str") value=xmlEntities(raw);
+            else if(raw==="") value="";
+            else if(isDateStyle(sIdx,styles)) value=excelDate(parseFloat(raw));
+            else value=raw;
+          }
+        }
+        cells[colIdx]=value==null?"":String(value);
+        if(colIdx+1>maxCol) maxCol=colIdx+1;
+      }
+    }
+    rows.push({r:rNum,cells});
+    if(rows.length>500000){ warn("Rijlimiet bereikt — afgekapt op 500k."); break; }
+  }
+  for(const row of rows){ for(let i=0;i<maxCol;i++) if(row.cells[i]===undefined) row.cells[i]=""; }
+  return {rows,maxCol};
+}
+async function parseWorkbook(buf){
+  const zip=readZip(buf);
+  const wbXml=await readEntryText(zip,"xl/workbook.xml");
+  if(!wbXml) throw new Error("geen xl/workbook.xml — dit lijkt geen .xlsx");
+  const relsXml=await readEntryText(zip,"xl/_rels/workbook.xml.rels");
+  const rels={};
+  if(relsXml) relsXml.replace(/<Relationship\b[^>]*?Id="([^"]+)"[^>]*?Target="([^"]+)"/g,(_,id,t)=>{rels[id]=t;return"";});
+  const sheets=[];
+  wbXml.replace(/<sheet\b[^>]*?\/?>/g,(tag)=>{
+    const name=(tag.match(/name="([^"]*)"/)||[])[1];
+    const rid=(tag.match(/r:id="([^"]*)"/)||[])[1];
+    let target=rels[rid]||("worksheets/sheet"+(sheets.length+1)+".xml");
+    target=target.replace(/^\//,"");
+    if(!target.startsWith("xl/")) target="xl/"+target.replace(/^\.\//,"");
+    sheets.push({name:name?xmlEntities(name):("Blad"+(sheets.length+1)),path:target});
+    return tag;
+  });
+  if(!sheets.length) throw new Error("geen werkbladen gevonden");
+  const ssXml=await readEntryText(zip,"xl/sharedStrings.xml");
+  const shared=ssXml?parseSharedStrings(ssXml):[];
+  const stXml=await readEntryText(zip,"xl/styles.xml");
+  const styles=stXml?parseStyles(stXml):{fmt:{},xfs:[]};
+  return {zip,sheets,shared,styles,isCsv:false};
+}
+async function readSheet(workbook,path){
+  const xml=await readEntryText(workbook.zip,path);
+  if(xml==null) throw new Error("werkblad niet gevonden: "+path);
+  return parseSheetXml(xml,workbook.shared,workbook.styles);
+}
+
+/* ---------- CSV fallback ---------- */
+function parseCsv(text){
+  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  const head=text.slice(0,text.indexOf("\n")>=0?text.indexOf("\n"):text.length);
+  const delim=(head.split(";").length>head.split(",").length)?";":",";
+  const rows=[]; let row=[],cur="",inQ=false;
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    if(inQ){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; } else cur+=ch; }
+    else if(ch==='"') inQ=true;
+    else if(ch===delim){ row.push(cur);cur=""; }
+    else if(ch==="\n"){ row.push(cur);rows.push(row);row=[];cur=""; }
+    else if(ch==="\r"){}
+    else cur+=ch;
+  }
+  if(cur!==""||row.length){ row.push(cur); rows.push(row); }
+  let maxCol=0; const out=[];
+  rows.forEach((cells,i)=>{ maxCol=Math.max(maxCol,cells.length); out.push({r:i+1,cells}); });
+  for(const ro of out){ for(let i=0;i<maxCol;i++) if(ro.cells[i]===undefined) ro.cells[i]=""; }
+  log("CSV: scheidingsteken '"+delim+"'");
+  return {rows:out,maxCol};
+}
+
+/* ---------- analyse ---------- */
+function analyze(sheet,headerRowNumber,opt){
+  if(!sheet||!sheet.rows.length) return {error:"Het werkblad is leeg."};
+  const norm=s=>opt.caseInsensitive?String(s).trim().toLowerCase():String(s).trim();
+  const isEmpty=v=>{const s=String(v==null?"":v);return opt.trimWhitespace?s.trim()==="":s==="";};
+  let headerRow=sheet.rows.find(r=>r.r===headerRowNumber);
+  let usedHeader=headerRowNumber;
+  if(!headerRow||headerRow.cells.every(c=>String(c).trim()==="")){
+    headerRow=sheet.rows.find(r=>r.cells.some(c=>String(c).trim()!==""));
+    usedHeader=headerRow?headerRow.r:headerRowNumber;
+  }
+  if(!headerRow) return {error:"Geen kopregel met kolomnamen gevonden."};
+  const colCount=Math.max(sheet.maxCol,headerRow.cells.length);
+  const headers=[]; for(let i=0;i<colCount;i++) headers.push(String(headerRow.cells[i]??"").trim());
+  const ignoreNorm=new Set(opt.ignore.map(norm).filter(Boolean));
+  const dataRows=sheet.rows.filter(r=>r.r>usedHeader);
+  const cols=[];
+  for(let i=0;i<colCount;i++){
+    const name=headers[i];
+    const hasData=dataRows.some(r=>!isEmpty(r.cells[i]));
+    if(!name&&!hasData) continue;
+    cols.push({index:i,letter:numToCol(i),name:name||("(kolom "+numToCol(i)+")"),named:!!name,
+      ignored:name?ignoreNorm.has(norm(name)):false,missing:0,total:dataRows.length,fullyEmpty:false});
+  }
+  const checkedCols=cols.filter(c=>!c.ignored);
+  const ignoredCols=cols.filter(c=>c.ignored);
+  const idCol=cols.find(c=>c.named)||cols[0];
+  const rowIssues=[]; let checkedTotal=0,checkedFilled=0;
+  for(const r of dataRows){
+    const miss=[];
+    for(const c of checkedCols){ if(isEmpty(r.cells[c.index])){ c.missing++; miss.push(c.name); } }
+    checkedTotal+=checkedCols.length; checkedFilled+=checkedCols.length-miss.length;
+    if(miss.length){ const idv=idCol?String(r.cells[idCol.index]??"").trim():""; rowIssues.push({r:r.r,id:idv||"(leeg)",miss}); }
+  }
+  for(const c of checkedCols) c.fullyEmpty=c.total>0&&c.missing===c.total;
+  const pct=checkedTotal?Math.round((checkedFilled/checkedTotal)*1000)/10:100;
+  return {usedHeader,cols,checkedCols,ignoredCols,dataRowCount:dataRows.length,rowIssues,
+    missingCells:checkedTotal-checkedFilled,checkedTotal,pct,idColName:idCol?idCol.name:""};
+}
+
+/* ---------- file handling ---------- */
+async function handleFile(file){
+  if(!file) return;
+  setBanner("");
+  log("Bestand gekozen:",file.name,"("+Math.round(file.size/1024)+" KB)");
+  const ext=(file.name.split(".").pop()||"").toLowerCase();
+  try{
+    if(ext==="csv"){
+      sheetData=parseCsv(await file.text());
+      wb={sheets:[{name:file.name}],isCsv:true};
+      filename=file.name; currentSheetIndex=0;
+      log("CSV geparset:",sheetData.rows.length,"rijen,",sheetData.maxCol,"kolommen");
+    }else if(ext==="xlsx"||ext==="xlsm"){
+      wb=await parseWorkbook(await file.arrayBuffer());
+      filename=file.name; currentSheetIndex=0;
+      sheetData=await readSheet(wb,wb.sheets[0].path);
+      log("Werkmap geparset:",wb.sheets.length,"blad(en),",sheetData.rows.length,"rijen,",sheetData.maxCol,"kolommen");
+    }else{
+      setBanner("Niet-ondersteund bestandstype: ."+ext+". Kies .xlsx, .xlsm of .csv.","err"); return;
+    }
+    afterLoad();
+  }catch(e){
+    errl("Inlezen mislukt:",e.message);
+    if(e.message==="NO_DECOMPRESSION")
+      setBanner("Je browser kan geen .xlsx uitpakken. Gebruik een recente Chrome, Edge, Firefox of Safari — of upload een .csv.","err");
+    else setBanner("Kon dit bestand niet lezen: "+e.message,"err");
+  }
+}
+function afterLoad(){
+  $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false;
+  $("fileName").textContent=filename;
+  const sw=$("sheetWrap"), sel=$("sheetSelect");
+  if(wb.sheets.length>1&&!wb.isCsv){
+    sw.hidden=false; sel.innerHTML="";
+    wb.sheets.forEach((s,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=s.name;sel.appendChild(o);});
+    sel.value=String(currentSheetIndex);
+  }else sw.hidden=true;
+  $("headerRowInput").value=settings.headerRow;
+  reanalyze();
+}
+async function switchSheet(i){
+  if(!wb||wb.isCsv) return;
+  try{ currentSheetIndex=i; sheetData=await readSheet(wb,wb.sheets[i].path);
+    log("Werkblad gewisseld:",wb.sheets[i].name,"-",sheetData.rows.length,"rijen"); reanalyze(); }
+  catch(e){ errl("Werkblad lezen mislukt:",e.message); setBanner("Kon werkblad niet lezen: "+e.message,"err"); }
+}
+function reanalyze(){
+  if(!sheetData) return;
+  const res=analyze(sheetData,settings.headerRow,settings);
+  lastResult=res;
+  if(res.error){ renderError(res.error); return; }
+  setBanner("");
+  if(res.usedHeader!==settings.headerRow)
+    setBanner("Rij "+settings.headerRow+" was leeg — kopregel automatisch op rij "+res.usedHeader+" gezet.","warn");
+  renderResult(res);
+  log("Analyse:",res.dataRowCount,"datarijen,",res.checkedCols.length,"gecontroleerde kolommen,",
+      res.missingCells,"lege cellen, compleetheid",res.pct+"%");
+}
+
+/* ---------- rendering ---------- */
+function setBanner(msg,kind){
+  const b=$("banner");
+  if(!msg){ b.className="banner"; b.textContent=""; return; }
+  b.className="banner show "+(kind||"err");
+  b.textContent=(kind==="warn"?"⚠ ":"⛔ ")+msg;
+}
+function renderError(msg){
+  $("cards").innerHTML="";
+  $("colList").innerHTML=""; $("ignoredWrap").innerHTML=""; $("colDesc").textContent="";
+  $("rowResult").innerHTML=""; $("rowDesc").textContent="";
+  setBanner(msg,"err");
+}
+function card(k,v,sub,cls,tip){
+  return `<div class="card ${cls||""}"><div class="k">${escapeHtml(k)}${tip?` <button class="info tip-left" data-tip="${escapeHtml(tip)}" aria-label="Uitleg">i</button>`:""}</div>`+
+    `<div class="v">${escapeHtml(String(v))}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}</div>`;
+}
+function renderResult(res){
+  // cards
+  const complete=res.dataRowCount-res.rowIssues.length;
+  const pctCls=res.pct>=99.5?"good":res.pct>=90?"warn":"bad";
+  $("cards").innerHTML=
+    card("Datarijen",res.dataRowCount.toLocaleString("nl-NL"),"onder de kopregel")+
+    card("Gecontroleerde kolommen",res.checkedCols.length,res.ignoredCols.length+" genegeerd")+
+    card("Lege cellen",res.missingCells.toLocaleString("nl-NL"),"in gecontroleerde kolommen",res.missingCells?"bad":"good",
+      "Aantal lege cellen in de kolommen die wél gecontroleerd worden (genegeerde kolommen tellen niet mee).")+
+    card("Onvolledige rijen",res.rowIssues.length.toLocaleString("nl-NL"),complete.toLocaleString("nl-NL")+" volledig",res.rowIssues.length?"warn":"good")+
+    `<div class="card pct"><div class="ring" style="--p:${res.pct}"><span>${res.pct}%</span></div>`+
+      `<div class="right"><div class="k">Compleetheid <button class="info tip-left" data-tip="Compleetheid = gevulde cellen ÷ totaal gecontroleerde cellen × 100. Totaal = gecontroleerde kolommen × datarijen (${res.checkedCols.length} × ${res.dataRowCount}). Genegeerde kolommen tellen niet mee." aria-label="Formule">i</button></div>`+
+      `<div class="sub">${(res.checkedTotal-res.missingCells).toLocaleString("nl-NL")} / ${res.checkedTotal.toLocaleString("nl-NL")} cellen gevuld</div></div></div>`;
+
+  // columns
+  const checked=[...res.checkedCols].sort((a,b)=>b.missing-a.missing||a.index-b.index);
+  $("colDesc").textContent=res.checkedCols.length+" kolommen gecontroleerd op lege cellen ("+res.dataRowCount+" rijen elk).";
+  const colHtml=checked.map(c=>{
+    const filled=c.total-c.missing;
+    const pct=c.total?Math.round((filled/c.total)*100):100;
+    let pill;
+    if(c.fullyEmpty) pill='<span class="pill empty">volledig leeg</span>';
+    else if(c.missing===0) pill='<span class="pill ok">compleet</span>';
+    else pill='<span class="pill some">'+c.missing+' leeg</span>';
+    return `<div class="col-row"><span class="col-letter">${c.letter}</span>`+
+      `<span class="col-name"><span class="nm">${escapeHtml(c.name)}</span></span>`+
+      `<span class="bar"><i style="width:${pct}%;${c.missing?"background:linear-gradient(90deg,#ffce5c,#ff9a3c)":""}"></i></span>`+
+      `<span class="col-count">${filled.toLocaleString("nl-NL")}/${c.total.toLocaleString("nl-NL")}</span>${pill}</div>`;
+  }).join("");
+  $("colList").innerHTML=colHtml||'<div class="desc">Geen te controleren kolommen — alles staat op de negeerlijst of er zijn geen kolomnamen.</div>';
+
+  // ignored
+  if(res.ignoredCols.length){
+    $("ignoredWrap").innerHTML='Genegeerd in dit bestand ('+res.ignoredCols.length+'): '+
+      '<span class="chips">'+res.ignoredCols.map(c=>`<span class="chip">${escapeHtml(c.name)}</span>`).join("")+'</span>';
+  }else $("ignoredWrap").innerHTML='<span style="color:var(--faint)">Geen van de te negeren kolommen komt in dit bestand voor.</span>';
+
+  // row issues
+  renderRowIssues(res);
+}
+function renderRowIssues(res){
+  const box=$("rowResult"), desc=$("rowDesc");
+  if(!res.rowIssues.length){
+    desc.textContent="";
+    box.innerHTML='<div class="empty-good"><span class="big">✅</span>Geen lege cellen gevonden in de gecontroleerde kolommen.</div>';
+    return;
+  }
+  const CAP=300;
+  desc.textContent="Rijen waarin minstens één gecontroleerde kolom leeg is. Identificatie via kolom \""+res.idColName+"\".";
+  const shown=res.rowIssues.slice(0,CAP);
+  const rowsHtml=shown.map(it=>{
+    const cap=8;
+    const chips=it.miss.slice(0,cap).map(n=>`<span class="chip miss">${escapeHtml(n)}</span>`).join("")+
+      (it.miss.length>cap?`<span class="more">+${it.miss.length-cap} meer</span>`:"");
+    return `<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id)}</td>`+
+      `<td><span class="chips">${chips}</span></td></tr>`;
+  }).join("");
+  box.innerHTML=`<div class="tablewrap"><table><thead><tr>`+
+    `<th>Excel-rij</th><th>${escapeHtml(res.idColName||"ID")}</th><th>Ontbrekende kolommen</th></tr></thead>`+
+    `<tbody>${rowsHtml}</tbody></table></div>`+
+    (res.rowIssues.length>CAP?`<div class="cap-note">Eerste ${CAP} van ${res.rowIssues.length} rijen getoond. Exporteer voor de volledige lijst.</div>`:"");
+}
+
+/* ---------- export ---------- */
+function downloadBlob(content,filenameOut,type){
+  try{
+    const blob=new Blob([content],{type:type||"text/plain;charset=utf-8"});
+    const url=URL.createObjectURL(blob); const a=document.createElement("a");
+    a.href=url; a.download=filenameOut; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000); return true;
+  }catch(e){ errl("Download mislukt:",e.message); showToast("Download mislukt.","bad"); return false; }
+}
+function csvField(s){ s=String(s==null?"":s); return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function baseName(){ return (filename.replace(/\.[^.]+$/,"")||"controle"); }
+function exportRows(){
+  if(!lastResult||!lastResult.rowIssues) return;
+  if(!lastResult.rowIssues.length){ showToast("Geen probleemrijen om te exporteren.","good"); return; }
+  const lines=["Excel-rij;"+csvField(lastResult.idColName||"ID")+";Ontbrekende kolommen;Aantal"];
+  for(const it of lastResult.rowIssues) lines.push([it.r,csvField(it.id),csvField(it.miss.join(", ")),it.miss.length].join(";"));
+  downloadBlob("﻿"+lines.join("\r\n"),baseName()+"-probleemrijen.csv","text/csv;charset=utf-8");
+  showToast("Probleemrijen geëxporteerd.","good"); log("Export probleemrijen:",lastResult.rowIssues.length,"rijen");
+}
+function exportCols(){
+  if(!lastResult||!lastResult.checkedCols) return;
+  const lines=["Kolom;Letter;Gecontroleerd;Lege cellen;Gevuld;Volledig leeg"];
+  for(const c of lastResult.checkedCols)
+    lines.push([csvField(c.name),c.letter,"ja",c.missing,c.total-c.missing,c.fullyEmpty?"ja":"nee"].join(";"));
+  for(const c of lastResult.ignoredCols)
+    lines.push([csvField(c.name),c.letter,"nee (genegeerd)","","",""].join(";"));
+  downloadBlob("﻿"+lines.join("\r\n"),baseName()+"-kolomoverzicht.csv","text/csv;charset=utf-8");
+  showToast("Kolomoverzicht geëxporteerd.","good"); log("Export kolomoverzicht");
+}
+
+/* ---------- settings modal ---------- */
+function applyTheme(){ document.documentElement.setAttribute("data-theme",settings.theme);
+  $("themeBtn").textContent=settings.theme==="dark"?"☀":"☾"; }
+function syncSettingsUI(){
+  $("ignoreText").value=settings.ignore.join("\n");
+  $("ignoreCount").textContent=settings.ignore.length+" kolommen";
+  $("setHeaderRow").value=settings.headerRow;
+  $("setTrim").checked=settings.trimWhitespace;
+  $("setCase").checked=settings.caseInsensitive;
+  $("setTheme").value=settings.theme;
+  $("headerRowInput").value=settings.headerRow;
+}
+function parseIgnoreText(v){
+  return v.split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean)
+    .filter((x,i,arr)=>arr.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);
+}
+let lastFocused=null;
+function openSettings(){ lastFocused=document.activeElement; syncSettingsUI();
+  const m=$("settingsModal"); m.hidden=false; requestAnimationFrame(()=>m.classList.add("show")); $("closeSettings").focus(); }
+function closeSettings(){ const m=$("settingsModal"); m.classList.remove("show");
+  setTimeout(()=>{m.hidden=true;},180); if(lastFocused&&lastFocused.focus) lastFocused.focus(); }
+
+let toastTimer=null;
+function showToast(msg,kind){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(kind?" "+kind:"");
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.className="toast"+(kind?" "+kind:"");},2600); }
+
+/* ---------- events ---------- */
+function wire(){
+  const fi=$("fileInput"), dz=$("dropzone");
+  $("chooseBtn").addEventListener("click",e=>{e.stopPropagation();fi.click();});
+  dz.addEventListener("click",()=>fi.click());
+  dz.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fi.click();}});
+  fi.addEventListener("change",e=>{if(e.target.files[0])handleFile(e.target.files[0]);e.target.value="";});
+  ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+  ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+  dz.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+  // allow drop anywhere on result view to load a new file
+  document.addEventListener("dragover",e=>{if(!$("resultView").hidden)e.preventDefault();});
+  document.addEventListener("drop",e=>{if(!$("resultView").hidden){e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleFile(f);}});
+
+  $("newFileBtn").addEventListener("click",()=>fi.click());
+  $("sheetSelect").addEventListener("change",e=>switchSheet(parseInt(e.target.value,10)));
+  $("headerRowInput").addEventListener("change",e=>{
+    settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000); persist(); reanalyze(); });
+  $("exportRowsBtn").addEventListener("click",exportRows);
+  $("exportColsBtn").addEventListener("click",exportCols);
+
+  $("themeBtn").addEventListener("click",()=>{settings.theme=settings.theme==="dark"?"light":"dark";applyTheme();persist();});
+
+  // settings modal
+  $("settingsBtn").addEventListener("click",openSettings);
+  $("closeSettings").addEventListener("click",closeSettings);
+  $("settingsModal").addEventListener("click",e=>{if(e.target.id==="settingsModal")closeSettings();});
+  $("ignoreText").addEventListener("input",e=>{
+    settings.ignore=parseIgnoreText(e.target.value);
+    $("ignoreCount").textContent=settings.ignore.length+" kolommen"; persist();
+    if(sheetData) reanalyze();
+  });
+  $("resetIgnoreBtn").addEventListener("click",()=>{
+    settings.ignore=[...DEFAULT_IGNORE]; syncSettingsUI(); persist(); if(sheetData) reanalyze();
+    showToast("Standaardlijst hersteld.","good");
+  });
+  $("setHeaderRow").addEventListener("change",e=>{
+    settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000); $("headerRowInput").value=settings.headerRow;
+    persist(); if(sheetData) reanalyze(); });
+  $("setTrim").addEventListener("change",e=>{settings.trimWhitespace=e.target.checked;persist();if(sheetData)reanalyze();});
+  $("setCase").addEventListener("change",e=>{settings.caseInsensitive=e.target.checked;persist();if(sheetData)reanalyze();});
+  $("setTheme").addEventListener("change",e=>{settings.theme=e.target.value;applyTheme();persist();});
+  $("resetAllBtn").addEventListener("click",()=>{
+    if(!confirm("Alle instellingen wissen en terug naar standaard?")) return;
+    try{localStorage.removeItem(LS_KEY);}catch(e){}
+    settings=defaultSettings(); applyTheme(); syncSettingsUI(); persist();
+    if(sheetData) reanalyze(); closeSettings(); showToast("Instellingen gewist.","good"); log("Instellingen gereset.");
+  });
+
+  // info tap-to-toggle (delegated)
+  document.addEventListener("click",e=>{
+    const info=e.target.closest(".info");
+    document.querySelectorAll(".info.open").forEach(el=>{if(el!==info)el.classList.remove("open");});
+    if(info){e.preventDefault();info.classList.toggle("open");}
+  });
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){ if(!$("settingsModal").hidden)closeSettings();
+      document.querySelectorAll(".info.open").forEach(el=>el.classList.remove("open")); }
+  });
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  log("Excel Compleetheidscheck v"+APP_VERSION+" gestart.");
+  applyTheme(); syncSettingsUI(); wire();
+  if(typeof DecompressionStream==="undefined")
+    warn("DecompressionStream ontbreekt — .xlsx kan niet worden uitgepakt; .csv werkt wel.");
+  else log("DecompressionStream beschikbaar — .xlsx wordt lokaal uitgepakt.");
+  log("Klaar. Tip: plak deze logs terug als er iets misgaat.");
+}
+document.addEventListener("DOMContentLoaded",boot);
+</script>
+</body>
+</html>
