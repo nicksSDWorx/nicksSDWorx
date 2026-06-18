@@ -367,6 +367,12 @@
             <button class="info" data-tip="Optioneel. Ontbreekt een van deze kolommen, dan komt er een 🔵 info-melding (headermismatch). Laat leeg om uit te zetten." aria-label="Uitleg verwacht">i</button></div>
           <textarea id="expectedText" class="cfg" spellcheck="false" placeholder="(optioneel)"></textarea>
         </div>
+        <div class="field">
+          <div class="label">Lookup-tabbladen <span class="tag val">A ⇒ B</span>
+            <button class="info" data-tip="Tabbladen die ALLEEN worden gecontroleerd op: staat er een getal in kolom A, dan moet kolom B een naam bevatten. Geen andere checks; de noemer is enkel het regelnummer." aria-label="Uitleg lookup">i</button></div>
+          <div class="desc">Alleen 'getal in kolom A ⇒ naam in kolom B'. Komma-gescheiden tabbladnamen.</div>
+          <input type="text" id="lookupText" class="cfg" style="font-family:inherit">
+        </div>
 
         <div class="sec-title">Validaties</div>
         <div class="field"><div class="label">BSN-kolommen <span class="tag val">11-proef</span></div><input type="text" id="bsnText" class="cfg"></div>
@@ -464,6 +470,7 @@ const DEFAULT_REPORT={company:"SD Worx",contactName:"Nick Schepel",contactEmail:
 const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]}];
 const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
+const DEFAULT_LOOKUP=["functietabel","afdelingstabel"];
 const DEFAULT_SEVERITY={missing:"critical",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",header:"info"};
 
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
@@ -511,7 +518,7 @@ function defaultSettings(){
   return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],
     conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,equals:[...c.equals]})),
     nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
-    dateCols:[...DEFAULT_DATE],severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
+    dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
     headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"dark"};
 }
 function loadSettings(){
@@ -523,6 +530,7 @@ function loadSettings(){
     s.ignore=sa(rs.ignore,s.ignore); s.optional=sa(rs.optional,s.optional);
     s.expected=sa(rs.expected,s.expected); s.bsnCols=sa(rs.bsnCols,s.bsnCols);
     s.ibanCols=sa(rs.ibanCols,s.ibanCols); s.postcodeCols=sa(rs.postcodeCols,s.postcodeCols); s.dateCols=sa(rs.dateCols,s.dateCols);
+    s.lookupSheets=sa(rs.lookupSheets,s.lookupSheets);
     if(Array.isArray(rs.conditional)) s.conditional=rs.conditional.filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
       .map(c=>({column:c.column,whenColumn:c.whenColumn,equals:Array.isArray(c.equals)?c.equals.map(String):[String(c.equals)]}));
     if(rs.severity&&typeof rs.severity==="object") for(const k of Object.keys(DEFAULT_SEVERITY)) if(["critical","warning","info"].includes(rs.severity[k])) s.severity[k]=rs.severity[k];
@@ -644,7 +652,32 @@ function parseCsv(text){
 
 /* ---------- analyse / rules engine ---------- */
 function sevOf(type){return settings.severity[type]||"warning";}
-function analyze(sheet,headerRowNumber,opt){
+function isNumLike(v){const s=String(v==null?"":v).trim();return s!==""&&/^-?\d+([.,]\d+)?$/.test(s);}
+// Lookup-tabbladen (bv. functietabel/afdelingstabel): enkel 'getal in kolom A ⇒ naam in kolom B'.
+function analyzeLookup(sheet,opt,sheetName){
+  const rows=(sheet&&sheet.rows)||[];
+  const empty=v=>String(v==null?"":v).trim()==="";
+  let headerRow=null;
+  if(rows.length&&!isNumLike(rows[0].cells[0])&&String(rows[0].cells[0]??"").trim()!=="") headerRow=rows[0];
+  const aName=headerRow?(String(headerRow.cells[0]??"").trim()||"kolom A"):"kolom A";
+  const bName=headerRow?(String(headerRow.cells[1]??"").trim()||"kolom B"):"kolom B";
+  const dataRows=headerRow?rows.filter(r=>r!==headerRow):rows;
+  const sev=sevOf("missing"); const perRow=[]; let codes=0,missing=0;
+  for(const r of dataRows){ if(!isNumLike(r.cells[0])) continue; codes++;
+    if(empty(r.cells[1])){ missing++;
+      perRow.push({r:r.r,id:"",issues:[{type:"missing",col:bName,value:"",severity:sev,short:"Naam ontbreekt",message:"In kolom '"+bName+"' ontbreekt de naam.",suggestion:"Vul de naam in kolom '"+bName+"' in.",because:null}]}); } }
+  const colB={index:1,letter:"B",name:bName,key:ci(bName),named:true,ignored:false,optional:false,conditional:false,isBsn:false,isIban:false,isPostcode:false,isDate:false,missing,invalid:0,emptyCount:missing,total:codes,fullyEmpty:codes>0&&missing===codes};
+  const sevCount={critical:0,warning:0,info:0}; perRow.forEach(p=>p.issues.forEach(is=>sevCount[is.severity]++));
+  const blockerMap={}; perRow.forEach(p=>p.issues.forEach(is=>{const k=is.type+"|"+is.col;(blockerMap[k]||(blockerMap[k]={type:is.type,col:is.col,severity:is.severity,count:0})).count++;}));
+  const pct=codes?Math.round(((codes-missing)/codes)*1000)/10:100;
+  log("Lookup-tabblad '"+sheetName+"': "+codes+" code(s) in kolom A, "+missing+" zonder naam in kolom B.");
+  return {usedHeader:headerRow?headerRow.r:0,cols:[colB],checkedCols:[colB],ignoredCols:[],optionalCols:[],dataRowCount:codes,
+    rowIssues:perRow,headerIssues:[],missingCells:missing,invalidCells:0,reqTotal:codes,reqFilled:codes-missing,pct,
+    idColName:"",sev:sevCount,topBlockers:Object.values(blockerMap).slice(0,6),lookup:true,aName,bName};
+}
+function analyze(sheet,headerRowNumber,opt,sheetName){
+  const lookupSet=new Set((opt.lookupSheets||[]).map(s=>ci(s).replace(/\s+/g,"")));
+  if(sheetName&&lookupSet.has(ci(sheetName).replace(/\s+/g,""))) return analyzeLookup(sheet,opt,sheetName);
   if(!sheet||!sheet.rows.length) return {error:"Het werkblad is leeg.",empty:true,dataRowCount:0,rowIssues:[],headerIssues:[],sev:{critical:0,warning:0,info:0},pct:100};
   const norm=s=>opt.caseInsensitive?ci(s):String(s).trim();
   const isEmpty=v=>{const s=String(v==null?"":v);return opt.trimWhitespace?s.trim()==="":s==="";};
@@ -768,14 +801,14 @@ function buildReport(ds){
   L.push("TOELICHTING PER RIJ");
   L.push("──────────────────────────────────────────────────");
   for(const it of res.rowIssues){
-    L.push("Rij "+it.r+" — "+(it.id||"(geen naam)")+": "+rowProse(it));
+    L.push("Rij "+it.r+(it.id?" — "+it.id:"")+": "+rowProse(it));
     L.push("");
   }
   if(res.headerIssues.length){ L.push("Structuur: "+res.headerIssues.map(h=>h.message).join(" ")); L.push(""); }
   L.push("OVERZICHT PER RECORD");
   L.push("──────────────────────────────────────────────────");
   for(const it of res.rowIssues){
-    L.push("Rij "+it.r+"  —  "+(it.id||"(geen naam)"));
+    L.push("Rij "+it.r+(it.id?"  —  "+it.id:""));
     for(const is of it.issues) L.push("   • ["+SEV[is.severity].label+"] "+is.message+(is.suggestion?("   💡 "+is.suggestion):""));
     L.push("");
   }
@@ -809,7 +842,7 @@ async function handleFiles(fileList){
   log("Geladen:",new Set(datasets.map(d=>d.fileName)).size,"bestand(en),",datasets.length,"tabblad(en).");
 }
 function mkDataset(fileName,sheetName,isCsv,data){return {id:fileName+"|"+sheetName+"|"+Math.random().toString(36).slice(2,6),fileName,sheetName,isCsv,data,result:null};}
-function analyzeAll(){for(const d of datasets) d.result=analyze(d.data,settings.headerRow,settings);}
+function analyzeAll(){for(const d of datasets) d.result=analyze(d.data,settings.headerRow,settings,d.sheetName);}
 function afterLoad(){
   $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false; $("viewControls").hidden=false;
   $("headerRowInput").value=settings.headerRow;
@@ -901,15 +934,17 @@ function renderResult(ds,res){
 function renderRowIssues(res){
   const box=$("rowResult"),desc=$("rowDesc");
   if(!res.rowIssues.length){desc.textContent="";box.innerHTML='<div class="empty-good"><span class="big">✅</span>Geen ontbrekende of foutieve velden in dit tabblad.</div>';return;}
-  const CAP=300; desc.textContent='Rijen met minstens één aandachtspunt'+(viewSortSeverity?" (gesorteerd op ernst)":"")+'. Hover over een label voor uitleg + suggestie. Noemer = rijnummer + "'+res.idColName+'".';
+  const CAP=300; const lookup=!!res.lookup;
+  desc.textContent=lookup?'Regels met een code in kolom A maar zonder naam in kolom B.':('Rijen met minstens één aandachtspunt'+(viewSortSeverity?" (gesorteerd op ernst)":"")+'. Hover over een label voor uitleg + suggestie. Noemer = rijnummer + "'+res.idColName+'".');
   let list=res.rowIssues;
-  if(viewSortSeverity) list=res.rowIssues.slice().sort((a,b)=>SEV[a.issues[0].severity].rank-SEV[b.issues[0].severity].rank||a.r-b.r);
-  const html=list.slice(0,CAP).map(it=>{
-    const cap=8;
-    const chips=it.issues.slice(0,cap).map(is=>`<span class="chip sev-${is.severity}" title="${escapeHtml(is.message+(is.suggestion?("  💡 "+is.suggestion):""))}">${SEV[is.severity].dot} ${escapeHtml(is.short)}</span>`).join("")+(it.issues.length>cap?`<span class="more">+${it.issues.length-cap}</span>`:"");
-    return `<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id||"(leeg)")}</td><td><span class="chips">${chips}</span></td></tr>`;
-  }).join("");
-  box.innerHTML=`<div class="tablewrap"><table><thead><tr><th>Rij</th><th>${escapeHtml(res.idColName||"Naam")}</th><th>Aandachtspunten</th></tr></thead><tbody>${html}</tbody></table></div>`+
+  if(viewSortSeverity&&!lookup) list=res.rowIssues.slice().sort((a,b)=>SEV[a.issues[0].severity].rank-SEV[b.issues[0].severity].rank||a.r-b.r);
+  const chipsOf=it=>{const cap=8;return it.issues.slice(0,cap).map(is=>`<span class="chip sev-${is.severity}" title="${escapeHtml(is.message+(is.suggestion?("  💡 "+is.suggestion):""))}">${SEV[is.severity].dot} ${escapeHtml(is.short)}</span>`).join("")+(it.issues.length>cap?`<span class="more">+${it.issues.length-cap}</span>`:"");};
+  let thead,html;
+  if(lookup){ thead=`<tr><th>Regel</th><th>Aandachtspunten</th></tr>`;
+    html=list.slice(0,CAP).map(it=>`<tr><td class="rownum">${it.r}</td><td><span class="chips">${chipsOf(it)}</span></td></tr>`).join(""); }
+  else{ thead=`<tr><th>Rij</th><th>${escapeHtml(res.idColName||"Naam")}</th><th>Aandachtspunten</th></tr>`;
+    html=list.slice(0,CAP).map(it=>`<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id||"(leeg)")}</td><td><span class="chips">${chipsOf(it)}</span></td></tr>`).join(""); }
+  box.innerHTML=`<div class="tablewrap"><table><thead>${thead}</thead><tbody>${html}</tbody></table></div>`+
     (res.rowIssues.length>CAP?`<div class="cap-note">Eerste ${CAP} van ${res.rowIssues.length} rijen getoond. Het klantrapport en de CSV-export bevatten alles.</div>`:"");
 }
 
@@ -957,11 +992,12 @@ function buildReportHtml(){
     if(R.error){body+=`<p class="muted">${esc(R.error)}</p>`;return;}
     if(!R.rowIssues.length&&!R.headerIssues.length){body+=`<p class="ok">✓ Geen ontbrekende of foutieve velden. Alles is in orde.</p>`;return;}
     body+=`<p class="muted">${R.rowIssues.length} van ${R.dataRowCount} records met aandachtspunten · compleetheid ${R.pct}%.</p><h3>Toelichting per rij</h3>`;
-    R.rowIssues.forEach(it=>{body+=`<p class="rowtext"><b>Rij ${it.r} — ${esc(it.id||"(geen naam)")}:</b> ${esc(rowProse(it))}</p>`;});
+    const lk=!!R.lookup;
+    R.rowIssues.forEach(it=>{body+=`<p class="rowtext"><b>Rij ${it.r}${it.id?" — "+esc(it.id):""}:</b> ${esc(rowProse(it))}</p>`;});
     if(R.headerIssues.length)body+=`<p class="rowtext muted"><b>Structuur:</b> ${esc(R.headerIssues.map(h=>h.message).join(" "))}</p>`;
-    body+=`<h3>Overzicht per rij</h3><table class="rep"><thead><tr><th>Rij</th><th>Naam</th><th>Aandachtspunt</th><th>Suggestie</th></tr></thead><tbody>`;
-    R.rowIssues.forEach(it=>it.issues.forEach((is,ix)=>{body+=`<tr><td>${ix===0?it.r:""}</td><td>${ix===0?esc(it.id||"(geen naam)"):""}</td><td>${SEV[is.severity].dot} ${esc(is.message)}</td><td>${esc(is.suggestion||"")}</td></tr>`;}));
-    R.headerIssues.forEach(h=>{body+=`<tr><td>—</td><td>structuur</td><td>${SEV[h.severity].dot} ${esc(h.message)}</td><td>${esc(h.suggestion||"")}</td></tr>`;});
+    body+=`<h3>Overzicht per rij</h3><table class="rep"><thead><tr><th>${lk?"Regel":"Rij"}</th>${lk?"":"<th>Naam</th>"}<th>Aandachtspunt</th><th>Suggestie</th></tr></thead><tbody>`;
+    R.rowIssues.forEach(it=>it.issues.forEach((is,ix)=>{body+=`<tr><td>${ix===0?it.r:""}</td>${lk?"":`<td>${ix===0?esc(it.id||"(geen naam)"):""}</td>`}<td>${SEV[is.severity].dot} ${esc(is.message)}</td><td>${esc(is.suggestion||"")}</td></tr>`;}));
+    R.headerIssues.forEach(h=>{body+=`<tr><td>—</td>${lk?"":"<td>structuur</td>"}<td>${SEV[h.severity].dot} ${esc(h.message)}</td><td>${esc(h.suggestion||"")}</td></tr>`;});
     body+=`</tbody></table>`;
   });
   const logo=m.logo?`<img class="logo" src="${m.logo}" alt="logo">`:"";
@@ -1088,6 +1124,7 @@ function syncSettingsUI(){
   $("ignoreText").value=settings.ignore.join("\n"); $("ignoreCount").textContent=settings.ignore.length+" kolommen";
   $("optionalText").value=settings.optional.join("\n"); $("condText").value=condToText(settings.conditional);
   $("setNameCols").value=settings.nameCols.join(", "); $("expectedText").value=settings.expected.join("\n");
+  $("lookupText").value=settings.lookupSheets.join(", ");
   $("bsnText").value=settings.bsnCols.join(", "); $("ibanText").value=settings.ibanCols.join(", ");
   $("postcodeText").value=settings.postcodeCols.join(", "); $("dateText").value=settings.dateCols.join("\n");
   fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevBsn"),settings.severity.bsn);
@@ -1148,6 +1185,7 @@ function wire(){
   $("condText").addEventListener("input",e=>{settings.conditional=parseConditional(e.target.value);persist();reSoft();});
   $("setNameCols").addEventListener("input",e=>{const v=parseList(e.target.value);settings.nameCols=v.length?v:["Naam"];persist();reSoft();});
   $("expectedText").addEventListener("input",e=>{settings.expected=parseList(e.target.value);persist();reSoft();});
+  $("lookupText").addEventListener("input",e=>{settings.lookupSheets=parseList(e.target.value);persist();reSoft();});
   $("bsnText").addEventListener("input",e=>{settings.bsnCols=parseList(e.target.value);persist();reSoft();});
   $("ibanText").addEventListener("input",e=>{settings.ibanCols=parseList(e.target.value);persist();reSoft();});
   $("postcodeText").addEventListener("input",e=>{settings.postcodeCols=parseList(e.target.value);persist();reSoft();});
