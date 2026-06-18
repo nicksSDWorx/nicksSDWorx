@@ -101,6 +101,7 @@
   .view-controls{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 14px;font-size:13px;color:var(--muted)}
   .view-controls label{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
   .view-controls input{accent-color:var(--accent);width:15px;height:15px}
+  .skip-note{font-size:12.5px;color:#ffe09a;background:rgba(255,206,92,.1);border:1px solid rgba(255,206,92,.3);border-radius:10px;padding:8px 13px;margin-bottom:12px}
 
   .tabs-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;margin-bottom:6px;scrollbar-width:thin}
   .tab-chip{flex:none;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);
@@ -289,6 +290,7 @@
         <label><input type="checkbox" id="onlyIssuesChk"> Alleen tabs met aandachtspunten</label>
         <label><input type="checkbox" id="sortSevChk"> Sorteer rijen op ernst</label>
       </div>
+      <div class="skip-note" id="skipNote" hidden></div>
 
       <div class="cards" id="cards"></div>
 
@@ -373,8 +375,23 @@
           <div class="desc">Alleen 'getal in kolom A ⇒ naam in kolom B'. Komma-gescheiden tabbladnamen.</div>
           <input type="text" id="lookupText" class="cfg" style="font-family:inherit">
         </div>
+        <div class="field">
+          <div class="label">Tabbladen overslaan
+            <button class="info" data-tip="Tabbladen met deze namen worden niet geanalyseerd (bv. toelichting, keuzelijsten). Komma-gescheiden." aria-label="Uitleg overslaan">i</button></div>
+          <input type="text" id="skipText" class="cfg" style="font-family:inherit" placeholder="bv. Toelichting, Keuzelijsten">
+        </div>
+        <div class="field"><div class="field-row">
+          <div><div class="label">Lege tabbladen automatisch overslaan</div><div class="desc" style="margin:0">Tabbladen zonder datarijen niet meenemen.</div></div>
+          <label class="switch"><input type="checkbox" id="setAutoSkip"><span class="track"></span></label>
+        </div></div>
 
         <div class="sec-title">Validaties</div>
+        <div class="field"><div class="field-row">
+          <div><div class="label">Automatisch herkennen op inhoud <span class="tag val">BSN/IBAN/postcode</span>
+            <button class="info" data-tip="Herkent BSN-, IBAN- en postcode-kolommen aan hun inhoud, ook als de kolomnaam afwijkt van je lijst. Voorkomt dat een controle stilletjes niet draait." aria-label="Uitleg auto-detectie">i</button></div>
+          <div class="desc" style="margin:0">Valideren ook bij afwijkende kolomnamen.</div></div>
+          <label class="switch"><input type="checkbox" id="setAutoDetect"><span class="track"></span></label>
+        </div></div>
         <div class="field"><div class="label">BSN-kolommen <span class="tag val">11-proef</span></div><input type="text" id="bsnText" class="cfg"></div>
         <div class="field"><div class="label">IBAN-kolommen <span class="tag val">IBAN</span></div><input type="text" id="ibanText" class="cfg"></div>
         <div class="field"><div class="label">Postcode-kolommen <span class="tag val">1234 AB</span></div><input type="text" id="postcodeText" class="cfg"></div>
@@ -504,6 +521,18 @@ function isValidBSN(v){let s=String(v).trim();if(!/^\d+$/.test(s))return false;i
 function isEuropeanDate(v){const s=String(v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return false;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return false;const dt=new Date(Date.UTC(y,mo-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;}
 function isValidPostcode(v){return /^[1-9]\d{3}\s?[A-Za-z]{2}$/.test(String(v).trim());}
 function parseEuDate(v){const s=String(v==null?"":v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return null;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return null;const dt=new Date(Date.UTC(y,mo-1,d));return (dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d)?dt:null;}
+// Inhoud-gebaseerde herkenning van een kolom (los van de naam), om stille niet-controle te voorkomen.
+function detectKind(values){
+  if(values.length<3) return null;
+  const N=values.length, frac=fn=>values.reduce((a,v)=>a+(fn(v)?1:0),0)/N;
+  const isI=v=>/^[A-Za-z]{2}\d{2}[A-Za-z0-9]{10,30}$/.test(v.replace(/\s/g,""));
+  const isB=v=>/^\d{8,9}$/.test(v.replace(/\s/g,""));
+  const isP=v=>/^\d{4}\s?[A-Za-z]{2}$/.test(v.trim());
+  if(frac(isI)>=0.8) return "iban";
+  if(frac(isB)>=0.8) return "bsn";
+  if(frac(isP)>=0.7) return "postcode";
+  return null;
+}
 const IBAN_LEN={AD:24,AE:23,AL:28,AT:20,AZ:28,BA:20,BE:16,BG:22,BH:22,BR:29,BY:28,CH:21,CR:22,CY:28,CZ:24,DE:22,DK:18,DO:28,EE:20,EG:29,ES:24,FI:18,FO:18,FR:27,GB:22,GE:22,GI:23,GL:18,GR:27,GT:28,HR:21,HU:28,IE:22,IL:23,IS:26,IT:27,JO:30,KW:30,KZ:20,LB:28,LC:32,LI:21,LT:20,LU:20,LV:21,MC:27,MD:24,ME:22,MK:19,MR:27,MT:31,MU:30,NL:18,NO:15,PK:24,PL:28,PS:29,PT:25,QA:29,RO:24,RS:22,SA:24,SE:24,SI:19,SK:24,SM:27,TN:24,TR:26,UA:29,VA:22,VG:24,XK:20};
 function isValidIBAN(v){let s=String(v).replace(/\s+/g,"").toUpperCase();if(!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(s))return false;if(s.length<15||s.length>34)return false;const cc=s.slice(0,2);if(IBAN_LEN[cc]&&IBAN_LEN[cc]!==s.length)return false;const r=s.slice(4)+s.slice(0,4);let d="";for(const ch of r)d+=(ch>="A"&&ch<="Z")?(ch.charCodeAt(0)-55):ch;let rem=0;for(let i=0;i<d.length;i++)rem=(rem*10+(d.charCodeAt(i)-48))%97;return rem===1;}
 
@@ -512,13 +541,14 @@ let settings=loadSettings();
 let datasets=[];        // {id,fileName,sheetName,isCsv,data,result}
 let currentIndex=0, multiFile=false;
 let viewOnlyIssues=false, viewSortSeverity=false;
+let skippedSheets=[];
 
 /* ---------- settings ---------- */
 function defaultSettings(){
   return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],
     conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,equals:[...c.equals]})),
     nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
-    dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
+    dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],autoDetect:true,skipSheets:[],autoSkipEmpty:true,severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
     headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"dark"};
 }
 function loadSettings(){
@@ -530,7 +560,8 @@ function loadSettings(){
     s.ignore=sa(rs.ignore,s.ignore); s.optional=sa(rs.optional,s.optional);
     s.expected=sa(rs.expected,s.expected); s.bsnCols=sa(rs.bsnCols,s.bsnCols);
     s.ibanCols=sa(rs.ibanCols,s.ibanCols); s.postcodeCols=sa(rs.postcodeCols,s.postcodeCols); s.dateCols=sa(rs.dateCols,s.dateCols);
-    s.lookupSheets=sa(rs.lookupSheets,s.lookupSheets);
+    s.lookupSheets=sa(rs.lookupSheets,s.lookupSheets); s.skipSheets=sa(rs.skipSheets,s.skipSheets);
+    s.autoDetect=rs.autoDetect!==false; s.autoSkipEmpty=rs.autoSkipEmpty!==false;
     if(Array.isArray(rs.conditional)) s.conditional=rs.conditional.filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
       .map(c=>({column:c.column,whenColumn:c.whenColumn,equals:Array.isArray(c.equals)?c.equals.map(String):[String(c.equals)]}));
     if(rs.severity&&typeof rs.severity==="object") for(const k of Object.keys(DEFAULT_SEVERITY)) if(["critical","warning","info"].includes(rs.severity[k])) s.severity[k]=rs.severity[k];
@@ -708,6 +739,17 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
       missing:0,invalid:0,emptyCount:0,total:dataRows.length,fullyEmpty:false});
   }
   const checkedCols=cols.filter(c=>!c.ignored); const ignoredCols=cols.filter(c=>c.ignored);
+  // auto-detectie op inhoud (alleen voor kolommen die nog geen validatietype hebben via de naam)
+  if(opt.autoDetect){
+    for(const c of checkedCols){
+      if(c.isBsn||c.isIban||c.isPostcode||c.isDate) continue;
+      const sample=[]; for(const r of dataRows){const v=String(r.cells[c.index]??"").trim(); if(v){sample.push(v); if(sample.length>=40)break;}}
+      const kind=detectKind(sample);
+      if(kind==="bsn"){c.isBsn=true;c.autoKind="BSN";}
+      else if(kind==="iban"){c.isIban=true;c.autoKind="IBAN";}
+      else if(kind==="postcode"){c.isPostcode=true;c.autoKind="postcode";}
+    }
+  }
 
   const headerIssues=[];
   // noemer = combinatie van kolommen (bv. Roepnaam + Naam)
@@ -720,6 +762,10 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   const rowId=r=>nameIdxs.length?nameIdxs.map(i=>String(r.cells[i]??"").trim()).filter(Boolean).join(" "):String(r.cells[fallbackIdx]??"").trim();
   (opt.conditional||[]).forEach(c=>{if(!present(c.whenColumn))headerIssues.push({type:"header",severity:sevOf("header"),col:c.whenColumn,message:"Voorwaardekolom '"+c.whenColumn+"' ontbreekt; de regel voor '"+c.column+"' kan niet worden toegepast.",suggestion:suggestionFor("header")});});
   (opt.expected||[]).forEach(name=>{if(!present(name))headerIssues.push({type:"header",severity:sevOf("header"),col:name,message:"Verwachte kolom '"+name+"' niet gevonden.",suggestion:suggestionFor("header")});});
+  const autoCols=checkedCols.filter(c=>c.autoKind);
+  if(autoCols.length) headerIssues.push({type:"header",severity:sevOf("header"),col:autoCols.map(c=>c.name).join(", "),
+    message:"Automatisch op inhoud herkend en gecontroleerd: "+autoCols.map(c=>"'"+c.name+"' ("+c.autoKind+")").join(", ")+". Deze kolomnaam staat niet in je validatielijst.",
+    suggestion:"Klopt de herkenning? Voeg de kolomnaam toe aan de juiste validatielijst in de instellingen. Zo niet, dan kun je deze melding negeren."});
 
   const perRow=dataRows.map(r=>({r:r.r,row:r,id:rowId(r),issues:[]}));
   let reqTotal=0,reqFilled=0;
@@ -829,15 +875,21 @@ async function handleFiles(fileList){
     try{
       if(ext==="csv"){ const data=parseCsv(await file.text()); next.push(mkDataset(file.name,"",true,data)); }
       else if(ext==="xlsx"||ext==="xlsm"){ const w=await parseWorkbook(await file.arrayBuffer());
-        for(const sh of w.sheets){ const data=await readSheet(w,sh.path); next.push(mkDataset(file.name,sh.name,false,data)); } }
+        const skipSet=new Set((settings.skipSheets||[]).map(s=>ci(s).replace(/\s+/g,"")));
+        for(const sh of w.sheets){
+          if(skipSet.has(ci(sh.name).replace(/\s+/g,""))){ skipped.push(sh.name+" (op lijst)"); continue; }
+          const data=await readSheet(w,sh.path);
+          if(settings.autoSkipEmpty && (data.rows.length<2 || data.maxCol===0)){ skipped.push(sh.name+" (leeg)"); continue; }
+          next.push(mkDataset(file.name,sh.name,false,data));
+        } }
       else skipped.push(file.name+" (type ."+ext+")");
     }catch(e){ errl("Inlezen mislukt:",file.name,e.message);
       skipped.push(file.name+" — "+(e.message==="NO_DECOMPRESSION"?"browser kan .xlsx niet uitpakken":e.message)); }
   }
-  if(!next.length){ setBanner("Geen leesbare bestanden. "+(skipped.length?("Overgeslagen: "+skipped.join("; ")):""),"err"); return; }
+  skippedSheets=skipped;
+  if(!next.length){ setBanner("Geen analyseerbare tabbladen. "+(skipped.length?("Overgeslagen: "+skipped.join("; ")):""),"err"); $("emptyView").hidden=false; $("resultView").hidden=true; return; }
   datasets=next; currentIndex=0; multiFile=new Set(datasets.map(d=>d.fileName)).size>1;
   analyzeAll();
-  if(skipped.length) setBanner("Overgeslagen: "+skipped.join("; "),"warn");
   afterLoad();
   log("Geladen:",new Set(datasets.map(d=>d.fileName)).size,"bestand(en),",datasets.length,"tabblad(en).");
 }
@@ -846,6 +898,7 @@ function analyzeAll(){for(const d of datasets) d.result=analyze(d.data,settings.
 function afterLoad(){
   $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false; $("viewControls").hidden=false;
   $("headerRowInput").value=settings.headerRow;
+  const sn=$("skipNote"); if(skippedSheets.length){sn.hidden=false;sn.textContent="⏭️ Overgeslagen tabbladen: "+skippedSheets.join(", ");}else sn.hidden=true;
   renderTabs(); renderCurrent();
 }
 function selectDataset(i){ if(i<0||i>=datasets.length||i===currentIndex){currentIndex=i;} currentIndex=i; renderTabs(); renderCurrent(); }
@@ -920,6 +973,7 @@ function renderResult(ds,res){
     const tags=[]; if(c.conditional)tags.push('<span class="tag cond">voorwaardelijk</span>'); if(c.optional)tags.push('<span class="tag optt">niet verplicht</span>');
     if(c.isBsn)tags.push('<span class="tag val">BSN</span>'); if(c.isIban)tags.push('<span class="tag val">IBAN</span>');
     if(c.isPostcode)tags.push('<span class="tag val">postcode</span>'); if(c.isDate)tags.push('<span class="tag val">datum</span>');
+    if(c.autoKind)tags.push('<span class="tag cond">auto</span>');
     const pills=[]; if(c.fullyEmpty)pills.push('<span class="pill empty">volledig leeg</span>'); else if(c.missing>0)pills.push('<span class="pill some">'+c.missing+' leeg</span>');
     if(c.invalid>0)pills.push('<span class="pill fout">'+c.invalid+' fout</span>');
     if(!pills.length)pills.push(c.optional?'<span class="pill opt">niet verplicht</span>':'<span class="pill ok">compleet</span>');
@@ -1104,7 +1158,7 @@ function downloadReportExcel(){
 }
 
 /* ---------- reset ---------- */
-function clearFiles(){datasets=[];currentIndex=0;multiFile=false;$("resultView").hidden=true;$("emptyView").hidden=false;$("newFileBtn").hidden=true;$("resetBtn").hidden=true;$("viewControls").hidden=true;setBanner("");log("Bestanden gewist.");}
+function clearFiles(){datasets=[];currentIndex=0;multiFile=false;skippedSheets=[];$("resultView").hidden=true;$("emptyView").hidden=false;$("newFileBtn").hidden=true;$("resetBtn").hidden=true;$("viewControls").hidden=true;$("skipNote").hidden=true;setBanner("");log("Bestanden gewist.");}
 function clearAllData(){try{localStorage.removeItem(LS_KEY);}catch(e){}settings=defaultSettings();applyTheme();syncSettingsUI();persist();clearFiles();log("Alles gewist (bestanden + instellingen).");}
 function openReset(){const m=$("resetModal");m.hidden=false;requestAnimationFrame(()=>m.classList.add("show"));}
 function closeReset(){const m=$("resetModal");m.classList.remove("show");setTimeout(()=>{m.hidden=true;},180);}
@@ -1124,7 +1178,8 @@ function syncSettingsUI(){
   $("ignoreText").value=settings.ignore.join("\n"); $("ignoreCount").textContent=settings.ignore.length+" kolommen";
   $("optionalText").value=settings.optional.join("\n"); $("condText").value=condToText(settings.conditional);
   $("setNameCols").value=settings.nameCols.join(", "); $("expectedText").value=settings.expected.join("\n");
-  $("lookupText").value=settings.lookupSheets.join(", ");
+  $("lookupText").value=settings.lookupSheets.join(", "); $("skipText").value=settings.skipSheets.join(", ");
+  $("setAutoSkip").checked=settings.autoSkipEmpty; $("setAutoDetect").checked=settings.autoDetect;
   $("bsnText").value=settings.bsnCols.join(", "); $("ibanText").value=settings.ibanCols.join(", ");
   $("postcodeText").value=settings.postcodeCols.join(", "); $("dateText").value=settings.dateCols.join("\n");
   fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevBsn"),settings.severity.bsn);
@@ -1186,6 +1241,9 @@ function wire(){
   $("setNameCols").addEventListener("input",e=>{const v=parseList(e.target.value);settings.nameCols=v.length?v:["Naam"];persist();reSoft();});
   $("expectedText").addEventListener("input",e=>{settings.expected=parseList(e.target.value);persist();reSoft();});
   $("lookupText").addEventListener("input",e=>{settings.lookupSheets=parseList(e.target.value);persist();reSoft();});
+  $("setAutoDetect").addEventListener("change",e=>{settings.autoDetect=e.target.checked;persist();if(datasets.length)reanalyze();});
+  $("skipText").addEventListener("input",e=>{settings.skipSheets=parseList(e.target.value);persist();});
+  $("setAutoSkip").addEventListener("change",e=>{settings.autoSkipEmpty=e.target.checked;persist();});
   $("bsnText").addEventListener("input",e=>{settings.bsnCols=parseList(e.target.value);persist();reSoft();});
   $("ibanText").addEventListener("input",e=>{settings.ibanCols=parseList(e.target.value);persist();reSoft();});
   $("postcodeText").addEventListener("input",e=>{settings.postcodeCols=parseList(e.target.value);persist();reSoft();});
