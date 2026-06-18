@@ -98,6 +98,9 @@
   .overview{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);
     background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:10px 15px;margin-bottom:12px}
   .overview b{color:var(--ink)} .overview .sep{opacity:.4}
+  .view-controls{display:flex;gap:18px;flex-wrap:wrap;margin:2px 0 14px;font-size:13px;color:var(--muted)}
+  .view-controls label{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none}
+  .view-controls input{accent-color:var(--accent);width:15px;height:15px}
 
   .tabs-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;margin-bottom:6px;scrollbar-width:thin}
   .tab-chip{flex:none;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);
@@ -282,6 +285,10 @@
 
       <div class="overview" id="overview" hidden></div>
       <div class="tabs-bar" id="tabsBar" hidden></div>
+      <div class="view-controls" id="viewControls" hidden>
+        <label><input type="checkbox" id="onlyIssuesChk"> Alleen tabs met aandachtspunten</label>
+        <label><input type="checkbox" id="sortSevChk"> Sorteer rijen op ernst</label>
+      </div>
 
       <div class="cards" id="cards"></div>
 
@@ -350,10 +357,10 @@
           <textarea id="condText" class="cfg" spellcheck="false" placeholder="DatumUitSalAdmin verplicht als CdBepTd = B"></textarea>
         </div>
         <div class="field">
-          <div class="field-row">
-            <div><div class="label">Naam-kolom (noemer)</div><div class="desc" style="margin:0">Identificatie per rij in rapport.</div></div>
-            <input type="text" id="setNameCol" class="cfg" style="width:140px;font-family:inherit">
-          </div>
+          <div class="label">Naam-kolommen (noemer)
+            <button class="info" data-tip="De kolom(men) waarmee elke rij wordt aangeduid in het rapport en de tabel, naast het rijnummer. Meerdere namen worden met een spatie samengevoegd (bijv. Roepnaam + Naam)." aria-label="Uitleg noemer">i</button></div>
+          <div class="desc">Komma-gescheiden; worden met een spatie samengevoegd. Bijv. <code>Roepnaam, Naam</code>.</div>
+          <input type="text" id="setNameCols" class="cfg" style="font-family:inherit">
         </div>
         <div class="field">
           <div class="label">Verwachte kolommen <span class="tag val">structuur</span>
@@ -379,6 +386,8 @@
           <div class="sev-row"><span>Ongeldige IBAN</span><select id="sevIban"></select></div>
           <div class="sev-row"><span>Ongeldige postcode</span><select id="sevPostcode"></select></div>
           <div class="sev-row"><span>Datum verkeerde notatie</span><select id="sevDate"></select></div>
+          <div class="sev-row"><span>Dubbele BSN</span><select id="sevDuplicate"></select></div>
+          <div class="sev-row"><span>Onlogische datum (eind&lt;begin, leeftijd)</span><select id="sevDatelogic"></select></div>
           <div class="sev-row"><span>Headermismatch (structuur)</span><select id="sevHeader"></select></div>
         </div>
 
@@ -442,11 +451,12 @@ const log  = (...a) => console.log(LOG, ...a);
 const warn = (...a) => console.warn(LOG, ...a);
 const errl = (...a) => console.error(LOG, ...a);
 
+const ALWAYS_IGNORE=["HuisnummerToev","Voorvoegsels","Telefoon2","za","zo"]; // hoeven nooit gecontroleerd te worden
 const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","KleurTabel","SpecTabel",
   "CodeTijdvak","SoortInkomen","CodeLoonHeffing","CodeZW","CodeWW","CodeWAO","CdZvw","IABZvw","CdAard",
-  "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE"];
-const DEFAULT_OPTIONAL=["HuisnummerToev","Voorvoegsels","Telefoon2","za","zo"];
-const OPTIONAL_MIGRATE=["Telefoon2","za","zo"]; // toegevoegd in v4 — ook bij bestaande instellingen aanvullen
+  "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE", ...ALWAYS_IGNORE];
+const DEFAULT_OPTIONAL=[];
+const DEFAULT_NAMECOLS=["Roepnaam","Naam"];
 const DEFAULT_REPORT={company:"SD Worx",contactName:"Nick Schepel",contactEmail:"nick.schepel@sdworx.com",logo:"",
   greeting:"Beste relatie,",
   intro:"Wij hebben het door u aangeleverde bestand gecontroleerd op volledigheid en juistheid. Hieronder vindt u de velden die nog ontbreken of aangepast moeten worden.",
@@ -454,17 +464,19 @@ const DEFAULT_REPORT={company:"SD Worx",contactName:"Nick Schepel",contactEmail:
 const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]}];
 const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
-const DEFAULT_SEVERITY={missing:"critical",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",header:"info"};
+const DEFAULT_SEVERITY={missing:"critical",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",header:"info"};
 
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
 const CATLABEL={missing:"Ontbrekende verplichte velden",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
-  postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",header:"Structuur / kolomnamen"};
+  postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",duplicate:"Dubbele BSN-nummers",datelogic:"Onlogische datums",header:"Structuur / kolomnamen"};
 function suggestionFor(type){return {
   missing:"Vul dit verplichte veld in.",
   bsn:"Controleer het BSN: 9 cijfers die voldoen aan de 11-proef.",
   iban:"Controleer het IBAN-formaat, bijv. NL91 ABNA 0417 1643 00.",
   date:"Gebruik de notatie dd-mm-jjjj, bijv. 31-12-2025.",
   postcode:"Gebruik de notatie 1234 AB.",
+  duplicate:"Controleer of dit een dubbele werknemer is; elk BSN hoort uniek te zijn.",
+  datelogic:"Controleer de datums: de einddatum mag niet vóór de begindatum liggen en de geboortedatum moet realistisch zijn.",
   header:"Controleer de kolomnaam of voeg de kolom toe."}[type]||"";}
 
 /* ---------- helpers ---------- */
@@ -484,6 +496,7 @@ function xmlEntities(s){return String(s).replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|qu
 function isValidBSN(v){let s=String(v).trim();if(!/^\d+$/.test(s))return false;if(s.length===8)s="0"+s;if(s.length!==9)return false;if(/^0+$/.test(s))return false;let sum=0;for(let i=0;i<8;i++)sum+=(9-i)*(+s[i]);sum+=-1*(+s[8]);return sum%11===0;}
 function isEuropeanDate(v){const s=String(v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return false;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return false;const dt=new Date(Date.UTC(y,mo-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;}
 function isValidPostcode(v){return /^[1-9]\d{3}\s?[A-Za-z]{2}$/.test(String(v).trim());}
+function parseEuDate(v){const s=String(v==null?"":v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return null;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return null;const dt=new Date(Date.UTC(y,mo-1,d));return (dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d)?dt:null;}
 const IBAN_LEN={AD:24,AE:23,AL:28,AT:20,AZ:28,BA:20,BE:16,BG:22,BH:22,BR:29,BY:28,CH:21,CR:22,CY:28,CZ:24,DE:22,DK:18,DO:28,EE:20,EG:29,ES:24,FI:18,FO:18,FR:27,GB:22,GE:22,GI:23,GL:18,GR:27,GT:28,HR:21,HU:28,IE:22,IL:23,IS:26,IT:27,JO:30,KW:30,KZ:20,LB:28,LC:32,LI:21,LT:20,LU:20,LV:21,MC:27,MD:24,ME:22,MK:19,MR:27,MT:31,MU:30,NL:18,NO:15,PK:24,PL:28,PS:29,PT:25,QA:29,RO:24,RS:22,SA:24,SE:24,SI:19,SK:24,SM:27,TN:24,TR:26,UA:29,VA:22,VG:24,XK:20};
 function isValidIBAN(v){let s=String(v).replace(/\s+/g,"").toUpperCase();if(!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(s))return false;if(s.length<15||s.length>34)return false;const cc=s.slice(0,2);if(IBAN_LEN[cc]&&IBAN_LEN[cc]!==s.length)return false;const r=s.slice(4)+s.slice(0,4);let d="";for(const ch of r)d+=(ch>="A"&&ch<="Z")?(ch.charCodeAt(0)-55):ch;let rem=0;for(let i=0;i<d.length;i++)rem=(rem*10+(d.charCodeAt(i)-48))%97;return rem===1;}
 
@@ -491,12 +504,13 @@ function isValidIBAN(v){let s=String(v).replace(/\s+/g,"").toUpperCase();if(!/^[
 let settings=loadSettings();
 let datasets=[];        // {id,fileName,sheetName,isCsv,data,result}
 let currentIndex=0, multiFile=false;
+let viewOnlyIssues=false, viewSortSeverity=false;
 
 /* ---------- settings ---------- */
 function defaultSettings(){
   return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],
     conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,equals:[...c.equals]})),
-    nameCol:"Naam",expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
+    nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
     dateCols:[...DEFAULT_DATE],severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
     headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"dark"};
 }
@@ -512,17 +526,22 @@ function loadSettings(){
     if(Array.isArray(rs.conditional)) s.conditional=rs.conditional.filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
       .map(c=>({column:c.column,whenColumn:c.whenColumn,equals:Array.isArray(c.equals)?c.equals.map(String):[String(c.equals)]}));
     if(rs.severity&&typeof rs.severity==="object") for(const k of Object.keys(DEFAULT_SEVERITY)) if(["critical","warning","info"].includes(rs.severity[k])) s.severity[k]=rs.severity[k];
-    if(typeof rs.nameCol==="string"&&rs.nameCol.trim()) s.nameCol=rs.nameCol.trim();
+    if(Array.isArray(rs.nameCols)) s.nameCols=rs.nameCols.filter(x=>typeof x==="string"&&x.trim());
+    else if(typeof rs.nameCol==="string"&&rs.nameCol.trim()) s.nameCols=[rs.nameCol.trim()];
     if(rs.report&&typeof rs.report==="object"){const r=rs.report;const st=k=>typeof r[k]==="string"?r[k]:s.report[k];
       s.report={company:st("company"),contactName:st("contactName"),contactEmail:st("contactEmail"),logo:typeof r.logo==="string"?r.logo:"",greeting:st("greeting"),intro:st("intro"),outro:st("outro")};}
     s.headerRow=clamp(parseInt(rs.headerRow,10)||1,1,1000);
     s.trimWhitespace=rs.trimWhitespace!==false; s.caseInsensitive=rs.caseInsensitive!==false; s.theme=rs.theme==="light"?"light":"dark";
     const ver=Number(o&&o.version)||0;
-    if(ver<4){for(const c of OPTIONAL_MIGRATE){if(!s.optional.some(x=>x.toLowerCase()===c.toLowerCase()))s.optional.push(c);}log("Migratie v4: niet-verplichte standaardkolommen aangevuld.");}
+    if(ver<5){
+      for(const c of ALWAYS_IGNORE){ if(!s.ignore.some(x=>x.toLowerCase()===c.toLowerCase())) s.ignore.push(c); s.optional=s.optional.filter(x=>x.toLowerCase()!==c.toLowerCase()); }
+      if(s.nameCols.length<=1 && (s.nameCols[0]||"").toLowerCase()==="naam") s.nameCols=[...DEFAULT_NAMECOLS];
+      log("Migratie v5: vaste kolommen genegeerd + noemer Roepnaam+Naam.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:4,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:5,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{const m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);if(m)out.push({column:m[1].trim(),whenColumn:m[2].trim(),equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});});return out;}
 function condToText(a){return (a||[]).map(c=>`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n");}
@@ -658,32 +677,58 @@ function analyze(sheet,headerRowNumber,opt){
   const checkedCols=cols.filter(c=>!c.ignored); const ignoredCols=cols.filter(c=>c.ignored);
 
   const headerIssues=[];
-  let idIdx=headerIndex[norm(opt.nameCol||"Naam")];
-  if(idIdx===undefined){headerIssues.push({type:"header",severity:sevOf("header"),col:opt.nameCol||"Naam",message:"Naam-kolom '"+(opt.nameCol||"Naam")+"' niet gevonden; de eerste kolom wordt als noemer gebruikt.",suggestion:suggestionFor("header")});const f=cols.find(c=>c.named&&!c.ignored);idIdx=f?f.index:(cols[0]?cols[0].index:0);}
-  const idName=headers[idIdx]||(opt.nameCol||"Naam");
+  // noemer = combinatie van kolommen (bv. Roepnaam + Naam)
+  const nameColsCfg=(opt.nameCols&&opt.nameCols.length)?opt.nameCols:["Naam"];
+  const nameIdxs=nameColsCfg.map(n=>headerIndex[norm(n)]).filter(i=>i!==undefined);
+  let fallbackIdx=0;
+  if(!nameIdxs.length){const f=cols.find(c=>c.named&&!c.ignored);fallbackIdx=f?f.index:(cols[0]?cols[0].index:0);
+    headerIssues.push({type:"header",severity:sevOf("header"),col:nameColsCfg.join(" + "),message:"Naam-kolom(men) '"+nameColsCfg.join("', '")+"' niet gevonden; de eerste kolom wordt als noemer gebruikt.",suggestion:suggestionFor("header")});}
+  const idName=nameIdxs.length?nameColsCfg.filter(n=>present(n)).join(" ")||"Naam":(headers[fallbackIdx]||"Naam");
+  const rowId=r=>nameIdxs.length?nameIdxs.map(i=>String(r.cells[i]??"").trim()).filter(Boolean).join(" "):String(r.cells[fallbackIdx]??"").trim();
   (opt.conditional||[]).forEach(c=>{if(!present(c.whenColumn))headerIssues.push({type:"header",severity:sevOf("header"),col:c.whenColumn,message:"Voorwaardekolom '"+c.whenColumn+"' ontbreekt; de regel voor '"+c.column+"' kan niet worden toegepast.",suggestion:suggestionFor("header")});});
   (opt.expected||[]).forEach(name=>{if(!present(name))headerIssues.push({type:"header",severity:sevOf("header"),col:name,message:"Verwachte kolom '"+name+"' niet gevonden.",suggestion:suggestionFor("header")});});
 
-  const rowIssues=[]; let reqTotal=0,reqFilled=0,missingCells=0,invalidCells=0;
-  const sevCount={critical:0,warning:0,info:0};
-  const blockerMap={};
-  function bump(severity){sevCount[severity]++;}
-  function blocker(type,col,severity){if(severity==="info")return;const k=type+"|"+col;if(!blockerMap[k])blockerMap[k]={type,col,severity,count:0};blockerMap[k].count++;}
-  for(const r of dataRows){
-    const issues=[];
+  const perRow=dataRows.map(r=>({r:r.r,row:r,id:rowId(r),issues:[]}));
+  let reqTotal=0,reqFilled=0;
+  const add=(p,type,col,value,severity,short,message,because)=>p.issues.push({type,col,value:value||"",severity,short,message,suggestion:suggestionFor(type),because:because||null});
+  for(const p of perRow){ const r=p.row;
     for(const c of checkedCols){
       const val=r.cells[c.index]; const empty=isEmpty(val); if(empty)c.emptyCount++;
       let required=!c.optional,because=null;
       if(c.conditional){const cond=condByCol[c.key];const wIdx=headerIndex[cond.whenKey];const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";required=cond.equals.includes(wVal);if(required)because="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";}
-      if(required){reqTotal++;if(empty){const sev=sevOf("missing");issues.push({type:"missing",col:c.name,value:"",severity:sev,because,short:c.name+" ontbreekt",message:"Het veld '"+c.name+"' is niet ingevuld"+(because?(" (verplicht omdat "+because+")"):"")+".",suggestion:suggestionFor("missing")});c.missing++;missingCells++;bump(sev);blocker("missing",c.name,sev);}else reqFilled++;}
+      if(required){reqTotal++;if(empty){add(p,"missing",c.name,"",sevOf("missing"),c.name+" ontbreekt","Het veld '"+c.name+"' is niet ingevuld"+(because?(" (verplicht omdat "+because+")"):"")+".",because);c.missing++;}else reqFilled++;}
       if(!empty){const sval=String(val).trim();
-        if(c.isBsn&&!isValidBSN(sval)){const sev=sevOf("bsn");issues.push({type:"bsn",col:c.name,value:sval,severity:sev,short:"BSN ✗ 11-proef",message:"Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef).",suggestion:suggestionFor("bsn")});c.invalid++;invalidCells++;bump(sev);blocker("bsn",c.name,sev);}
-        if(c.isIban&&!isValidIBAN(sval)){const sev=sevOf("iban");issues.push({type:"iban",col:c.name,value:sval,severity:sev,short:"IBAN ✗",message:"De IBAN '"+sval+"' is ongeldig.",suggestion:suggestionFor("iban")});c.invalid++;invalidCells++;bump(sev);blocker("iban",c.name,sev);}
-        if(c.isPostcode&&!isValidPostcode(sval)){const sev=sevOf("postcode");issues.push({type:"postcode",col:c.name,value:sval,severity:sev,short:"Postcode ✗",message:"De postcode '"+sval+"' heeft geen geldige notatie.",suggestion:suggestionFor("postcode")});c.invalid++;invalidCells++;bump(sev);blocker("postcode",c.name,sev);}
-        if(c.isDate&&!isEuropeanDate(sval)){const sev=sevOf("date");issues.push({type:"date",col:c.name,value:sval,severity:sev,short:c.name+" ✗ datum",message:"De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).",suggestion:suggestionFor("date")});c.invalid++;invalidCells++;bump(sev);blocker("date",c.name,sev);}
+        if(c.isBsn&&!isValidBSN(sval)){add(p,"bsn",c.name,sval,sevOf("bsn"),"BSN ✗ 11-proef","Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef).");c.invalid++;}
+        if(c.isIban&&!isValidIBAN(sval)){add(p,"iban",c.name,sval,sevOf("iban"),"IBAN ✗","De IBAN '"+sval+"' is ongeldig.");c.invalid++;}
+        if(c.isPostcode&&!isValidPostcode(sval)){add(p,"postcode",c.name,sval,sevOf("postcode"),"Postcode ✗","De postcode '"+sval+"' heeft geen geldige notatie.");c.invalid++;}
+        if(c.isDate&&!isEuropeanDate(sval)){add(p,"date",c.name,sval,sevOf("date"),c.name+" ✗ datum","De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).");c.invalid++;}
       }
     }
-    if(issues.length){issues.sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank);rowIssues.push({r:r.r,id:String(r.cells[idIdx]??"").trim(),issues});}
+  }
+  // datumlogica: begin/eind-paren + geboortedatum
+  const dcols=checkedCols.filter(c=>c.isDate); const byKey={}; dcols.forEach(c=>byKey[c.key]=c);
+  const pairs=[]; dcols.forEach(c=>{const n=c.name.toLowerCase();let m,end=null;
+    if((m=n.match(/^begin\s+(.+)$/)))end="eind "+m[1]; else if((m=n.match(/^datum\s*in(.*)$/)))end="datumuit"+m[1].replace(/\s+/g,"");
+    if(end&&byKey[norm(end)])pairs.push([c,byKey[norm(end)]]);});
+  const gebCols=dcols.filter(c=>/geboorte/i.test(c.name)); const now=new Date();
+  for(const p of perRow){ const r=p.row;
+    for(const[bC,eC]of pairs){const bD=parseEuDate(r.cells[bC.index]),eD=parseEuDate(r.cells[eC.index]);
+      if(bD&&eD&&eD<bD){add(p,"datelogic",eC.name,String(r.cells[eC.index]).trim(),sevOf("datelogic"),eC.name+" < "+bC.name,"De einddatum '"+String(r.cells[eC.index]).trim()+"' in '"+eC.name+"' ligt vóór de begindatum '"+String(r.cells[bC.index]).trim()+"' in '"+bC.name+"'.");eC.invalid++;}}
+    for(const gC of gebCols){const d=parseEuDate(r.cells[gC.index]);if(!d)continue;const gv=String(r.cells[gC.index]).trim();
+      if(d>now){add(p,"datelogic",gC.name,gv,sevOf("datelogic"),gC.name+" toekomst","De geboortedatum '"+gv+"' in '"+gC.name+"' ligt in de toekomst.");gC.invalid++;}
+      else{const age=Math.floor((now-d)/(365.25*86400000));if(age<15||age>90){add(p,"datelogic",gC.name,gv,sevOf("datelogic"),gC.name+" leeftijd","De geboortedatum '"+gv+"' in '"+gC.name+"' geeft een leeftijd van "+age+" jaar — controleer of dit klopt.");gC.invalid++;}}}
+  }
+  // duplicaat-BSN
+  checkedCols.filter(c=>c.isBsn).forEach(bc=>{const map={};
+    perRow.forEach(p=>{const v=String(p.row.cells[bc.index]??"").replace(/\s+/g,"");if(v)(map[v]||(map[v]=[])).push(p);});
+    Object.keys(map).forEach(v=>{const list=map[v];if(list.length>1)list.forEach(p=>{add(p,"duplicate",bc.name,v,sevOf("duplicate"),"BSN dubbel ("+list.length+"×)","Het BSN '"+v+"' komt "+list.length+" keer voor in '"+bc.name+"' (mogelijk dubbele werknemer).");bc.invalid++;});});});
+
+  // aggregatie
+  const rowIssues=[]; let missingCells=0,invalidCells=0; const sevCount={critical:0,warning:0,info:0}; const blockerMap={};
+  for(const p of perRow){ if(!p.issues.length)continue; p.issues.sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank);
+    for(const is of p.issues){ sevCount[is.severity]++; if(is.type==="missing")missingCells++;else invalidCells++;
+      if(is.severity!=="info"){const k=is.type+"|"+is.col;(blockerMap[k]||(blockerMap[k]={type:is.type,col:is.col,severity:is.severity,count:0})).count++;}}
+    rowIssues.push({r:p.r,id:p.id,issues:p.issues});
   }
   for(const h of headerIssues) sevCount[h.severity]++;
   for(const c of checkedCols) c.fullyEmpty=!c.optional&&c.total>0&&c.emptyCount===c.total;
@@ -706,6 +751,7 @@ function buildCategories(res){
   for(const h of res.headerIssues) add("header",h.severity,h.message);
   return Object.values(map).sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank||b.items.length-a.items.length);
 }
+function rowProse(it){return it.issues.map(is=>is.message).join(" ");}
 function buildReport(ds){
   const res=ds.result;const L=[];
   L.push("CONTROLE LOONGEGEVENS");
@@ -719,15 +765,14 @@ function buildReport(ds){
   L.push("   Compleetheid : "+res.pct+"%");
   L.push("");
   if(!res.rowIssues.length&&!res.headerIssues.length){L.push("✓ Geen ontbrekende of foutieve velden gevonden. Alle gecontroleerde gegevens zijn in orde.");return L.join("\n");}
-  L.push("AANDACHTSPUNTEN PER CATEGORIE");
+  L.push("TOELICHTING PER RIJ");
   L.push("──────────────────────────────────────────────────");
-  for(const cat of buildCategories(res)){
-    L.push(SEV[cat.severity].dot+" "+cat.label+" ("+cat.items.length+")"+(cat.tip?("   —   Tip: "+cat.tip):""));
-    cat.items.slice(0,1000).forEach(line=>L.push("   - "+line));
-    if(cat.items.length>1000)L.push("   … en "+(cat.items.length-1000)+" meer");
+  for(const it of res.rowIssues){
+    L.push("Rij "+it.r+" — "+(it.id||"(geen naam)")+": "+rowProse(it));
     L.push("");
   }
-  L.push("AANDACHTSPUNTEN PER RECORD");
+  if(res.headerIssues.length){ L.push("Structuur: "+res.headerIssues.map(h=>h.message).join(" ")); L.push(""); }
+  L.push("OVERZICHT PER RECORD");
   L.push("──────────────────────────────────────────────────");
   for(const it of res.rowIssues){
     L.push("Rij "+it.r+"  —  "+(it.id||"(geen naam)"));
@@ -766,7 +811,7 @@ async function handleFiles(fileList){
 function mkDataset(fileName,sheetName,isCsv,data){return {id:fileName+"|"+sheetName+"|"+Math.random().toString(36).slice(2,6),fileName,sheetName,isCsv,data,result:null};}
 function analyzeAll(){for(const d of datasets) d.result=analyze(d.data,settings.headerRow,settings);}
 function afterLoad(){
-  $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false;
+  $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false; $("viewControls").hidden=false;
   $("headerRowInput").value=settings.headerRow;
   renderTabs(); renderCurrent();
 }
@@ -785,7 +830,10 @@ function renderTabs(){
     ov.innerHTML=`📁 <b>${files.size}</b> bestand(en) <span class="sep">·</span> 🗂️ <b>${datasets.length}</b> tabblad(en) <span class="sep">·</span> `+
       `🔴 <b>${nl(tc)}</b> kritiek <span class="sep">·</span> 🟡 <b>${nl(tw)}</b> waarschuwing <span class="sep">·</span> 🔵 <b>${nl(ti)}</b> info <span class="sep">·</span> ${issueTabs} tab(s) met aandachtspunten`;
     bar.hidden=false;
-    bar.innerHTML=datasets.map((d,i)=>{
+    const hasIss=res=>res.rowIssues.length>0||res.headerIssues.length>0;
+    let idxs=datasets.map((d,i)=>i);
+    if(viewOnlyIssues){const f=idxs.filter(i=>hasIss(datasets[i].result));if(f.length)idxs=f;}
+    bar.innerHTML=idxs.map(i=>{const d=datasets[i];
       const ws=worstSev(d.result);const issues=d.result.rowIssues.length;
       return `<button class="tab-chip${i===currentIndex?" active":""}" data-i="${i}" title="${escapeHtml(d.fileName+(d.isCsv?"":" › "+d.sheetName))} — ${d.result.sev.critical} kritiek, ${d.result.sev.warning} waarschuwing">`+
         `<span class="dot ${ws}"></span><span class="col">`+
@@ -823,7 +871,7 @@ function renderResult(ds,res){
   if(res.topBlockers.length){
     bb.hidden=false; $("blockersDesc").textContent="Sturen op deze punten maakt het bestand het snelst verwerkbaar.";
     $("blockersList").innerHTML=res.topBlockers.map(b=>{
-      const label=({missing:"Ontbrekend veld",bsn:"Ongeldig BSN",iban:"Ongeldige IBAN",postcode:"Ongeldige postcode",date:"Datumnotatie"}[b.type]||b.type);
+      const label=({missing:"Ontbrekend veld",bsn:"Ongeldig BSN",iban:"Ongeldige IBAN",postcode:"Ongeldige postcode",date:"Datumnotatie",duplicate:"Dubbele BSN",datelogic:"Onlogische datum"}[b.type]||b.type);
       return `<div class="blocker"><span class="dot ${SEV[b.severity].cls}"></span><div><div class="bl-label">${escapeHtml(label)} — kolom '${escapeHtml(b.col)}'</div><div class="bl-sub">${SEV[b.severity].label} · ${suggestionFor(b.type)}</div></div><span class="cnt">${nl(b.count)}×</span></div>`;
     }).join("");
   }else bb.hidden=true;
@@ -853,8 +901,10 @@ function renderResult(ds,res){
 function renderRowIssues(res){
   const box=$("rowResult"),desc=$("rowDesc");
   if(!res.rowIssues.length){desc.textContent="";box.innerHTML='<div class="empty-good"><span class="big">✅</span>Geen ontbrekende of foutieve velden in dit tabblad.</div>';return;}
-  const CAP=300; desc.textContent='Rijen met minstens één aandachtspunt. Hover over een label voor uitleg + suggestie. Noemer = rijnummer + "'+res.idColName+'".';
-  const html=res.rowIssues.slice(0,CAP).map(it=>{
+  const CAP=300; desc.textContent='Rijen met minstens één aandachtspunt'+(viewSortSeverity?" (gesorteerd op ernst)":"")+'. Hover over een label voor uitleg + suggestie. Noemer = rijnummer + "'+res.idColName+'".';
+  let list=res.rowIssues;
+  if(viewSortSeverity) list=res.rowIssues.slice().sort((a,b)=>SEV[a.issues[0].severity].rank-SEV[b.issues[0].severity].rank||a.r-b.r);
+  const html=list.slice(0,CAP).map(it=>{
     const cap=8;
     const chips=it.issues.slice(0,cap).map(is=>`<span class="chip sev-${is.severity}" title="${escapeHtml(is.message+(is.suggestion?("  💡 "+is.suggestion):""))}">${SEV[is.severity].dot} ${escapeHtml(is.short)}</span>`).join("")+(it.issues.length>cap?`<span class="more">+${it.issues.length-cap}</span>`:"");
     return `<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id||"(leeg)")}</td><td><span class="chips">${chips}</span></td></tr>`;
@@ -906,9 +956,10 @@ function buildReportHtml(){
     body+=`<h2>${esc(d.fileName)}${d.isCsv?"":" › "+esc(d.sheetName)}</h2>`;
     if(R.error){body+=`<p class="muted">${esc(R.error)}</p>`;return;}
     if(!R.rowIssues.length&&!R.headerIssues.length){body+=`<p class="ok">✓ Geen ontbrekende of foutieve velden. Alles is in orde.</p>`;return;}
-    body+=`<p class="muted">${R.rowIssues.length} van ${R.dataRowCount} records met aandachtspunten · compleetheid ${R.pct}%.</p><h3>Per categorie</h3>`;
-    buildCategories(R).forEach(cat=>{body+=`<div class="cat">${sevBadge(cat.severity)} <b>${esc(cat.label)}</b> <span class="cnt">(${cat.items.length})</span>`+(cat.tip?` <span class="tip">💡 ${esc(cat.tip)}</span>`:"")+`<ul>`+cat.items.slice(0,1000).map(li=>`<li>${esc(li)}</li>`).join("")+`</ul></div>`;});
-    body+=`<h3>Per record</h3><table class="rep"><thead><tr><th>Rij</th><th>Naam</th><th>Aandachtspunt</th><th>Suggestie</th></tr></thead><tbody>`;
+    body+=`<p class="muted">${R.rowIssues.length} van ${R.dataRowCount} records met aandachtspunten · compleetheid ${R.pct}%.</p><h3>Toelichting per rij</h3>`;
+    R.rowIssues.forEach(it=>{body+=`<p class="rowtext"><b>Rij ${it.r} — ${esc(it.id||"(geen naam)")}:</b> ${esc(rowProse(it))}</p>`;});
+    if(R.headerIssues.length)body+=`<p class="rowtext muted"><b>Structuur:</b> ${esc(R.headerIssues.map(h=>h.message).join(" "))}</p>`;
+    body+=`<h3>Overzicht per rij</h3><table class="rep"><thead><tr><th>Rij</th><th>Naam</th><th>Aandachtspunt</th><th>Suggestie</th></tr></thead><tbody>`;
     R.rowIssues.forEach(it=>it.issues.forEach((is,ix)=>{body+=`<tr><td>${ix===0?it.r:""}</td><td>${ix===0?esc(it.id||"(geen naam)"):""}</td><td>${SEV[is.severity].dot} ${esc(is.message)}</td><td>${esc(is.suggestion||"")}</td></tr>`;}));
     R.headerIssues.forEach(h=>{body+=`<tr><td>—</td><td>structuur</td><td>${SEV[h.severity].dot} ${esc(h.message)}</td><td>${esc(h.suggestion||"")}</td></tr>`;});
     body+=`</tbody></table>`;
@@ -929,6 +980,7 @@ function buildReportHtml(){
 h2{font-size:16px;margin:22px 0 4px;border-top:1px solid #eef0f6;padding-top:14px}
 h3{font-size:12px;margin:14px 0 6px;color:#5b3df5;text-transform:uppercase;letter-spacing:.05em}
 .muted{color:#6b7390}.ok{color:#1f9d57;font-weight:600}
+.rowtext{margin:7px 0;line-height:1.55}
 .cat{margin:8px 0}.cat .cnt{color:#6b7390}.cat .tip{color:#6b7390;font-style:italic}.cat ul{margin:4px 0 0 18px;padding:0}.cat li{margin:2px 0}
 .sev{font-weight:700;font-size:12px}.sev.critical{color:#e23b3b}.sev.warning{color:#c98a00}.sev.info{color:#2a7fc0}
 table.rep{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:12px}
@@ -1016,7 +1068,7 @@ function downloadReportExcel(){
 }
 
 /* ---------- reset ---------- */
-function clearFiles(){datasets=[];currentIndex=0;multiFile=false;$("resultView").hidden=true;$("emptyView").hidden=false;$("newFileBtn").hidden=true;$("resetBtn").hidden=true;setBanner("");log("Bestanden gewist.");}
+function clearFiles(){datasets=[];currentIndex=0;multiFile=false;$("resultView").hidden=true;$("emptyView").hidden=false;$("newFileBtn").hidden=true;$("resetBtn").hidden=true;$("viewControls").hidden=true;setBanner("");log("Bestanden gewist.");}
 function clearAllData(){try{localStorage.removeItem(LS_KEY);}catch(e){}settings=defaultSettings();applyTheme();syncSettingsUI();persist();clearFiles();log("Alles gewist (bestanden + instellingen).");}
 function openReset(){const m=$("resetModal");m.hidden=false;requestAnimationFrame(()=>m.classList.add("show"));}
 function closeReset(){const m=$("resetModal");m.classList.remove("show");setTimeout(()=>{m.hidden=true;},180);}
@@ -1035,12 +1087,13 @@ function fillSevSelect(el,val){el.innerHTML='<option value="critical">🔴 Kriti
 function syncSettingsUI(){
   $("ignoreText").value=settings.ignore.join("\n"); $("ignoreCount").textContent=settings.ignore.length+" kolommen";
   $("optionalText").value=settings.optional.join("\n"); $("condText").value=condToText(settings.conditional);
-  $("setNameCol").value=settings.nameCol; $("expectedText").value=settings.expected.join("\n");
+  $("setNameCols").value=settings.nameCols.join(", "); $("expectedText").value=settings.expected.join("\n");
   $("bsnText").value=settings.bsnCols.join(", "); $("ibanText").value=settings.ibanCols.join(", ");
   $("postcodeText").value=settings.postcodeCols.join(", "); $("dateText").value=settings.dateCols.join("\n");
   fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevBsn"),settings.severity.bsn);
   fillSevSelect($("sevIban"),settings.severity.iban); fillSevSelect($("sevPostcode"),settings.severity.postcode);
-  fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevHeader"),settings.severity.header);
+  fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevDuplicate"),settings.severity.duplicate);
+  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevHeader"),settings.severity.header);
   $("setHeaderRow").value=settings.headerRow; $("headerRowInput").value=settings.headerRow;
   $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setTheme").value=settings.theme;
   const rp=settings.report||{};
@@ -1069,6 +1122,8 @@ function wire(){
 
   $("newFileBtn").addEventListener("click",()=>fi.click());
   $("tabsBar").addEventListener("click",e=>{const t=e.target.closest(".tab-chip");if(t)selectDataset(parseInt(t.dataset.i,10));});
+  $("onlyIssuesChk").addEventListener("change",e=>{viewOnlyIssues=e.target.checked;const cur=datasets[currentIndex];if(viewOnlyIssues&&cur&&!cur.result.rowIssues.length&&!cur.result.headerIssues.length){const i=datasets.findIndex(d=>d.result.rowIssues.length||d.result.headerIssues.length);if(i>=0){selectDataset(i);return;}}renderTabs();});
+  $("sortSevChk").addEventListener("change",e=>{viewSortSeverity=e.target.checked;if(datasets.length)renderCurrent();});
   $("headerRowInput").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);persist();reanalyze();});
   $("exportIssuesBtn").addEventListener("click",exportIssues);
   $("exportColsBtn").addEventListener("click",exportCols);
@@ -1091,7 +1146,7 @@ function wire(){
   $("ignoreText").addEventListener("input",e=>{settings.ignore=parseList(e.target.value);$("ignoreCount").textContent=settings.ignore.length+" kolommen";persist();reSoft();});
   $("optionalText").addEventListener("input",e=>{settings.optional=parseList(e.target.value);persist();reSoft();});
   $("condText").addEventListener("input",e=>{settings.conditional=parseConditional(e.target.value);persist();reSoft();});
-  $("setNameCol").addEventListener("input",e=>{settings.nameCol=e.target.value.trim()||"Naam";persist();reSoft();});
+  $("setNameCols").addEventListener("input",e=>{const v=parseList(e.target.value);settings.nameCols=v.length?v:["Naam"];persist();reSoft();});
   $("expectedText").addEventListener("input",e=>{settings.expected=parseList(e.target.value);persist();reSoft();});
   $("bsnText").addEventListener("input",e=>{settings.bsnCols=parseList(e.target.value);persist();reSoft();});
   $("ibanText").addEventListener("input",e=>{settings.ibanCols=parseList(e.target.value);persist();reSoft();});
@@ -1105,7 +1160,7 @@ function wire(){
   $("repOutro").addEventListener("input",e=>{settings.report.outro=e.target.value;persist();});
   $("repLogo").addEventListener("change",e=>{if(e.target.files[0])handleLogo(e.target.files[0]);e.target.value="";});
   $("repLogoClear").addEventListener("click",()=>{settings.report.logo="";persist();$("logoPreview").innerHTML="";showToast("Logo verwijderd.","good");});
-  [["sevMissing","missing"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevHeader","header"]].forEach(([id,key])=>{
+  [["sevMissing","missing"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevHeader","header"]].forEach(([id,key])=>{
     $(id).addEventListener("change",e=>{settings.severity[key]=e.target.value;persist();if(datasets.length)reanalyze();});});
   $("resetIgnoreBtn").addEventListener("click",()=>{settings.ignore=[...DEFAULT_IGNORE];syncSettingsUI();persist();reanalyze();showToast("Standaard negeerlijst hersteld.","good");});
   $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
@@ -1125,7 +1180,8 @@ function boot(){
   applyTheme(); syncSettingsUI(); wire();
   if(typeof DecompressionStream==="undefined") warn("DecompressionStream ontbreekt — .xlsx kan niet worden uitgepakt; .csv werkt wel.");
   else log("DecompressionStream beschikbaar — .xlsx wordt lokaal uitgepakt.");
-  log("Regels: "+settings.ignore.length+" genegeerd, "+settings.optional.length+" niet-verplicht, "+settings.conditional.length+" voorwaardelijk; validaties BSN/IBAN/postcode/datum; ernst-niveaus actief.");
+  log("Regels: "+settings.ignore.length+" genegeerd, "+settings.optional.length+" niet-verplicht, "+settings.conditional.length+" voorwaardelijk; validaties BSN/IBAN/postcode/datum/duplicaat/datumlogica; ernst-niveaus actief.");
+  persist(); // migratie/standaarden vastleggen
   log("Klaar. Tip: plak deze logs terug als er iets misgaat.");
 }
 document.addEventListener("DOMContentLoaded",boot);
