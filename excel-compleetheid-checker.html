@@ -480,7 +480,7 @@ const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","Kleu
   "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE", ...ALWAYS_IGNORE];
 const DEFAULT_OPTIONAL=[];
 const DEFAULT_NAMECOLS=["Roepnaam","Naam"];
-const DEFAULT_REPORT={company:"SD Worx",contactName:"Nick Schepel",contactEmail:"nick.schepel@sdworx.com",logo:"",
+const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sme@sdworx.com",logo:"",
   greeting:"Beste relatie,",
   intro:"Wij hebben het door u aangeleverde bestand gecontroleerd op volledigheid en juistheid. Hieronder vindt u de velden die nog ontbreken of aangepast moeten worden.",
   outro:"Wij verzoeken u vriendelijk deze gegevens aan te vullen of te corrigeren en het bestand opnieuw aan te leveren. Heeft u vragen, neem dan gerust contact met ons op."};
@@ -577,10 +577,16 @@ function loadSettings(){
       if(s.nameCols.length<=1 && (s.nameCols[0]||"").toLowerCase()==="naam") s.nameCols=[...DEFAULT_NAMECOLS];
       log("Migratie v5: vaste kolommen genegeerd + noemer Roepnaam+Naam.");
     }
+    if(ver<6){
+      if(s.report.company==="SD Worx") s.report.company="";
+      if(s.report.contactName==="Nick Schepel") s.report.contactName="";
+      if(s.report.contactEmail==="nick.schepel@sdworx.com") s.report.contactEmail="implementations.sme@sdworx.com";
+      log("Migratie v6: rapport-defaults (bedrijf/contact) bijgewerkt.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:5,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:6,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{const m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);if(m)out.push({column:m[1].trim(),whenColumn:m[2].trim(),equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});});return out;}
 function condToText(a){return (a||[]).map(c=>`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n");}
