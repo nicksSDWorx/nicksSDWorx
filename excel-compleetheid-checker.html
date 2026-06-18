@@ -10,7 +10,7 @@
     --line:#272e54; --line-2:#323b6b;
     --ink:#eaecff; --muted:#9aa3cf; --faint:#6b74a3;
     --accent:#7c5cff; --accent-2:#5cc8ff;
-    --good:#39d98a; --bad:#ff6b6b; --warn:#ffce5c; --orange:#ff9a3c;
+    --good:#39d98a; --bad:#ff6b6b; --warn:#ffce5c; --info:#5cc8ff; --orange:#ff9a3c;
     --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
   }
   :root[data-theme="light"]{
@@ -66,18 +66,18 @@
   .info.tip-left::after{left:auto;right:0;transform:translateX(10px) translateY(4px)}
   .info.tip-left:hover::after,.info.tip-left.open::after{transform:translateX(10px) translateY(0)}
 
-  main{flex:1;width:100%;max-width:1080px;margin:0 auto;padding:22px 18px 60px}
+  main{flex:1;width:100%;max-width:1100px;margin:0 auto;padding:22px 18px 60px}
 
   .dropzone{border:2px dashed var(--line-2);border-radius:20px;padding:54px 28px;text-align:center;background:var(--panel);
     transition:border-color .15s,background .15s;cursor:pointer}
   .dropzone:hover,.dropzone.drag{border-color:var(--accent);background:var(--panel-2)}
   .dropzone .big{font-size:54px;line-height:1;margin-bottom:8px}
   .dropzone h2{margin:6px 0 6px;font-size:21px}
-  .dropzone p{margin:0 auto;color:var(--muted);max-width:480px;line-height:1.55}
+  .dropzone p{margin:0 auto;color:var(--muted);max-width:520px;line-height:1.55}
   .dz-cta{margin-top:18px}
   .privacy{margin-top:22px;font-size:12.5px;color:var(--faint);display:inline-flex;align-items:center;gap:8px;
     background:var(--bg-2);border:1px solid var(--line);padding:8px 13px;border-radius:99px}
-  .hint-list{margin:24px auto 0;max-width:560px;text-align:left;color:var(--muted);font-size:13px;line-height:1.7}
+  .hint-list{margin:24px auto 0;max-width:600px;text-align:left;color:var(--muted);font-size:13px;line-height:1.7}
   .hint-list code{background:var(--bg-2);padding:1px 6px;border-radius:6px;color:var(--ink);font-size:12px}
 
   .banner{display:none;align-items:center;gap:10px;padding:12px 15px;border-radius:12px;margin-bottom:18px;font-size:13.5px}
@@ -86,7 +86,7 @@
   .banner.warn{background:rgba(255,206,92,.12);border:1px solid rgba(255,206,92,.4);color:#ffe9b0}
 
   .filebar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);
-    border-radius:14px;padding:13px 16px;margin-bottom:18px}
+    border-radius:14px;padding:13px 16px;margin-bottom:14px}
   .filebar .fname{font-weight:700;display:flex;align-items:center;gap:9px;min-width:0}
   .filebar .fname .ic{width:30px;height:30px;border-radius:8px;background:var(--bg-2);display:grid;place-items:center;flex:none}
   .filebar .fname .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -95,12 +95,28 @@
   select{background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);padding:8px 10px;border-radius:9px;font-size:13px;font-family:inherit}
   select:focus,input:focus{outline:none;border-color:var(--accent)}
 
-  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+  .overview{display:flex;align-items:center;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);
+    background:var(--bg-2);border:1px solid var(--line);border-radius:12px;padding:10px 15px;margin-bottom:12px}
+  .overview b{color:var(--ink)} .overview .sep{opacity:.4}
+
+  .tabs-bar{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 12px;margin-bottom:6px;scrollbar-width:thin}
+  .tab-chip{flex:none;display:flex;align-items:center;gap:9px;background:var(--panel);border:1px solid var(--line-2);
+    border-radius:12px;padding:8px 13px;cursor:pointer;transition:border-color .15s,background .15s}
+  .tab-chip:hover{border-color:var(--accent)}
+  .tab-chip.active{border-color:var(--accent);background:var(--panel-2);box-shadow:0 0 0 1px var(--accent)}
+  .tab-chip .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .dot.crit{background:var(--bad)} .dot.warn{background:var(--warn)} .dot.binfo{background:var(--info)} .dot.ok{background:var(--good)}
+  .tab-chip .col{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+  .tab-chip .tf{font-size:10px;color:var(--faint);max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tab-chip .lbl{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:170px}
+  .tab-chip .sc{font-size:11px;font-weight:700;color:var(--muted);white-space:nowrap}
+
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:16px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 16px}
   .card .k{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:7px}
   .card .v{font-size:26px;font-weight:800;line-height:1}
   .card .sub{font-size:11.5px;color:var(--faint);margin-top:5px}
-  .card.good .v{color:var(--good)} .card.bad .v{color:var(--bad)} .card.warn .v{color:var(--warn)}
+  .card.good .v{color:var(--good)} .card.crit .v{color:var(--bad)} .card.warn .v{color:var(--warn)} .card.binfo .v{color:var(--info)}
   .ring{--p:0;width:62px;height:62px;border-radius:50%;flex:none;position:relative;
     background:conic-gradient(var(--good) calc(var(--p)*1%), var(--line) 0);display:grid;place-items:center}
   .ring::after{content:"";width:46px;height:46px;border-radius:50%;background:var(--panel);position:absolute}
@@ -113,10 +129,17 @@
   section.block > .desc{margin:0 0 14px;color:var(--muted);font-size:13px}
   #reportBlock{border-color:rgba(124,92,255,.4);box-shadow:0 0 0 1px rgba(124,92,255,.15)}
   .report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-  textarea.report{width:100%;min-height:280px;max-height:520px;resize:vertical;background:var(--bg-2);border:1px solid var(--line-2);
+  textarea.report{width:100%;min-height:300px;max-height:560px;resize:vertical;background:var(--bg-2);border:1px solid var(--line-2);
     color:var(--ink);border-radius:12px;padding:14px 15px;font-size:13px;line-height:1.6;
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap}
   textarea.report:focus{outline:none;border-color:var(--accent)}
+
+  .blockers{display:flex;flex-direction:column;gap:8px}
+  .blocker{display:flex;align-items:center;gap:11px;padding:10px 13px;background:var(--bg-2);border:1px solid var(--line);border-radius:11px}
+  .blocker .dot{width:10px;height:10px;border-radius:50%;flex:none}
+  .blocker .bl-label{font-weight:600;font-size:13.5px}
+  .blocker .bl-sub{font-size:12px;color:var(--muted)}
+  .blocker .cnt{margin-left:auto;font-weight:800;font-size:15px}
 
   .col-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
   .col-row:last-child{border-bottom:0}
@@ -125,7 +148,7 @@
   .col-letter{font-size:11px;color:var(--faint);background:var(--bg-2);border-radius:6px;padding:2px 6px;font-weight:700;flex:none}
   .bar{flex:1.2;height:9px;background:var(--bg-2);border-radius:99px;overflow:hidden;min-width:80px}
   .bar > i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--good),#27c47a)}
-  .col-count{font-size:13px;color:var(--muted);white-space:nowrap;min-width:92px;text-align:right}
+  .col-count{font-size:13px;color:var(--muted);white-space:nowrap;min-width:90px;text-align:right}
   .pills{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
   .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
   .pill.empty{background:rgba(255,107,107,.16);color:#ff9a9a}
@@ -139,9 +162,10 @@
   .tag.optt{background:var(--bg-2);color:var(--faint)}
   .ignored-wrap{margin-top:14px;font-size:13px;color:var(--muted)}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{font-size:12px;background:var(--bg-2);border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--muted)}
-  .chip.miss{background:rgba(255,107,107,.12);border-color:rgba(255,107,107,.35);color:#ffb3b3}
-  .chip.bad{background:rgba(255,154,60,.13);border-color:rgba(255,154,60,.4);color:#ffc089;cursor:help}
+  .chip{font-size:12px;background:var(--bg-2);border:1px solid var(--line);border-radius:99px;padding:4px 10px;color:var(--muted);cursor:help}
+  .chip.sev-critical{background:rgba(255,107,107,.14);border-color:rgba(255,107,107,.42);color:#ffb3b3}
+  .chip.sev-warning{background:rgba(255,206,92,.14);border-color:rgba(255,206,92,.42);color:#ffe09a}
+  .chip.sev-info{background:rgba(92,200,255,.14);border-color:rgba(92,200,255,.42);color:#bfe6ff}
   .more{font-size:11px;color:var(--faint);margin-left:2px;align-self:center}
 
   .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:560px}
@@ -151,7 +175,7 @@
   tbody td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
   tbody tr:hover{background:var(--bg-2)}
   td.rownum{font-variant-numeric:tabular-nums;color:var(--faint);font-weight:700;white-space:nowrap}
-  td.idcell{font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  td.idcell{font-weight:600;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .cap-note{font-size:12px;color:var(--faint);margin-top:10px}
   .empty-good{text-align:center;padding:30px;color:var(--good);font-weight:600}
   .empty-good .big{font-size:40px;display:block;margin-bottom:6px}
@@ -161,7 +185,7 @@
   .modal-overlay[hidden]{display:none}
   .modal-overlay.show{opacity:1}
   .modal{background:var(--panel);border:1px solid var(--line-2);border-radius:18px;box-shadow:var(--shadow);width:100%;
-    max-width:560px;max-height:90vh;overflow:auto;transform:translateY(8px) scale(.99);transition:transform .18s}
+    max-width:580px;max-height:90vh;overflow:auto;transform:translateY(8px) scale(.99);transition:transform .18s}
   .modal-overlay.show .modal{transform:none}
   .modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
   .modal-head h2{margin:0;font-size:17px;display:flex;align-items:center;gap:9px}
@@ -173,7 +197,7 @@
   .field .desc{font-size:12px;color:var(--muted);margin-bottom:9px}
   textarea.cfg,input.cfg{width:100%;background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);border-radius:10px;
     padding:10px 12px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.6}
-  textarea.cfg{min-height:80px;resize:vertical}
+  textarea.cfg{min-height:74px;resize:vertical}
   textarea.cfg:focus,input.cfg:focus{outline:none;border-color:var(--accent)}
   .field-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
   input[type="number"]{width:80px;background:var(--bg-2);border:1px solid var(--line-2);color:var(--ink);padding:8px 10px;border-radius:9px;font-size:13px;font-family:inherit}
@@ -185,6 +209,8 @@
   .switch input:checked + .track::before{transform:translateX(19px)}
   .mini{font-size:12px;color:var(--faint);margin-top:8px}
   .modal-foot{display:flex;gap:8px;flex-wrap:wrap;padding-top:6px}
+  .sev-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0}
+  .sev-row select{width:150px}
 
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(16px);background:#0a0d1c;color:#eef1ff;
     border:1px solid var(--line-2);padding:11px 16px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:var(--shadow);
@@ -208,10 +234,10 @@
       <span class="logo" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M3 9h18M3 15h18M15 3v18"/></svg>
       </span>
-      <span>Compleetheidscheck<small>controleer een Excel op lege &amp; foutieve velden</small></span>
+      <span>Compleetheidscheck<small>controleer Excel-bestanden op lege &amp; foutieve velden</small></span>
     </span>
     <div class="header-actions">
-      <button class="btn" id="newFileBtn" hidden>Ander bestand</button>
+      <button class="btn" id="newFileBtn" hidden>Andere bestanden</button>
       <button class="icon-btn" id="themeBtn" aria-label="Thema" title="Thema">☀</button>
       <button class="icon-btn" id="settingsBtn" aria-label="Instellingen" title="Instellingen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -223,26 +249,25 @@
     <div class="banner" id="banner"></div>
 
     <div id="emptyView">
-      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Kies of sleep een bestand">
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Kies of sleep bestanden">
         <div class="big">📋</div>
-        <h2>Sleep je Excel hierheen</h2>
-        <p>Of klik om een bestand te kiezen. De tool controleert verplichte velden op lege cellen én controleert BSN (11-proef), IBAN en datumnotatie.</p>
-        <div class="dz-cta"><button class="btn primary" id="chooseBtn" type="button">Bestand kiezen…</button></div>
-        <div class="privacy">🔒 Je bestand wordt volledig lokaal in je browser verwerkt — er wordt niets geüpload of opgeslagen.</div>
+        <h2>Sleep je Excel-bestanden hierheen</h2>
+        <p>Eén of meerdere bestanden tegelijk (bulk). Alle tabbladen worden geanalyseerd. De tool controleert verplichte velden én valideert BSN (11-proef), IBAN, postcode en datumnotatie — met ernst-niveau en concrete verbetersuggesties.</p>
+        <div class="dz-cta"><button class="btn primary" id="chooseBtn" type="button">Bestanden kiezen…</button></div>
+        <div class="privacy">🔒 Alles wordt lokaal in je browser verwerkt — er wordt niets geüpload of opgeslagen.</div>
         <div class="hint-list">
           <strong>Wat er gecontroleerd wordt</strong><br>
-          • Lege <em>verplichte</em> velden worden gesignaleerd. Genegeerde en niet-verplichte kolommen worden overgeslagen.<br>
-          • <code>DatumUitSalAdmin</code> is alleen verplicht als <code>CdBepTd</code> = <code>B</code> (voorwaardelijke regel, aanpasbaar).<br>
-          • <strong>BSN</strong> → 11-proef · <strong>IBAN</strong> → geldigheidscontrole · <strong>datums</strong> → Europese notatie (dd-mm-jjjj).<br>
-          • Aan het eind krijg je een <strong>klantrapport</strong> per rij (rijnummer + Naam) om te versturen.
+          • <strong>Multi-sheet &amp; bulk</strong> — alle tabbladen van alle bestanden, met een tab-switcher en score per tab.<br>
+          • <strong>Ernst</strong> — 🔴 kritiek (bv. IBAN/BSN/ontbrekend) · 🟡 waarschuwing (format) · 🔵 info (kolomstructuur).<br>
+          • <strong>Suggesties</strong> — per fout een concreet voorstel (IBAN-formaat, dd-mm-jjjj, 1234 AB …).<br>
+          • <strong>Klantrapport</strong> — nette samenvatting + fouten per categorie, klaar om te versturen.
         </div>
       </div>
     </div>
 
     <div id="resultView" hidden>
       <div class="filebar">
-        <span class="fname"><span class="ic">📄</span><span class="txt" id="fileName">bestand.xlsx</span></span>
-        <label id="sheetWrap" hidden>Werkblad <select id="sheetSelect"></select></label>
+        <span class="fname"><span class="ic">📄</span><span class="txt" id="fileName">—</span></span>
         <label>Kopregel
           <input type="number" id="headerRowInput" min="1" max="100" step="1" style="width:64px">
           <button class="info" data-tip="De rij met de kolomnamen. Meestal rij 1." aria-label="Uitleg kopregel">i</button>
@@ -252,20 +277,30 @@
         <button class="btn" id="exportColsBtn">⬇ Kolomoverzicht (CSV)</button>
       </div>
 
+      <div class="overview" id="overview" hidden></div>
+      <div class="tabs-bar" id="tabsBar" hidden></div>
+
       <div class="cards" id="cards"></div>
 
+      <section class="block" id="blockersBlock" hidden>
+        <h3>Top blockers <button class="info" data-tip="De meest voorkomende kritieke en waarschuwings-issues — waar je het eerst op moet sturen om dit bestand verwerkbaar te maken." aria-label="Uitleg blockers">i</button></h3>
+        <div class="desc" id="blockersDesc"></div>
+        <div class="blockers" id="blockersList"></div>
+      </section>
+
       <section class="block" id="reportBlock">
-        <h3>Klantrapport <button class="info" data-tip="Een kant-en-klare, klantvriendelijke samenvatting van ontbrekende en foutieve velden — per rij met rijnummer en Naam. Kopieer of download om naar de klant te sturen." aria-label="Uitleg klantrapport">i</button></h3>
-        <div class="desc">Kant-en-klaar om naar de klant te sturen. Per rij: rijnummer + Naam, met de te corrigeren velden.</div>
+        <h3>Klantrapport <button class="info" data-tip="Klantvriendelijke samenvatting met fouten per categorie én per record (rijnummer + Naam), inclusief verbetersuggesties. Kopieer of download om te versturen." aria-label="Uitleg klantrapport">i</button></h3>
+        <div class="desc">Samenvatting bovenaan, daarna fouten per categorie en per record — klaar om naar de klant te sturen.</div>
         <div class="report-actions">
           <button class="btn primary" id="copyReportBtn">📋 Kopieer rapport</button>
-          <button class="btn" id="downloadReportBtn">⬇ Download .txt</button>
+          <button class="btn" id="downloadReportBtn">⬇ Dit tabblad (.txt)</button>
+          <button class="btn" id="fullReportBtn" hidden>⬇ Alle tabbladen (.txt)</button>
         </div>
         <textarea id="reportText" class="report" readonly spellcheck="false" aria-label="Klantrapport"></textarea>
       </section>
 
       <section class="block" id="colBlock">
-        <h3>Per kolom <button class="info" data-tip="Per gecontroleerde kolom: hoeveel verplichte cellen leeg zijn en hoeveel foutieve waarden (BSN/IBAN/datum). 'Volledig leeg' = hele kolom niet ingevuld." aria-label="Uitleg per kolom">i</button></h3>
+        <h3>Per kolom <button class="info" data-tip="Per gecontroleerde kolom: lege verplichte cellen en foutieve waarden (BSN/IBAN/postcode/datum)." aria-label="Uitleg per kolom">i</button></h3>
         <div class="desc" id="colDesc"></div>
         <div id="colList"></div>
         <div class="ignored-wrap" id="ignoredWrap"></div>
@@ -279,7 +314,7 @@
     </div>
   </main>
 
-  <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv" hidden>
+  <input type="file" id="fileInput" accept=".xlsx,.xlsm,.csv" multiple hidden>
 
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal" hidden role="dialog" aria-modal="true" aria-labelledby="setTitle">
@@ -290,89 +325,64 @@
       </div>
       <div class="modal-body">
         <div class="sec-title">Verplichting</div>
-
         <div class="field">
           <div class="label">Niet controleren (negeren)
-            <button class="info" data-tip="Deze kolommen worden volledig overgeslagen. Eén kolomnaam per regel of komma-gescheiden." aria-label="Uitleg negeren">i</button>
+            <button class="info" data-tip="Volledig overslaan — niet op leeg en niet op fouten. Eén naam per regel of komma-gescheiden." aria-label="Uitleg negeren">i</button>
           </div>
-          <div class="desc">Volledig overslaan — niet op leeg én niet op fouten.</div>
           <textarea id="ignoreText" class="cfg" spellcheck="false"></textarea>
-          <div class="field-row" style="margin-top:8px">
-            <span class="mini" id="ignoreCount">0 kolommen</span>
-            <button class="btn" id="resetIgnoreBtn" type="button">Herstel standaard (18)</button>
-          </div>
+          <div class="field-row" style="margin-top:8px"><span class="mini" id="ignoreCount">0 kolommen</span>
+            <button class="btn" id="resetIgnoreBtn" type="button">Herstel standaard (18)</button></div>
         </div>
-
         <div class="field">
           <div class="label">Niet verplicht
-            <button class="info" data-tip="Deze kolommen mogen leeg zijn (worden niet als ontbrekend gemeld). Een ingevulde waarde wordt wél op formaat gecontroleerd indien van toepassing." aria-label="Uitleg niet verplicht">i</button>
-          </div>
-          <div class="desc">Mogen leeg blijven (bijv. HuisnummerToev, Voorvoegsels).</div>
+            <button class="info" data-tip="Mogen leeg zijn. Ingevulde waarden worden wél op formaat gecontroleerd indien van toepassing." aria-label="Uitleg niet verplicht">i</button></div>
+          <div class="desc">Bijv. HuisnummerToev, Voorvoegsels.</div>
           <textarea id="optionalText" class="cfg" spellcheck="false"></textarea>
         </div>
-
         <div class="field">
           <div class="label">Voorwaardelijk verplicht
-            <button class="info" data-tip="Regel per regel: '<kolom> verplicht als <anderekolom> = <waarde>'. Meerdere waarden met komma's. Bijv. DatumUitSalAdmin verplicht als CdBepTd = B" aria-label="Uitleg voorwaardelijk">i</button>
-          </div>
-          <div class="desc">Eén regel per voorwaarde, in de vorm: <code>Kolom verplicht als AndereKolom = waarde</code>.</div>
+            <button class="info" data-tip="Eén regel per voorwaarde: 'Kolom verplicht als AndereKolom = waarde'. Meerdere waarden met komma's." aria-label="Uitleg voorwaardelijk">i</button></div>
+          <div class="desc">Vorm: <code>Kolom verplicht als AndereKolom = waarde</code></div>
           <textarea id="condText" class="cfg" spellcheck="false" placeholder="DatumUitSalAdmin verplicht als CdBepTd = B"></textarea>
         </div>
-
         <div class="field">
           <div class="field-row">
-            <div>
-              <div class="label">Naam-kolom (noemer)
-                <button class="info" data-tip="De kolom die als naam in het rapport en de tabel verschijnt, naast het rijnummer." aria-label="Uitleg naamkolom">i</button>
-              </div>
-              <div class="desc" style="margin:0">Identificatie per rij in het rapport.</div>
-            </div>
+            <div><div class="label">Naam-kolom (noemer)</div><div class="desc" style="margin:0">Identificatie per rij in rapport.</div></div>
             <input type="text" id="setNameCol" class="cfg" style="width:140px;font-family:inherit">
           </div>
         </div>
+        <div class="field">
+          <div class="label">Verwachte kolommen <span class="tag val">structuur</span>
+            <button class="info" data-tip="Optioneel. Ontbreekt een van deze kolommen, dan komt er een 🔵 info-melding (headermismatch). Laat leeg om uit te zetten." aria-label="Uitleg verwacht">i</button></div>
+          <textarea id="expectedText" class="cfg" spellcheck="false" placeholder="(optioneel)"></textarea>
+        </div>
 
         <div class="sec-title">Validaties</div>
-        <div class="field">
-          <div class="label">BSN-kolommen <span class="tag val">11-proef</span></div>
-          <div class="desc">Worden gecontroleerd met de 11-proef.</div>
-          <input type="text" id="bsnText" class="cfg">
-        </div>
-        <div class="field">
-          <div class="label">IBAN-kolommen <span class="tag val">IBAN</span></div>
-          <div class="desc">Worden gecontroleerd op een geldige IBAN (mod-97 + lengte).</div>
-          <input type="text" id="ibanText" class="cfg">
-        </div>
+        <div class="field"><div class="label">BSN-kolommen <span class="tag val">11-proef</span></div><input type="text" id="bsnText" class="cfg"></div>
+        <div class="field"><div class="label">IBAN-kolommen <span class="tag val">IBAN</span></div><input type="text" id="ibanText" class="cfg"></div>
+        <div class="field"><div class="label">Postcode-kolommen <span class="tag val">1234 AB</span></div><input type="text" id="postcodeText" class="cfg"></div>
         <div class="field">
           <div class="label">Datum-kolommen <span class="tag val">dd-mm-jjjj</span></div>
-          <div class="desc">Gecontroleerd op Europese notatie. Echte Excel-datums + kolommen met "datum" in de naam worden automatisch herkend; hier kun je extra namen opgeven.</div>
+          <div class="desc">Echte Excel-datums en namen met "datum" worden automatisch herkend; extra namen hier.</div>
           <textarea id="dateText" class="cfg" spellcheck="false"></textarea>
         </div>
 
+        <div class="sec-title">Ernst &amp; prioriteit</div>
+        <div class="field" style="padding-bottom:6px">
+          <div class="desc">Bepaal het niveau per soort issue. 🔴 Kritiek telt mee als blocker.</div>
+          <div class="sev-row"><span>Ontbrekend verplicht veld</span><select id="sevMissing"></select></div>
+          <div class="sev-row"><span>Ongeldig BSN</span><select id="sevBsn"></select></div>
+          <div class="sev-row"><span>Ongeldige IBAN</span><select id="sevIban"></select></div>
+          <div class="sev-row"><span>Ongeldige postcode</span><select id="sevPostcode"></select></div>
+          <div class="sev-row"><span>Datum verkeerde notatie</span><select id="sevDate"></select></div>
+          <div class="sev-row"><span>Headermismatch (structuur)</span><select id="sevHeader"></select></div>
+        </div>
+
         <div class="sec-title">Algemeen</div>
-        <div class="field">
-          <div class="field-row">
-            <div><div class="label">Kopregel (rijnummer)</div><div class="desc" style="margin:0">De rij met kolomnamen.</div></div>
-            <input type="number" id="setHeaderRow" min="1" max="100" step="1">
-          </div>
-        </div>
-        <div class="field">
-          <div class="field-row">
-            <div><div class="label">Spaties tellen als leeg</div><div class="desc" style="margin:0">Cellen met alleen spaties als leeg behandelen.</div></div>
-            <label class="switch"><input type="checkbox" id="setTrim"><span class="track"></span></label>
-          </div>
-        </div>
-        <div class="field">
-          <div class="field-row">
-            <div><div class="label">Hoofdletterongevoelig vergelijken</div><div class="desc" style="margin:0">Bij kolomnamen en voorwaarden.</div></div>
-            <label class="switch"><input type="checkbox" id="setCase"><span class="track"></span></label>
-          </div>
-        </div>
-        <div class="field">
-          <div class="field-row">
-            <div><div class="label">Thema</div><div class="desc" style="margin:0">Licht of donker.</div></div>
-            <select id="setTheme"><option value="dark">Donker</option><option value="light">Licht</option></select>
-          </div>
-        </div>
+        <div class="field"><div class="field-row"><div><div class="label">Kopregel (rijnummer)</div></div><input type="number" id="setHeaderRow" min="1" max="100" step="1"></div></div>
+        <div class="field"><div class="field-row"><div><div class="label">Spaties tellen als leeg</div></div><label class="switch"><input type="checkbox" id="setTrim"><span class="track"></span></label></div></div>
+        <div class="field"><div class="field-row"><div><div class="label">Hoofdletterongevoelig vergelijken</div></div><label class="switch"><input type="checkbox" id="setCase"><span class="track"></span></label></div></div>
+        <div class="field"><div class="field-row"><div><div class="label">Thema</div></div><select id="setTheme"><option value="dark">Donker</option><option value="light">Licht</option></select></div></div>
 
         <div class="sec-title">Gegevens</div>
         <div class="field">
@@ -391,10 +401,10 @@
 <script>
 "use strict";
 /* ============================================================
-   Excel Compleetheidscheck v2 — single-file, offline, no libraries
-   Compleetheid + voorwaardelijke regels + BSN/IBAN/datum-validatie + klantrapport
+   Excel Compleetheidscheck v3 — single-file, offline, no libraries
+   Multi-sheet/bulk · severity & priority · fix-suggesties · klant-rapport
    ============================================================ */
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "3.0.0";
 const LS_KEY = "excel-compleetheid:v1";
 const LOG = "[Compleetheid]";
 const log  = (...a) => console.log(LOG, ...a);
@@ -404,611 +414,514 @@ const errl = (...a) => console.error(LOG, ...a);
 const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","KleurTabel","SpecTabel",
   "CodeTijdvak","SoortInkomen","CodeLoonHeffing","CodeZW","CodeWW","CodeWAO","CdZvw","IABZvw","CdAard",
   "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE"];
-const DEFAULT_OPTIONAL = ["HuisnummerToev","Voorvoegsels"];
-const DEFAULT_COND = [{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]}];
-const DEFAULT_BSN = ["BSN"];
-const DEFAULT_IBAN = ["IBAN"];
-const DEFAULT_DATE = ["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
+const DEFAULT_OPTIONAL=["HuisnummerToev","Voorvoegsels"];
+const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]}];
+const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
+const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
+const DEFAULT_SEVERITY={missing:"critical",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",header:"info"};
+
+const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
+const CATLABEL={missing:"Ontbrekende verplichte velden",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
+  postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",header:"Structuur / kolomnamen"};
+function suggestionFor(type){return {
+  missing:"Vul dit verplichte veld in.",
+  bsn:"Controleer het BSN: 9 cijfers die voldoen aan de 11-proef.",
+  iban:"Controleer het IBAN-formaat, bijv. NL91 ABNA 0417 1643 00.",
+  date:"Gebruik de notatie dd-mm-jjjj, bijv. 31-12-2025.",
+  postcode:"Gebruik de notatie 1234 AB.",
+  header:"Controleer de kolomnaam of voeg de kolom toe."}[type]||"";}
 
 /* ---------- helpers ---------- */
-const $ = (id) => document.getElementById(id);
-const clamp = (n,lo,hi)=>Math.max(lo,Math.min(hi,n));
+const $=(id)=>document.getElementById(id);
+const clamp=(n,lo,hi)=>Math.max(lo,Math.min(hi,n));
 const debounce=(fn,ms)=>{let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};};
 const escapeHtml=(s)=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ci=(s)=>String(s==null?"":s).trim().toLowerCase();
+const nl=(n)=>Number(n).toLocaleString("nl-NL");
 function colToNum(c){let n=0;for(let i=0;i<c.length;i++)n=n*26+(c.charCodeAt(i)-64);return n-1;}
 function numToCol(n){let s="";n++;while(n>0){const r=(n-1)%26;s=String.fromCharCode(65+r)+s;n=Math.floor((n-1)/26);}return s;}
 function xmlEntities(s){return String(s).replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|quot|apos);/g,(m,e)=>{
-  if(e[0]==="#"){const code=(e[1]==="x"||e[1]==="X")?parseInt(e.slice(2),16):parseInt(e.slice(1),10);
-    return Number.isFinite(code)?String.fromCodePoint(code):m;}
+  if(e[0]==="#"){const code=(e[1]==="x"||e[1]==="X")?parseInt(e.slice(2),16):parseInt(e.slice(1),10);return Number.isFinite(code)?String.fromCodePoint(code):m;}
   return {amp:"&",lt:"<",gt:">",quot:'"',apos:"'"}[e]||m;});}
 
 /* ---------- validators ---------- */
-function isValidBSN(v){
-  let s=String(v).trim();
-  if(!/^\d+$/.test(s)) return false;
-  if(s.length===8) s="0"+s;
-  if(s.length!==9) return false;
-  if(/^0+$/.test(s)) return false;
-  let sum=0; for(let i=0;i<8;i++) sum+=(9-i)*(+s[i]); sum+=-1*(+s[8]);
-  return sum%11===0;
-}
-function isEuropeanDate(v){
-  const s=String(v).trim();
-  const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
-  if(!m) return false;
-  const d=+m[1],mo=+m[2],y=+m[3];
-  if(mo<1||mo>12||d<1||d>31) return false;
-  const dt=new Date(Date.UTC(y,mo-1,d));
-  return dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;
-}
-const IBAN_LEN={AD:24,AE:23,AL:28,AT:20,AZ:28,BA:20,BE:16,BG:22,BH:22,BR:29,BY:28,CH:21,CR:22,CY:28,CZ:24,DE:22,DK:18,
-  DO:28,EE:20,EG:29,ES:24,FI:18,FO:18,FR:27,GB:22,GE:22,GI:23,GL:18,GR:27,GT:28,HR:21,HU:28,IE:22,IL:23,IS:26,IT:27,
-  JO:30,KW:30,KZ:20,LB:28,LC:32,LI:21,LT:20,LU:20,LV:21,MC:27,MD:24,ME:22,MK:19,MR:27,MT:31,MU:30,NL:18,NO:15,PK:24,
-  PL:28,PS:29,PT:25,QA:29,RO:24,RS:22,SA:24,SE:24,SI:19,SK:24,SM:27,TN:24,TR:26,UA:29,VA:22,VG:24,XK:20};
-function isValidIBAN(v){
-  let s=String(v).replace(/\s+/g,"").toUpperCase();
-  if(!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(s)) return false;
-  if(s.length<15||s.length>34) return false;
-  const cc=s.slice(0,2);
-  if(IBAN_LEN[cc]&&IBAN_LEN[cc]!==s.length) return false;
-  const r=s.slice(4)+s.slice(0,4);
-  let digits=""; for(const ch of r) digits+=(ch>="A"&&ch<="Z")?(ch.charCodeAt(0)-55):ch;
-  let rem=0; for(let i=0;i<digits.length;i++) rem=(rem*10+(digits.charCodeAt(i)-48))%97;
-  return rem===1;
-}
+function isValidBSN(v){let s=String(v).trim();if(!/^\d+$/.test(s))return false;if(s.length===8)s="0"+s;if(s.length!==9)return false;if(/^0+$/.test(s))return false;let sum=0;for(let i=0;i<8;i++)sum+=(9-i)*(+s[i]);sum+=-1*(+s[8]);return sum%11===0;}
+function isEuropeanDate(v){const s=String(v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return false;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return false;const dt=new Date(Date.UTC(y,mo-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;}
+function isValidPostcode(v){return /^[1-9]\d{3}\s?[A-Za-z]{2}$/.test(String(v).trim());}
+const IBAN_LEN={AD:24,AE:23,AL:28,AT:20,AZ:28,BA:20,BE:16,BG:22,BH:22,BR:29,BY:28,CH:21,CR:22,CY:28,CZ:24,DE:22,DK:18,DO:28,EE:20,EG:29,ES:24,FI:18,FO:18,FR:27,GB:22,GE:22,GI:23,GL:18,GR:27,GT:28,HR:21,HU:28,IE:22,IL:23,IS:26,IT:27,JO:30,KW:30,KZ:20,LB:28,LC:32,LI:21,LT:20,LU:20,LV:21,MC:27,MD:24,ME:22,MK:19,MR:27,MT:31,MU:30,NL:18,NO:15,PK:24,PL:28,PS:29,PT:25,QA:29,RO:24,RS:22,SA:24,SE:24,SI:19,SK:24,SM:27,TN:24,TR:26,UA:29,VA:22,VG:24,XK:20};
+function isValidIBAN(v){let s=String(v).replace(/\s+/g,"").toUpperCase();if(!/^[A-Z]{2}[0-9]{2}[A-Z0-9]+$/.test(s))return false;if(s.length<15||s.length>34)return false;const cc=s.slice(0,2);if(IBAN_LEN[cc]&&IBAN_LEN[cc]!==s.length)return false;const r=s.slice(4)+s.slice(0,4);let d="";for(const ch of r)d+=(ch>="A"&&ch<="Z")?(ch.charCodeAt(0)-55):ch;let rem=0;for(let i=0;i<d.length;i++)rem=(rem*10+(d.charCodeAt(i)-48))%97;return rem===1;}
 
 /* ---------- state ---------- */
-let settings = loadSettings();
-let wb=null, sheetData=null, currentSheetIndex=0, filename="", currentSheetName="", lastResult=null;
+let settings=loadSettings();
+let datasets=[];        // {id,fileName,sheetName,isCsv,data,result}
+let currentIndex=0, multiFile=false;
 
 /* ---------- settings ---------- */
 function defaultSettings(){
-  return {ignore:[...DEFAULT_IGNORE], optional:[...DEFAULT_OPTIONAL],
+  return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],
     conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,equals:[...c.equals]})),
-    nameCol:"Naam", bsnCols:[...DEFAULT_BSN], ibanCols:[...DEFAULT_IBAN], dateCols:[...DEFAULT_DATE],
-    headerRow:1, trimWhitespace:true, caseInsensitive:true, theme:"dark"};
+    nameCol:"Naam",expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
+    dateCols:[...DEFAULT_DATE],severity:{...DEFAULT_SEVERITY},
+    headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"dark"};
 }
 function loadSettings(){
-  let raw=null;
-  try{raw=localStorage.getItem(LS_KEY);}catch(e){warn("localStorage niet leesbaar:",e.message);}
-  if(!raw){ log("Geen opgeslagen instellingen — standaard gebruikt."); return defaultSettings(); }
+  let raw=null; try{raw=localStorage.getItem(LS_KEY);}catch(e){warn("localStorage niet leesbaar:",e.message);}
+  if(!raw){log("Geen opgeslagen instellingen — standaard gebruikt.");return defaultSettings();}
   try{
     const o=JSON.parse(raw); const s=defaultSettings(); const rs=(o&&o.settings)||o||{};
-    const strArr=(a,fb)=>Array.isArray(a)?a.filter(x=>typeof x==="string"):fb;
-    s.ignore=strArr(rs.ignore,s.ignore);
-    s.optional=strArr(rs.optional,s.optional);
-    s.bsnCols=strArr(rs.bsnCols,s.bsnCols);
-    s.ibanCols=strArr(rs.ibanCols,s.ibanCols);
-    s.dateCols=strArr(rs.dateCols,s.dateCols);
-    if(Array.isArray(rs.conditional)) s.conditional=rs.conditional
-      .filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
+    const sa=(a,fb)=>Array.isArray(a)?a.filter(x=>typeof x==="string"):fb;
+    s.ignore=sa(rs.ignore,s.ignore); s.optional=sa(rs.optional,s.optional);
+    s.expected=sa(rs.expected,s.expected); s.bsnCols=sa(rs.bsnCols,s.bsnCols);
+    s.ibanCols=sa(rs.ibanCols,s.ibanCols); s.postcodeCols=sa(rs.postcodeCols,s.postcodeCols); s.dateCols=sa(rs.dateCols,s.dateCols);
+    if(Array.isArray(rs.conditional)) s.conditional=rs.conditional.filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
       .map(c=>({column:c.column,whenColumn:c.whenColumn,equals:Array.isArray(c.equals)?c.equals.map(String):[String(c.equals)]}));
+    if(rs.severity&&typeof rs.severity==="object") for(const k of Object.keys(DEFAULT_SEVERITY)) if(["critical","warning","info"].includes(rs.severity[k])) s.severity[k]=rs.severity[k];
     if(typeof rs.nameCol==="string"&&rs.nameCol.trim()) s.nameCol=rs.nameCol.trim();
     s.headerRow=clamp(parseInt(rs.headerRow,10)||1,1,1000);
-    s.trimWhitespace=rs.trimWhitespace!==false;
-    s.caseInsensitive=rs.caseInsensitive!==false;
-    s.theme=rs.theme==="light"?"light":"dark";
-    log("Instellingen geladen.");
-    return s;
-  }catch(e){ errl("Instellingen onleesbaar — standaard gebruikt.",e.message); return defaultSettings(); }
+    s.trimWhitespace=rs.trimWhitespace!==false; s.caseInsensitive=rs.caseInsensitive!==false; s.theme=rs.theme==="light"?"light":"dark";
+    log("Instellingen geladen."); return s;
+  }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{
-  try{ localStorage.setItem(LS_KEY,JSON.stringify({version:2,settings})); log("Instellingen opgeslagen."); }
-  catch(e){ errl("Opslaan mislukt:",e.message); }
-},300);
-function parseList(text){
-  return String(text).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean)
-    .filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);
-}
-function parseConditional(text){
-  const out=[];
-  String(text).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
-    const m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);
-    if(m) out.push({column:m[1].trim(),whenColumn:m[2].trim(),equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});
-  });
-  return out;
-}
-function condToText(arr){ return (arr||[]).map(c=>`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n"); }
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:3,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
+function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{const m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);if(m)out.push({column:m[1].trim(),whenColumn:m[2].trim(),equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});});return out;}
+function condToText(a){return (a||[]).map(c=>`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n");}
 
 /* ---------- ZIP (xlsx) reader via native DecompressionStream ---------- */
 function readZip(buf){
-  const dv=new DataView(buf), u8=new Uint8Array(buf), n=buf.byteLength;
-  let eocd=-1;
-  for(let i=n-22;i>=0 && i>=n-22-65536;i--){ if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;} }
+  const dv=new DataView(buf),u8=new Uint8Array(buf),n=buf.byteLength; let eocd=-1;
+  for(let i=n-22;i>=0&&i>=n-22-65536;i--){if(dv.getUint32(i,true)===0x06054b50){eocd=i;break;}}
   if(eocd<0) throw new Error("geen geldig zip/xlsx-bestand (kop niet gevonden)");
-  const count=dv.getUint16(eocd+10,true), cdOff=dv.getUint32(eocd+16,true);
-  const entries=new Map(); let p=cdOff;
+  const count=dv.getUint16(eocd+10,true),cdOff=dv.getUint32(eocd+16,true); const entries=new Map(); let p=cdOff;
   for(let e=0;e<count;e++){
     if(dv.getUint32(p,true)!==0x02014b50) break;
-    const method=dv.getUint16(p+10,true); const compSize=dv.getUint32(p+20,true);
-    const nameLen=dv.getUint16(p+28,true), extraLen=dv.getUint16(p+30,true), commentLen=dv.getUint16(p+32,true);
-    const localOff=dv.getUint32(p+42,true);
-    const name=new TextDecoder("utf-8").decode(u8.subarray(p+46,p+46+nameLen));
+    const method=dv.getUint16(p+10,true),compSize=dv.getUint32(p+20,true);
+    const nameLen=dv.getUint16(p+28,true),extraLen=dv.getUint16(p+30,true),commentLen=dv.getUint16(p+32,true);
+    const localOff=dv.getUint32(p+42,true); const name=new TextDecoder("utf-8").decode(u8.subarray(p+46,p+46+nameLen));
     if(compSize===0xFFFFFFFF||localOff===0xFFFFFFFF) throw new Error("ZIP64 wordt niet ondersteund (bestand te groot)");
-    entries.set(name,{method,compSize,localOff});
-    p+=46+nameLen+extraLen+commentLen;
+    entries.set(name,{method,compSize,localOff}); p+=46+nameLen+extraLen+commentLen;
   }
   return {dv,u8,entries};
 }
-async function inflateRaw(bytes){
-  if(typeof DecompressionStream==="undefined") throw new Error("NO_DECOMPRESSION");
-  const ds=new DecompressionStream("deflate-raw");
-  const ab=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
-  return new Uint8Array(ab);
-}
+async function inflateRaw(bytes){if(typeof DecompressionStream==="undefined")throw new Error("NO_DECOMPRESSION");const ds=new DecompressionStream("deflate-raw");const ab=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();return new Uint8Array(ab);}
 async function readEntryText(zip,name){
-  const ent=zip.entries.get(name);
-  if(!ent) return null;
-  const lo=ent.localOff;
+  const ent=zip.entries.get(name); if(!ent) return null; const lo=ent.localOff;
   if(zip.dv.getUint32(lo,true)!==0x04034b50) throw new Error("lokale header ongeldig: "+name);
-  const nameLen=zip.dv.getUint16(lo+26,true), extraLen=zip.dv.getUint16(lo+28,true);
-  const start=lo+30+nameLen+extraLen;
-  const comp=zip.u8.subarray(start,start+ent.compSize);
-  let out;
-  if(ent.method===0) out=comp;
-  else if(ent.method===8) out=await inflateRaw(comp);
-  else throw new Error("onbekende compressie ("+ent.method+")");
+  const nameLen=zip.dv.getUint16(lo+26,true),extraLen=zip.dv.getUint16(lo+28,true); const start=lo+30+nameLen+extraLen;
+  const comp=zip.u8.subarray(start,start+ent.compSize); let out;
+  if(ent.method===0) out=comp; else if(ent.method===8) out=await inflateRaw(comp); else throw new Error("onbekende compressie ("+ent.method+")");
   return new TextDecoder("utf-8").decode(out);
 }
 
 /* ---------- xlsx XML parsing ---------- */
-function parseSharedStrings(xml){
-  const out=[]; const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g; let m;
-  while((m=re.exec(xml))){ let t=""; m[1].replace(/<t[^>]*>([\s\S]*?)<\/t>/g,(_,x)=>{t+=x;return"";}); out.push(xmlEntities(t)); }
-  return out;
-}
-function parseStyles(xml){
-  const fmt={}; let m;
-  const nf=/<numFmt\b[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;
-  while((m=nf.exec(xml))) fmt[m[1]]=xmlEntities(m[2]);
-  const xfs=[]; const block=xml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);
-  if(block){ const xre=/<xf\b[^>]*?\/?>/g; let x; while((x=xre.exec(block[1]))){ const id=x[0].match(/numFmtId="(\d+)"/); xfs.push(id?parseInt(id[1],10):0); } }
-  return {fmt,xfs};
-}
-function isDateFmtId(id,code){
-  if([14,15,16,17,22].includes(id)) return true;
-  if([18,19,20,21,45,46,47].includes(id)) return false;
-  if(code){ const c=code.replace(/\[[^\]]*\]/g,"").replace(/"[^"]*"/g,""); if(/[dy]/i.test(c)&&!/[#0%]/.test(c)) return true; }
-  return false;
-}
-function isDateStyle(sIdx,styles){ if(!Number.isFinite(sIdx))return false; const id=styles.xfs[sIdx]; if(id===undefined)return false; return isDateFmtId(id,styles.fmt[id]); }
-function excelDate(serial){
-  if(!Number.isFinite(serial)||serial<=0) return String(serial);
-  const d=new Date(Math.round((serial-25569)*86400000));
-  if(isNaN(d.getTime())) return String(serial);
-  return String(d.getUTCDate()).padStart(2,"0")+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+d.getUTCFullYear();
-}
+function parseSharedStrings(xml){const out=[];const re=/<si\b[^>]*>([\s\S]*?)<\/si>/g;let m;while((m=re.exec(xml))){let t="";m[1].replace(/<t[^>]*>([\s\S]*?)<\/t>/g,(_,x)=>{t+=x;return"";});out.push(xmlEntities(t));}return out;}
+function parseStyles(xml){const fmt={};let m;const nf=/<numFmt\b[^>]*numFmtId="(\d+)"[^>]*formatCode="([^"]*)"/g;while((m=nf.exec(xml)))fmt[m[1]]=xmlEntities(m[2]);const xfs=[];const block=xml.match(/<cellXfs\b[^>]*>([\s\S]*?)<\/cellXfs>/);if(block){const xre=/<xf\b[^>]*?\/?>/g;let x;while((x=xre.exec(block[1]))){const id=x[0].match(/numFmtId="(\d+)"/);xfs.push(id?parseInt(id[1],10):0);}}return {fmt,xfs};}
+function isDateFmtId(id,code){if([14,15,16,17,22].includes(id))return true;if([18,19,20,21,45,46,47].includes(id))return false;if(code){const c=code.replace(/\[[^\]]*\]/g,"").replace(/"[^"]*"/g,"");if(/[dy]/i.test(c)&&!/[#0%]/.test(c))return true;}return false;}
+function isDateStyle(sIdx,styles){if(!Number.isFinite(sIdx))return false;const id=styles.xfs[sIdx];if(id===undefined)return false;return isDateFmtId(id,styles.fmt[id]);}
+function excelDate(serial){if(!Number.isFinite(serial)||serial<=0)return String(serial);const d=new Date(Math.round((serial-25569)*86400000));if(isNaN(d.getTime()))return String(serial);return String(d.getUTCDate()).padStart(2,"0")+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+d.getUTCFullYear();}
 function parseSheetXml(xml,shared,styles){
-  const dataM=xml.match(/<sheetData\b[^>]*>([\s\S]*?)<\/sheetData>/);
-  const bodyXml=dataM?dataM[1]:"";
-  const rows=[]; let maxCol=0; const dateCols=new Set();
-  const rowRe=/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g; let rm;
+  const dataM=xml.match(/<sheetData\b[^>]*>([\s\S]*?)<\/sheetData>/); const bodyXml=dataM?dataM[1]:"";
+  const rows=[];let maxCol=0;const dateCols=new Set();
+  const rowRe=/<row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/row>)/g;let rm;
   while((rm=rowRe.exec(bodyXml))){
-    const rNum=parseInt((rm[1].match(/\br="(\d+)"/)||[])[1],10)||(rows.length+1);
-    const cells=[]; const inner=rm[2];
+    const rNum=parseInt((rm[1].match(/\br="(\d+)"/)||[])[1],10)||(rows.length+1); const cells=[];const inner=rm[2];
     if(inner){
-      const cRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g; let cm;
+      const cRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;let cm;
       while((cm=cRe.exec(inner))){
-        const a=cm[1]||"", cbody=cm[2];
-        const ref=(a.match(/\br="([A-Z]+)\d+"/)||[])[1];
-        const colIdx=ref?colToNum(ref):cells.length;
-        const t=(a.match(/\bt="([^"]+)"/)||[])[1]||"n";
-        const sIdx=parseInt((a.match(/\bs="(\d+)"/)||[])[1],10);
+        const a=cm[1]||"",cbody=cm[2]; const ref=(a.match(/\br="([A-Z]+)\d+"/)||[])[1];
+        const colIdx=ref?colToNum(ref):cells.length; const t=(a.match(/\bt="([^"]+)"/)||[])[1]||"n"; const sIdx=parseInt((a.match(/\bs="(\d+)"/)||[])[1],10);
         let value="";
         if(cbody!==undefined&&cbody!==""){
-          if(t==="inlineStr"){ let txt=""; cbody.replace(/<t[^>]*>([\s\S]*?)<\/t>/g,(_,x)=>{txt+=x;return"";}); value=xmlEntities(txt); }
-          else{
-            const vm=cbody.match(/<v>([\s\S]*?)<\/v>/); const raw=vm?vm[1]:"";
-            if(t==="s") value=shared[parseInt(raw,10)]??"";
-            else if(t==="b") value=raw==="1"?"WAAR":"ONWAAR";
-            else if(t==="e"||t==="str") value=xmlEntities(raw);
-            else if(raw==="") value="";
-            else if(isDateStyle(sIdx,styles)){ value=excelDate(parseFloat(raw)); dateCols.add(colIdx); }
-            else value=raw;
-          }
+          if(t==="inlineStr"){let txt="";cbody.replace(/<t[^>]*>([\s\S]*?)<\/t>/g,(_,x)=>{txt+=x;return"";});value=xmlEntities(txt);}
+          else{const vm=cbody.match(/<v>([\s\S]*?)<\/v>/);const raw=vm?vm[1]:"";
+            if(t==="s")value=shared[parseInt(raw,10)]??"";
+            else if(t==="b")value=raw==="1"?"WAAR":"ONWAAR";
+            else if(t==="e"||t==="str")value=xmlEntities(raw);
+            else if(raw==="")value="";
+            else if(isDateStyle(sIdx,styles)){value=excelDate(parseFloat(raw));dateCols.add(colIdx);}
+            else value=raw;}
         }
-        cells[colIdx]=value==null?"":String(value);
-        if(colIdx+1>maxCol) maxCol=colIdx+1;
+        cells[colIdx]=value==null?"":String(value); if(colIdx+1>maxCol)maxCol=colIdx+1;
       }
     }
-    rows.push({r:rNum,cells});
-    if(rows.length>500000){ warn("Rijlimiet bereikt — afgekapt op 500k."); break; }
+    rows.push({r:rNum,cells}); if(rows.length>500000){warn("Rijlimiet bereikt — afgekapt op 500k.");break;}
   }
-  for(const row of rows){ for(let i=0;i<maxCol;i++) if(row.cells[i]===undefined) row.cells[i]=""; }
+  for(const row of rows){for(let i=0;i<maxCol;i++)if(row.cells[i]===undefined)row.cells[i]="";}
   return {rows,maxCol,dateCols};
 }
 async function parseWorkbook(buf){
-  const zip=readZip(buf);
-  const wbXml=await readEntryText(zip,"xl/workbook.xml");
+  const zip=readZip(buf); const wbXml=await readEntryText(zip,"xl/workbook.xml");
   if(!wbXml) throw new Error("geen xl/workbook.xml — dit lijkt geen .xlsx");
-  const relsXml=await readEntryText(zip,"xl/_rels/workbook.xml.rels");
-  const rels={};
+  const relsXml=await readEntryText(zip,"xl/_rels/workbook.xml.rels"); const rels={};
   if(relsXml) relsXml.replace(/<Relationship\b[^>]*?Id="([^"]+)"[^>]*?Target="([^"]+)"/g,(_,id,t)=>{rels[id]=t;return"";});
   const sheets=[];
   wbXml.replace(/<sheet\b[^>]*?\/?>/g,(tag)=>{
-    const name=(tag.match(/name="([^"]*)"/)||[])[1];
-    const rid=(tag.match(/r:id="([^"]*)"/)||[])[1];
-    let target=rels[rid]||("worksheets/sheet"+(sheets.length+1)+".xml");
-    target=target.replace(/^\//,""); if(!target.startsWith("xl/")) target="xl/"+target.replace(/^\.\//,"");
-    sheets.push({name:name?xmlEntities(name):("Blad"+(sheets.length+1)),path:target});
-    return tag;
-  });
+    const name=(tag.match(/name="([^"]*)"/)||[])[1]; const rid=(tag.match(/r:id="([^"]*)"/)||[])[1];
+    let target=rels[rid]||("worksheets/sheet"+(sheets.length+1)+".xml"); target=target.replace(/^\//,"");
+    if(!target.startsWith("xl/")) target="xl/"+target.replace(/^\.\//,"");
+    sheets.push({name:name?xmlEntities(name):("Blad"+(sheets.length+1)),path:target}); return tag;});
   if(!sheets.length) throw new Error("geen werkbladen gevonden");
-  const ssXml=await readEntryText(zip,"xl/sharedStrings.xml");
-  const shared=ssXml?parseSharedStrings(ssXml):[];
-  const stXml=await readEntryText(zip,"xl/styles.xml");
-  const styles=stXml?parseStyles(stXml):{fmt:{},xfs:[]};
-  return {zip,sheets,shared,styles,isCsv:false};
+  const ssXml=await readEntryText(zip,"xl/sharedStrings.xml"); const shared=ssXml?parseSharedStrings(ssXml):[];
+  const stXml=await readEntryText(zip,"xl/styles.xml"); const styles=stXml?parseStyles(stXml):{fmt:{},xfs:[]};
+  return {zip,sheets,shared,styles};
 }
-async function readSheet(workbook,path){
-  const xml=await readEntryText(workbook.zip,path);
-  if(xml==null) throw new Error("werkblad niet gevonden: "+path);
-  return parseSheetXml(xml,workbook.shared,workbook.styles);
-}
+async function readSheet(workbook,path){const xml=await readEntryText(workbook.zip,path);if(xml==null)throw new Error("werkblad niet gevonden: "+path);return parseSheetXml(xml,workbook.shared,workbook.styles);}
 
 /* ---------- CSV fallback ---------- */
 function parseCsv(text){
-  if(text.charCodeAt(0)===0xFEFF) text=text.slice(1);
+  if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);
   const head=text.slice(0,text.indexOf("\n")>=0?text.indexOf("\n"):text.length);
   const delim=(head.split(";").length>head.split(",").length)?";":",";
-  const rows=[]; let row=[],cur="",inQ=false;
-  for(let i=0;i<text.length;i++){
-    const ch=text[i];
-    if(inQ){ if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; } else cur+=ch; }
-    else if(ch==='"') inQ=true;
-    else if(ch===delim){ row.push(cur);cur=""; }
-    else if(ch==="\n"){ row.push(cur);rows.push(row);row=[];cur=""; }
-    else if(ch==="\r"){}
-    else cur+=ch;
-  }
-  if(cur!==""||row.length){ row.push(cur); rows.push(row); }
-  let maxCol=0; const out=[];
-  rows.forEach((cells,i)=>{ maxCol=Math.max(maxCol,cells.length); out.push({r:i+1,cells}); });
-  for(const ro of out){ for(let i=0;i<maxCol;i++) if(ro.cells[i]===undefined) ro.cells[i]=""; }
-  log("CSV: scheidingsteken '"+delim+"'");
-  return {rows:out,maxCol,dateCols:new Set()};
+  const rows=[];let row=[],cur="",inQ=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(inQ){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++;}else inQ=false;}else cur+=ch;}
+    else if(ch==='"')inQ=true; else if(ch===delim){row.push(cur);cur="";}
+    else if(ch==="\n"){row.push(cur);rows.push(row);row=[];cur="";} else if(ch==="\r"){} else cur+=ch;}
+  if(cur!==""||row.length){row.push(cur);rows.push(row);}
+  let maxCol=0;const out=[]; rows.forEach((cells,i)=>{maxCol=Math.max(maxCol,cells.length);out.push({r:i+1,cells});});
+  for(const ro of out){for(let i=0;i<maxCol;i++)if(ro.cells[i]===undefined)ro.cells[i]="";}
+  log("CSV: scheidingsteken '"+delim+"'"); return {rows:out,maxCol,dateCols:new Set()};
 }
 
 /* ---------- analyse / rules engine ---------- */
+function sevOf(type){return settings.severity[type]||"warning";}
 function analyze(sheet,headerRowNumber,opt){
-  if(!sheet||!sheet.rows.length) return {error:"Het werkblad is leeg."};
+  if(!sheet||!sheet.rows.length) return {error:"Het werkblad is leeg.",empty:true,dataRowCount:0,rowIssues:[],headerIssues:[],sev:{critical:0,warning:0,info:0},pct:100};
   const norm=s=>opt.caseInsensitive?ci(s):String(s).trim();
   const isEmpty=v=>{const s=String(v==null?"":v);return opt.trimWhitespace?s.trim()==="":s==="";};
-  let headerRow=sheet.rows.find(r=>r.r===headerRowNumber); let usedHeader=headerRowNumber;
-  if(!headerRow||headerRow.cells.every(c=>String(c).trim()==="")){
-    headerRow=sheet.rows.find(r=>r.cells.some(c=>String(c).trim()!=="")); usedHeader=headerRow?headerRow.r:headerRowNumber;
-  }
-  if(!headerRow) return {error:"Geen kopregel met kolomnamen gevonden."};
+  let headerRow=sheet.rows.find(r=>r.r===headerRowNumber);let usedHeader=headerRowNumber;
+  if(!headerRow||headerRow.cells.every(c=>String(c).trim()==="")){headerRow=sheet.rows.find(r=>r.cells.some(c=>String(c).trim()!==""));usedHeader=headerRow?headerRow.r:headerRowNumber;}
+  if(!headerRow) return {error:"Geen kopregel met kolomnamen gevonden.",empty:true,dataRowCount:0,rowIssues:[],headerIssues:[],sev:{critical:0,warning:0,info:0},pct:100};
   const colCount=Math.max(sheet.maxCol,headerRow.cells.length);
-  const headers=[]; for(let i=0;i<colCount;i++) headers.push(String(headerRow.cells[i]??"").trim());
-  const headerIndex={}; headers.forEach((h,i)=>{ if(h&&headerIndex[norm(h)]===undefined) headerIndex[norm(h)]=i; });
+  const headers=[];for(let i=0;i<colCount;i++)headers.push(String(headerRow.cells[i]??"").trim());
+  const headerIndex={};headers.forEach((h,i)=>{if(h&&headerIndex[norm(h)]===undefined)headerIndex[norm(h)]=i;});
+  const present=k=>headerIndex[norm(k)]!==undefined;
   const ignoreSet=new Set(opt.ignore.map(norm).filter(Boolean));
   const optionalSet=new Set(opt.optional.map(norm).filter(Boolean));
   const bsnSet=new Set((opt.bsnCols||[]).map(norm).filter(Boolean));
   const ibanSet=new Set((opt.ibanCols||[]).map(norm).filter(Boolean));
+  const pcSet=new Set((opt.postcodeCols||[]).map(norm).filter(Boolean));
   const dateSet=new Set((opt.dateCols||[]).map(norm).filter(Boolean));
-  const condByCol={};
-  (opt.conditional||[]).forEach(c=>{ condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[]}; });
+  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[]};});
   const dataRows=sheet.rows.filter(r=>r.r>usedHeader);
 
   const cols=[];
   for(let i=0;i<colCount;i++){
-    const name=headers[i]; const key=norm(name);
-    const hasData=dataRows.some(r=>!isEmpty(r.cells[i]));
+    const name=headers[i];const key=norm(name); const hasData=dataRows.some(r=>!isEmpty(r.cells[i]));
     if(!name&&!hasData) continue;
     cols.push({index:i,letter:numToCol(i),name:name||("(kolom "+numToCol(i)+")"),key,named:!!name,
-      ignored:name?ignoreSet.has(key):false, optional:name?optionalSet.has(key):false,
-      conditional:name?!!condByCol[key]:false, isBsn:name?bsnSet.has(key):false, isIban:name?ibanSet.has(key):false,
+      ignored:name?ignoreSet.has(key):false,optional:name?optionalSet.has(key):false,conditional:name?!!condByCol[key]:false,
+      isBsn:name?bsnSet.has(key):false,isIban:name?ibanSet.has(key):false,isPostcode:name?pcSet.has(key):false,
       isDate:(name&&(dateSet.has(key)||/datum/i.test(name)))||sheet.dateCols.has(i),
-      missing:0, invalid:0, emptyCount:0, total:dataRows.length, fullyEmpty:false});
+      missing:0,invalid:0,emptyCount:0,total:dataRows.length,fullyEmpty:false});
   }
-  const checkedCols=cols.filter(c=>!c.ignored);
-  const ignoredCols=cols.filter(c=>c.ignored);
+  const checkedCols=cols.filter(c=>!c.ignored); const ignoredCols=cols.filter(c=>c.ignored);
 
-  const nameKey=norm(opt.nameCol||"Naam");
-  let idIdx=headerIndex[nameKey];
-  if(idIdx===undefined){ const f=cols.find(c=>c.named&&!c.ignored); idIdx=f?f.index:(cols[0]?cols[0].index:0); }
+  const headerIssues=[];
+  let idIdx=headerIndex[norm(opt.nameCol||"Naam")];
+  if(idIdx===undefined){headerIssues.push({type:"header",severity:sevOf("header"),col:opt.nameCol||"Naam",message:"Naam-kolom '"+(opt.nameCol||"Naam")+"' niet gevonden; de eerste kolom wordt als noemer gebruikt.",suggestion:suggestionFor("header")});const f=cols.find(c=>c.named&&!c.ignored);idIdx=f?f.index:(cols[0]?cols[0].index:0);}
   const idName=headers[idIdx]||(opt.nameCol||"Naam");
+  (opt.conditional||[]).forEach(c=>{if(!present(c.whenColumn))headerIssues.push({type:"header",severity:sevOf("header"),col:c.whenColumn,message:"Voorwaardekolom '"+c.whenColumn+"' ontbreekt; de regel voor '"+c.column+"' kan niet worden toegepast.",suggestion:suggestionFor("header")});});
+  (opt.expected||[]).forEach(name=>{if(!present(name))headerIssues.push({type:"header",severity:sevOf("header"),col:name,message:"Verwachte kolom '"+name+"' niet gevonden.",suggestion:suggestionFor("header")});});
 
   const rowIssues=[]; let reqTotal=0,reqFilled=0,missingCells=0,invalidCells=0;
+  const sevCount={critical:0,warning:0,info:0};
+  const blockerMap={};
+  function bump(severity){sevCount[severity]++;}
+  function blocker(type,col,severity){if(severity==="info")return;const k=type+"|"+col;if(!blockerMap[k])blockerMap[k]={type,col,severity,count:0};blockerMap[k].count++;}
   for(const r of dataRows){
-    const missing=[], invalid=[];
+    const issues=[];
     for(const c of checkedCols){
-      const val=r.cells[c.index]; const empty=isEmpty(val);
-      if(empty) c.emptyCount++;
-      let required=!c.optional, because=null;
-      if(c.conditional){
-        const cond=condByCol[c.key]; const wIdx=headerIndex[cond.whenKey];
-        const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";
-        required=cond.equals.includes(wVal);
-        if(required) because="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";
-      }
-      if(required){ reqTotal++; if(empty){ missing.push({col:c.name,because}); c.missing++; missingCells++; } else reqFilled++; }
-      if(!empty){
-        const sval=String(val).trim();
-        if(c.isBsn&&!isValidBSN(sval)){ invalid.push({col:c.name,short:"BSN ✗ 11-proef",message:"Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef)."}); c.invalid++; invalidCells++; }
-        else if(c.isIban&&!isValidIBAN(sval)){ invalid.push({col:c.name,short:"IBAN ✗",message:"De IBAN '"+sval+"' is ongeldig."}); c.invalid++; invalidCells++; }
-        if(c.isDate&&!isEuropeanDate(sval)){ invalid.push({col:c.name,short:c.name+": datumnotatie",message:"De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj)."}); c.invalid++; invalidCells++; }
+      const val=r.cells[c.index]; const empty=isEmpty(val); if(empty)c.emptyCount++;
+      let required=!c.optional,because=null;
+      if(c.conditional){const cond=condByCol[c.key];const wIdx=headerIndex[cond.whenKey];const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";required=cond.equals.includes(wVal);if(required)because="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";}
+      if(required){reqTotal++;if(empty){const sev=sevOf("missing");issues.push({type:"missing",col:c.name,value:"",severity:sev,because,short:c.name+" ontbreekt",message:"Het veld '"+c.name+"' is niet ingevuld"+(because?(" (verplicht omdat "+because+")"):"")+".",suggestion:suggestionFor("missing")});c.missing++;missingCells++;bump(sev);blocker("missing",c.name,sev);}else reqFilled++;}
+      if(!empty){const sval=String(val).trim();
+        if(c.isBsn&&!isValidBSN(sval)){const sev=sevOf("bsn");issues.push({type:"bsn",col:c.name,value:sval,severity:sev,short:"BSN ✗ 11-proef",message:"Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef).",suggestion:suggestionFor("bsn")});c.invalid++;invalidCells++;bump(sev);blocker("bsn",c.name,sev);}
+        if(c.isIban&&!isValidIBAN(sval)){const sev=sevOf("iban");issues.push({type:"iban",col:c.name,value:sval,severity:sev,short:"IBAN ✗",message:"De IBAN '"+sval+"' is ongeldig.",suggestion:suggestionFor("iban")});c.invalid++;invalidCells++;bump(sev);blocker("iban",c.name,sev);}
+        if(c.isPostcode&&!isValidPostcode(sval)){const sev=sevOf("postcode");issues.push({type:"postcode",col:c.name,value:sval,severity:sev,short:"Postcode ✗",message:"De postcode '"+sval+"' heeft geen geldige notatie.",suggestion:suggestionFor("postcode")});c.invalid++;invalidCells++;bump(sev);blocker("postcode",c.name,sev);}
+        if(c.isDate&&!isEuropeanDate(sval)){const sev=sevOf("date");issues.push({type:"date",col:c.name,value:sval,severity:sev,short:c.name+" ✗ datum",message:"De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).",suggestion:suggestionFor("date")});c.invalid++;invalidCells++;bump(sev);blocker("date",c.name,sev);}
       }
     }
-    if(missing.length||invalid.length){ rowIssues.push({r:r.r,id:String(r.cells[idIdx]??"").trim(),missing,invalid}); }
+    if(issues.length){issues.sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank);rowIssues.push({r:r.r,id:String(r.cells[idIdx]??"").trim(),issues});}
   }
+  for(const h of headerIssues) sevCount[h.severity]++;
   for(const c of checkedCols) c.fullyEmpty=!c.optional&&c.total>0&&c.emptyCount===c.total;
+  const topBlockers=Object.values(blockerMap).sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank||b.count-a.count).slice(0,6);
   const pct=reqTotal?Math.round((reqFilled/reqTotal)*1000)/10:100;
-  return {usedHeader,cols,checkedCols,ignoredCols,optionalCols:cols.filter(c=>c.optional),
-    dataRowCount:dataRows.length,rowIssues,missingCells,invalidCells,reqTotal,reqFilled,pct,idColName:idName};
+  return {usedHeader,cols,checkedCols,ignoredCols,optionalCols:cols.filter(c=>c.optional),dataRowCount:dataRows.length,
+    rowIssues,headerIssues,missingCells,invalidCells,reqTotal,reqFilled,pct,idColName:idName,sev:sevCount,topBlockers};
 }
+function worstSev(res){return res.sev.critical>0?"crit":res.sev.warning>0?"warn":res.sev.info>0?"binfo":"ok";}
 
-/* ---------- customer report ---------- */
-function buildReport(res){
-  const L=[];
-  L.push("CONTROLE LOONGEGEVENS");
-  L.push("Bestand: "+filename+(currentSheetName?("  ·  werkblad: "+currentSheetName):""));
-  L.push("Datum controle: "+new Date().toLocaleDateString("nl-NL"));
-  L.push("Gecontroleerde records: "+res.dataRowCount+"   ·   met aandachtspunten: "+res.rowIssues.length);
-  L.push("");
-  if(!res.rowIssues.length){
-    L.push("✓ Er zijn geen ontbrekende of foutieve velden gevonden. Alle gecontroleerde gegevens zijn in orde.");
-    return L.join("\n");
+/* ---------- report ---------- */
+function buildCategories(res){
+  const map={};
+  const add=(type,severity,line)=>{if(!map[type])map[type]={type,severity,label:CATLABEL[type]||type,tip:suggestionFor(type),items:[]};map[type].items.push(line);};
+  for(const it of res.rowIssues) for(const is of it.issues){
+    const who="Rij "+it.r+" ("+(it.id||"(geen naam)")+")";
+    const line=is.type==="missing"?(who+" — kolom '"+is.col+"'"+(is.because?(" (verplicht omdat "+is.because+")"):"")):(who+" — '"+is.value+"'");
+    add(is.type,is.severity,line);
   }
-  L.push("Hieronder vindt u per record de velden die nog ontbreken of gecorrigeerd moeten worden.");
-  L.push("De aanduiding is: rijnummer in het bestand + de naam.");
+  for(const h of res.headerIssues) add("header",h.severity,h.message);
+  return Object.values(map).sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank||b.items.length-a.items.length);
+}
+function buildReport(ds){
+  const res=ds.result;const L=[];
+  L.push("CONTROLE LOONGEGEVENS");
+  L.push("Bestand: "+ds.fileName+(ds.sheetName&&!ds.isCsv?("   ·   werkblad: "+ds.sheetName):""));
+  L.push("Datum controle: "+new Date().toLocaleDateString("nl-NL"));
   L.push("");
+  L.push("SAMENVATTING");
+  L.push("   Gecontroleerde records      : "+res.dataRowCount);
+  L.push("   Records met aandachtspunten : "+res.rowIssues.length);
+  L.push("   🔴 Kritiek : "+res.sev.critical+"    🟡 Waarschuwing : "+res.sev.warning+"    🔵 Info : "+res.sev.info);
+  L.push("   Compleetheid : "+res.pct+"%");
+  L.push("");
+  if(!res.rowIssues.length&&!res.headerIssues.length){L.push("✓ Geen ontbrekende of foutieve velden gevonden. Alle gecontroleerde gegevens zijn in orde.");return L.join("\n");}
+  L.push("AANDACHTSPUNTEN PER CATEGORIE");
+  L.push("──────────────────────────────────────────────────");
+  for(const cat of buildCategories(res)){
+    L.push(SEV[cat.severity].dot+" "+cat.label+" ("+cat.items.length+")"+(cat.tip?("   —   Tip: "+cat.tip):""));
+    cat.items.slice(0,1000).forEach(line=>L.push("   - "+line));
+    if(cat.items.length>1000)L.push("   … en "+(cat.items.length-1000)+" meer");
+    L.push("");
+  }
+  L.push("AANDACHTSPUNTEN PER RECORD");
   L.push("──────────────────────────────────────────────────");
   for(const it of res.rowIssues){
     L.push("Rij "+it.r+"  —  "+(it.id||"(geen naam)"));
-    for(const m of it.missing) L.push("   • Het veld '"+m.col+"' is niet ingevuld"+(m.because?(" (verplicht omdat "+m.because+")"):"")+".");
-    for(const v of it.invalid) L.push("   • "+v.message);
+    for(const is of it.issues) L.push("   • ["+SEV[is.severity].label+"] "+is.message+(is.suggestion?("   💡 "+is.suggestion):""));
     L.push("");
   }
   L.push("──────────────────────────────────────────────────");
-  L.push("");
   L.push("Wij verzoeken u vriendelijk de bovenstaande velden te controleren en aan te vullen of te corrigeren,");
   L.push("en het bestand opnieuw aan te leveren. Alvast hartelijk dank.");
   return L.join("\n");
 }
+function buildFullReport(){return datasets.map((d,i)=>("════════ "+(i+1)+"/"+datasets.length+"  "+d.fileName+(d.isCsv?"":(" › "+d.sheetName))+" ════════\n\n"+buildReport(d))).join("\n\n\n");}
 
 /* ---------- file handling ---------- */
-async function handleFile(file){
-  if(!file) return;
-  setBanner("");
-  log("Bestand gekozen:",file.name,"("+Math.round(file.size/1024)+" KB)");
-  const ext=(file.name.split(".").pop()||"").toLowerCase();
-  try{
-    if(ext==="csv"){
-      sheetData=parseCsv(await file.text()); wb={sheets:[{name:file.name}],isCsv:true};
-      filename=file.name; currentSheetIndex=0; currentSheetName="";
-      log("CSV geparset:",sheetData.rows.length,"rijen,",sheetData.maxCol,"kolommen");
-    }else if(ext==="xlsx"||ext==="xlsm"){
-      wb=await parseWorkbook(await file.arrayBuffer()); filename=file.name; currentSheetIndex=0;
-      currentSheetName=wb.sheets[0].name;
-      sheetData=await readSheet(wb,wb.sheets[0].path);
-      log("Werkmap geparset:",wb.sheets.length,"blad(en),",sheetData.rows.length,"rijen,",sheetData.maxCol,"kolommen");
-    }else{ setBanner("Niet-ondersteund bestandstype: ."+ext+". Kies .xlsx, .xlsm of .csv.","err"); return; }
-    afterLoad();
-  }catch(e){
-    errl("Inlezen mislukt:",e.message);
-    if(e.message==="NO_DECOMPRESSION") setBanner("Je browser kan geen .xlsx uitpakken. Gebruik een recente Chrome, Edge, Firefox of Safari — of upload een .csv.","err");
-    else setBanner("Kon dit bestand niet lezen: "+e.message,"err");
+async function handleFiles(fileList){
+  const files=Array.from(fileList||[]); if(!files.length) return;
+  setBanner(""); showToast("Bezig met inlezen…");
+  const next=[]; const skipped=[];
+  for(const file of files){
+    const ext=(file.name.split(".").pop()||"").toLowerCase();
+    try{
+      if(ext==="csv"){ const data=parseCsv(await file.text()); next.push(mkDataset(file.name,"",true,data)); }
+      else if(ext==="xlsx"||ext==="xlsm"){ const w=await parseWorkbook(await file.arrayBuffer());
+        for(const sh of w.sheets){ const data=await readSheet(w,sh.path); next.push(mkDataset(file.name,sh.name,false,data)); } }
+      else skipped.push(file.name+" (type ."+ext+")");
+    }catch(e){ errl("Inlezen mislukt:",file.name,e.message);
+      skipped.push(file.name+" — "+(e.message==="NO_DECOMPRESSION"?"browser kan .xlsx niet uitpakken":e.message)); }
   }
+  if(!next.length){ setBanner("Geen leesbare bestanden. "+(skipped.length?("Overgeslagen: "+skipped.join("; ")):""),"err"); return; }
+  datasets=next; currentIndex=0; multiFile=new Set(datasets.map(d=>d.fileName)).size>1;
+  analyzeAll();
+  if(skipped.length) setBanner("Overgeslagen: "+skipped.join("; "),"warn");
+  afterLoad();
+  log("Geladen:",new Set(datasets.map(d=>d.fileName)).size,"bestand(en),",datasets.length,"tabblad(en).");
 }
+function mkDataset(fileName,sheetName,isCsv,data){return {id:fileName+"|"+sheetName+"|"+Math.random().toString(36).slice(2,6),fileName,sheetName,isCsv,data,result:null};}
+function analyzeAll(){for(const d of datasets) d.result=analyze(d.data,settings.headerRow,settings);}
 function afterLoad(){
   $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false;
-  $("fileName").textContent=filename;
-  const sw=$("sheetWrap"), sel=$("sheetSelect");
-  if(wb.sheets.length>1&&!wb.isCsv){
-    sw.hidden=false; sel.innerHTML="";
-    wb.sheets.forEach((s,i)=>{const o=document.createElement("option");o.value=String(i);o.textContent=s.name;sel.appendChild(o);});
-    sel.value=String(currentSheetIndex);
-  }else sw.hidden=true;
   $("headerRowInput").value=settings.headerRow;
-  reanalyze();
+  renderTabs(); renderCurrent();
 }
-async function switchSheet(i){
-  if(!wb||wb.isCsv) return;
-  try{ currentSheetIndex=i; currentSheetName=wb.sheets[i].name; sheetData=await readSheet(wb,wb.sheets[i].path);
-    log("Werkblad gewisseld:",wb.sheets[i].name,"-",sheetData.rows.length,"rijen"); reanalyze(); }
-  catch(e){ errl("Werkblad lezen mislukt:",e.message); setBanner("Kon werkblad niet lezen: "+e.message,"err"); }
-}
-function reanalyze(){
-  if(!sheetData) return;
-  const res=analyze(sheetData,settings.headerRow,settings); lastResult=res;
-  if(res.error){ renderError(res.error); return; }
-  setBanner("");
-  if(res.usedHeader!==settings.headerRow) setBanner("Rij "+settings.headerRow+" was leeg — kopregel automatisch op rij "+res.usedHeader+" gezet.","warn");
-  renderResult(res);
-  log("Analyse:",res.dataRowCount,"datarijen,",res.checkedCols.length,"gecontroleerde kolommen,",
-      res.missingCells,"ontbrekend,",res.invalidCells,"foutief, compleetheid",res.pct+"%");
-}
+function selectDataset(i){ if(i<0||i>=datasets.length||i===currentIndex){currentIndex=i;} currentIndex=i; renderTabs(); renderCurrent(); }
+function reanalyze(){ if(!datasets.length) return; analyzeAll(); renderTabs(); renderCurrent(); }
 
 /* ---------- rendering ---------- */
-function setBanner(msg,kind){ const b=$("banner");
-  if(!msg){ b.className="banner"; b.textContent=""; return; }
-  b.className="banner show "+(kind||"err"); b.textContent=(kind==="warn"?"⚠ ":"⛔ ")+msg; }
+function setBanner(msg,kind){const b=$("banner");if(!msg){b.className="banner";b.textContent="";return;}b.className="banner show "+(kind||"err");b.textContent=(kind==="warn"?"⚠ ":"⛔ ")+msg;}
+function renderTabs(){
+  const ov=$("overview"), bar=$("tabsBar");
+  const files=new Set(datasets.map(d=>d.fileName));
+  let tc=0,tw=0,ti=0,issueTabs=0;
+  datasets.forEach(d=>{tc+=d.result.sev.critical;tw+=d.result.sev.warning;ti+=d.result.sev.info;if(d.result.rowIssues.length||d.result.headerIssues.length)issueTabs++;});
+  if(datasets.length>1){
+    ov.hidden=false;
+    ov.innerHTML=`📁 <b>${files.size}</b> bestand(en) <span class="sep">·</span> 🗂️ <b>${datasets.length}</b> tabblad(en) <span class="sep">·</span> `+
+      `🔴 <b>${nl(tc)}</b> kritiek <span class="sep">·</span> 🟡 <b>${nl(tw)}</b> waarschuwing <span class="sep">·</span> 🔵 <b>${nl(ti)}</b> info <span class="sep">·</span> ${issueTabs} tab(s) met aandachtspunten`;
+    bar.hidden=false;
+    bar.innerHTML=datasets.map((d,i)=>{
+      const ws=worstSev(d.result);const issues=d.result.rowIssues.length;
+      return `<button class="tab-chip${i===currentIndex?" active":""}" data-i="${i}" title="${escapeHtml(d.fileName+(d.isCsv?"":" › "+d.sheetName))} — ${d.result.sev.critical} kritiek, ${d.result.sev.warning} waarschuwing">`+
+        `<span class="dot ${ws}"></span><span class="col">`+
+        `${multiFile?`<span class="tf">${escapeHtml(d.fileName)}</span>`:""}`+
+        `<span class="lbl">${escapeHtml(d.isCsv?d.fileName:d.sheetName)}</span></span>`+
+        `<span class="sc">${d.result.pct}%${issues?" · "+issues+"⚠":" · ✓"}</span></button>`;
+    }).join("");
+  }else{ ov.hidden=true; bar.hidden=true; }
+  $("fullReportBtn").hidden=datasets.length<=1;
+}
+function renderCurrent(){
+  const ds=datasets[currentIndex]; const res=ds.result;
+  $("fileName").textContent=ds.fileName+(ds.isCsv?"":(" › "+ds.sheetName));
+  if(res.error){ renderError(res.error); $("reportText").value=buildReport(ds); return; }
+  setBanner(res.usedHeader!==settings.headerRow?("Rij "+settings.headerRow+" was leeg — kopregel automatisch op rij "+res.usedHeader+" gezet."):"", "warn");
+  renderResult(ds,res);
+  log("Analyse ["+ds.fileName+(ds.isCsv?"":" › "+ds.sheetName)+"]:",res.dataRowCount,"rijen,",res.sev.critical,"kritiek,",res.sev.warning,"waarschuwing,",res.sev.info,"info, compleetheid",res.pct+"%");
+}
 function renderError(msg){
-  $("cards").innerHTML=""; $("colList").innerHTML=""; $("ignoredWrap").innerHTML=""; $("colDesc").textContent="";
-  $("rowResult").innerHTML=""; $("rowDesc").textContent=""; $("reportText").value=""; setBanner(msg,"err");
+  $("cards").innerHTML="";$("colList").innerHTML="";$("ignoredWrap").innerHTML="";$("colDesc").textContent="";
+  $("rowResult").innerHTML="";$("rowDesc").textContent="";$("blockersBlock").hidden=true;setBanner(msg,"err");
 }
-function card(k,v,sub,cls,tip){
-  return `<div class="card ${cls||""}"><div class="k">${escapeHtml(k)}${tip?` <button class="info tip-left" data-tip="${escapeHtml(tip)}" aria-label="Uitleg">i</button>`:""}</div>`+
-    `<div class="v">${escapeHtml(String(v))}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}</div>`;
-}
-function renderResult(res){
-  const nl=n=>n.toLocaleString("nl-NL");
+function card(k,v,sub,cls,tip){return `<div class="card ${cls||""}"><div class="k">${escapeHtml(k)}${tip?` <button class="info tip-left" data-tip="${escapeHtml(tip)}" aria-label="Uitleg">i</button>`:""}</div><div class="v">${escapeHtml(String(v))}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}</div>`;}
+function renderResult(ds,res){
   $("cards").innerHTML=
     card("Datarijen",nl(res.dataRowCount),"onder de kopregel")+
-    card("Gecontroleerde kolommen",res.checkedCols.length,res.ignoredCols.length+" genegeerd · "+res.optionalCols.length+" niet verplicht")+
-    card("Ontbrekende velden",nl(res.missingCells),"lege verplichte cellen",res.missingCells?"bad":"good",
-      "Aantal lege cellen in velden die (eventueel voorwaardelijk) verplicht zijn.")+
-    card("Foutieve velden",nl(res.invalidCells),"BSN / IBAN / datum",res.invalidCells?"warn":"good",
-      "Ingevulde waarden die niet geldig zijn: BSN faalt op de 11-proef, ongeldige IBAN, of datum niet in Europese notatie.")+
-    card("Records met aandachtspunten",nl(res.rowIssues.length),(res.dataRowCount-res.rowIssues.length)+" in orde",res.rowIssues.length?"warn":"good")+
-    `<div class="card pct"><div class="ring" style="--p:${res.pct}"><span>${res.pct}%</span></div>`+
-      `<div class="right"><div class="k">Compleetheid <button class="info tip-left" data-tip="Compleetheid = gevulde verplichte cellen ÷ totaal verplichte cellen × 100. Voorwaardelijke velden tellen alleen mee wanneer hun voorwaarde geldt. Foutieve (maar gevulde) waarden tellen hier als gevuld." aria-label="Formule">i</button></div>`+
-      `<div class="sub">${nl(res.reqFilled)} / ${nl(res.reqTotal)} verplichte cellen</div></div></div>`;
+    `<div class="card pct"><div class="ring" style="--p:${res.pct}"><span>${res.pct}%</span></div><div class="right"><div class="k">Compleetheid <button class="info tip-left" data-tip="Gevulde verplichte cellen ÷ totaal verplichte cellen × 100. Voorwaardelijke velden tellen alleen mee als hun voorwaarde geldt." aria-label="Formule">i</button></div><div class="sub">${nl(res.reqFilled)} / ${nl(res.reqTotal)} verplichte cellen</div></div></div>`+
+    card("🔴 Kritiek",nl(res.sev.critical),"blocker-issues",res.sev.critical?"crit":"good","Issues met niveau Kritiek — verwerking blokkerend (standaard: ontbrekend, BSN, IBAN).")+
+    card("🟡 Waarschuwing",nl(res.sev.warning),"format-issues",res.sev.warning?"warn":"good","Issues met niveau Waarschuwing (standaard: postcode- en datumnotatie).")+
+    card("🔵 Info",nl(res.sev.info),"structuur",res.sev.info?"binfo":"good","Info-meldingen (standaard: ontbrekende verwachte kolommen / structuur).")+
+    card("Records met aandachtspunten",nl(res.rowIssues.length),(res.dataRowCount-res.rowIssues.length)+" in orde",res.rowIssues.length?"warn":"good");
+
+  // top blockers
+  const bb=$("blockersBlock");
+  if(res.topBlockers.length){
+    bb.hidden=false; $("blockersDesc").textContent="Sturen op deze punten maakt het bestand het snelst verwerkbaar.";
+    $("blockersList").innerHTML=res.topBlockers.map(b=>{
+      const label=({missing:"Ontbrekend veld",bsn:"Ongeldig BSN",iban:"Ongeldige IBAN",postcode:"Ongeldige postcode",date:"Datumnotatie"}[b.type]||b.type);
+      return `<div class="blocker"><span class="dot ${SEV[b.severity].cls}"></span><div><div class="bl-label">${escapeHtml(label)} — kolom '${escapeHtml(b.col)}'</div><div class="bl-sub">${SEV[b.severity].label} · ${suggestionFor(b.type)}</div></div><span class="cnt">${nl(b.count)}×</span></div>`;
+    }).join("");
+  }else bb.hidden=true;
 
   // report
-  $("reportText").value=buildReport(res);
+  $("reportText").value=buildReport(ds);
 
   // columns
   const checked=[...res.checkedCols].sort((a,b)=>(b.missing+b.invalid)-(a.missing+a.invalid)||a.index-b.index);
   $("colDesc").textContent=res.checkedCols.length+" kolommen gecontroleerd · "+res.optionalCols.length+" niet verplicht · "+res.ignoredCols.length+" genegeerd.";
   $("colList").innerHTML=checked.map(c=>{
-    const filled=c.total-c.emptyCount, pct=c.total?Math.round((filled/c.total)*100):100;
-    const tags=[]; if(c.conditional) tags.push('<span class="tag cond">voorwaardelijk</span>');
-    if(c.optional) tags.push('<span class="tag optt">niet verplicht</span>');
-    if(c.isBsn) tags.push('<span class="tag val">BSN</span>');
-    if(c.isIban) tags.push('<span class="tag val">IBAN</span>');
-    if(c.isDate) tags.push('<span class="tag val">datum</span>');
-    const pills=[];
-    if(c.fullyEmpty) pills.push('<span class="pill empty">volledig leeg</span>');
-    else if(c.missing>0) pills.push('<span class="pill some">'+c.missing+' leeg</span>');
-    if(c.invalid>0) pills.push('<span class="pill fout">'+c.invalid+' fout</span>');
-    if(!pills.length) pills.push(c.optional?'<span class="pill opt">niet verplicht</span>':'<span class="pill ok">compleet</span>');
-    return `<div class="col-row"><span class="col-letter">${c.letter}</span>`+
-      `<span class="col-name"><span class="nm">${escapeHtml(c.name)}</span>${tags.join("")}</span>`+
+    const filled=c.total-c.emptyCount,pct=c.total?Math.round((filled/c.total)*100):100;
+    const tags=[]; if(c.conditional)tags.push('<span class="tag cond">voorwaardelijk</span>'); if(c.optional)tags.push('<span class="tag optt">niet verplicht</span>');
+    if(c.isBsn)tags.push('<span class="tag val">BSN</span>'); if(c.isIban)tags.push('<span class="tag val">IBAN</span>');
+    if(c.isPostcode)tags.push('<span class="tag val">postcode</span>'); if(c.isDate)tags.push('<span class="tag val">datum</span>');
+    const pills=[]; if(c.fullyEmpty)pills.push('<span class="pill empty">volledig leeg</span>'); else if(c.missing>0)pills.push('<span class="pill some">'+c.missing+' leeg</span>');
+    if(c.invalid>0)pills.push('<span class="pill fout">'+c.invalid+' fout</span>');
+    if(!pills.length)pills.push(c.optional?'<span class="pill opt">niet verplicht</span>':'<span class="pill ok">compleet</span>');
+    return `<div class="col-row"><span class="col-letter">${c.letter}</span><span class="col-name"><span class="nm">${escapeHtml(c.name)}</span>${tags.join("")}</span>`+
       `<span class="bar"><i style="width:${pct}%;${(c.missing||c.invalid)?"background:linear-gradient(90deg,#ffce5c,#ff9a3c)":""}"></i></span>`+
       `<span class="col-count">${nl(filled)}/${nl(c.total)}</span><span class="pills">${pills.join("")}</span></div>`;
   }).join("")||'<div class="desc">Geen te controleren kolommen.</div>';
-
-  $("ignoredWrap").innerHTML=res.ignoredCols.length
-    ? 'Genegeerd in dit bestand ('+res.ignoredCols.length+'): <span class="chips">'+res.ignoredCols.map(c=>`<span class="chip">${escapeHtml(c.name)}</span>`).join("")+'</span>'
-    : '<span style="color:var(--faint)">Geen van de te negeren kolommen komt in dit bestand voor.</span>';
+  $("ignoredWrap").innerHTML=res.ignoredCols.length?'Genegeerd in dit tabblad ('+res.ignoredCols.length+'): <span class="chips">'+res.ignoredCols.map(c=>`<span class="chip" style="cursor:default">${escapeHtml(c.name)}</span>`).join("")+'</span>':'<span style="color:var(--faint)">Geen van de te negeren kolommen komt in dit tabblad voor.</span>';
 
   renderRowIssues(res);
 }
 function renderRowIssues(res){
-  const box=$("rowResult"), desc=$("rowDesc");
-  if(!res.rowIssues.length){ desc.textContent="";
-    box.innerHTML='<div class="empty-good"><span class="big">✅</span>Geen ontbrekende of foutieve velden gevonden.</div>'; return; }
-  const CAP=300; desc.textContent='Rijen met minstens één ontbrekend of foutief veld. Noemer = rijnummer + "'+res.idColName+'".';
-  const shown=res.rowIssues.slice(0,CAP);
-  const html=shown.map(it=>{
-    const mcap=6, vcap=6;
-    const mchips=it.missing.slice(0,mcap).map(m=>`<span class="chip miss">${escapeHtml(m.col)}</span>`).join("")+(it.missing.length>mcap?`<span class="more">+${it.missing.length-mcap}</span>`:"");
-    const vchips=it.invalid.slice(0,vcap).map(v=>`<span class="chip bad" title="${escapeHtml(v.message)}">${escapeHtml(v.short)}</span>`).join("")+(it.invalid.length>vcap?`<span class="more">+${it.invalid.length-vcap}</span>`:"");
-    return `<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id||"(leeg)")}</td>`+
-      `<td><span class="chips">${mchips||'<span class="more">—</span>'}</span></td>`+
-      `<td><span class="chips">${vchips||'<span class="more">—</span>'}</span></td></tr>`;
+  const box=$("rowResult"),desc=$("rowDesc");
+  if(!res.rowIssues.length){desc.textContent="";box.innerHTML='<div class="empty-good"><span class="big">✅</span>Geen ontbrekende of foutieve velden in dit tabblad.</div>';return;}
+  const CAP=300; desc.textContent='Rijen met minstens één aandachtspunt. Hover over een label voor uitleg + suggestie. Noemer = rijnummer + "'+res.idColName+'".';
+  const html=res.rowIssues.slice(0,CAP).map(it=>{
+    const cap=8;
+    const chips=it.issues.slice(0,cap).map(is=>`<span class="chip sev-${is.severity}" title="${escapeHtml(is.message+(is.suggestion?("  💡 "+is.suggestion):""))}">${SEV[is.severity].dot} ${escapeHtml(is.short)}</span>`).join("")+(it.issues.length>cap?`<span class="more">+${it.issues.length-cap}</span>`:"");
+    return `<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id||"(leeg)")}</td><td><span class="chips">${chips}</span></td></tr>`;
   }).join("");
-  box.innerHTML=`<div class="tablewrap"><table><thead><tr><th>Rij</th><th>${escapeHtml(res.idColName||"Naam")}</th><th>Ontbrekend</th><th>Foutief</th></tr></thead><tbody>${html}</tbody></table></div>`+
-    (res.rowIssues.length>CAP?`<div class="cap-note">Eerste ${CAP} van ${res.rowIssues.length} rijen getoond. Het klantrapport en de CSV-export bevatten alle rijen.</div>`:"");
+  box.innerHTML=`<div class="tablewrap"><table><thead><tr><th>Rij</th><th>${escapeHtml(res.idColName||"Naam")}</th><th>Aandachtspunten</th></tr></thead><tbody>${html}</tbody></table></div>`+
+    (res.rowIssues.length>CAP?`<div class="cap-note">Eerste ${CAP} van ${res.rowIssues.length} rijen getoond. Het klantrapport en de CSV-export bevatten alles.</div>`:"");
 }
 
-/* ---------- export / report actions ---------- */
-function downloadBlob(content,name,type){
-  try{ const url=URL.createObjectURL(new Blob([content],{type:type||"text/plain;charset=utf-8"}));
-    const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),4000); return true;
-  }catch(e){ errl("Download mislukt:",e.message); showToast("Download mislukt.","bad"); return false; }
-}
-function csvField(s){ s=String(s==null?"":s); return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
-function baseName(){ return (filename.replace(/\.[^.]+$/,"")||"controle"); }
+/* ---------- export ---------- */
+function downloadBlob(content,name,type){try{const url=URL.createObjectURL(new Blob([content],{type:type||"text/plain;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);return true;}catch(e){errl("Download mislukt:",e.message);showToast("Download mislukt.","bad");return false;}}
+function csvField(s){s=String(s==null?"":s);return /[;"\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function baseName(){const f=new Set(datasets.map(d=>d.fileName));return f.size===1?[...f][0].replace(/\.[^.]+$/,""):"controle";}
 function exportIssues(){
-  if(!lastResult||!lastResult.rowIssues) return;
-  if(!lastResult.rowIssues.length){ showToast("Geen aandachtspunten om te exporteren.","good"); return; }
-  const L=["Excel-rij;"+csvField(lastResult.idColName)+";Soort;Veld;Detail"];
-  for(const it of lastResult.rowIssues){
-    for(const m of it.missing) L.push([it.r,csvField(it.id),"Ontbrekend",csvField(m.col),csvField(m.because?("verplicht omdat "+m.because):"")].join(";"));
-    for(const v of it.invalid) L.push([it.r,csvField(it.id),"Foutief",csvField(v.col),csvField(v.message)].join(";"));
+  const L=["Bestand;Tabblad;Excel-rij;Naam;Ernst;Categorie;Veld;Waarde;Detail;Suggestie"]; let total=0;
+  for(const d of datasets){const res=d.result;
+    for(const it of (res.rowIssues||[])) for(const is of it.issues){total++;
+      L.push([csvField(d.fileName),csvField(d.isCsv?"":d.sheetName),it.r,csvField(it.id),SEV[is.severity].label,CATLABEL[is.type]||is.type,csvField(is.col),csvField(is.value),csvField(is.message),csvField(is.suggestion)].join(";"));}
+    for(const h of (res.headerIssues||[])){total++;
+      L.push([csvField(d.fileName),csvField(d.isCsv?"":d.sheetName),"",csvField(""),SEV[h.severity].label,CATLABEL.header,csvField(h.col),"",csvField(h.message),csvField(h.suggestion)].join(";"));}
   }
+  if(!total){showToast("Geen aandachtspunten om te exporteren.","good");return;}
   downloadBlob("﻿"+L.join("\r\n"),baseName()+"-aandachtspunten.csv","text/csv;charset=utf-8");
-  showToast("Aandachtspunten geëxporteerd.","good"); log("Export aandachtspunten");
+  showToast("Aandachtspunten geëxporteerd ("+total+").","good"); log("Export aandachtspunten:",total);
 }
 function exportCols(){
-  if(!lastResult||!lastResult.checkedCols) return;
-  const L=["Kolom;Letter;Status;Leeg;Fout;Totaal"];
-  for(const c of lastResult.checkedCols) L.push([csvField(c.name),c.letter,c.optional?"niet verplicht":(c.conditional?"voorwaardelijk":"verplicht"),c.missing,c.invalid,c.total].join(";"));
-  for(const c of lastResult.ignoredCols) L.push([csvField(c.name),c.letter,"genegeerd","","",""].join(";"));
+  const L=["Bestand;Tabblad;Kolom;Letter;Status;Leeg;Fout;Totaal"];
+  for(const d of datasets){const res=d.result;if(res.error)continue;
+    for(const c of res.checkedCols) L.push([csvField(d.fileName),csvField(d.isCsv?"":d.sheetName),csvField(c.name),c.letter,c.optional?"niet verplicht":(c.conditional?"voorwaardelijk":"verplicht"),c.missing,c.invalid,c.total].join(";"));
+    for(const c of res.ignoredCols) L.push([csvField(d.fileName),csvField(d.isCsv?"":d.sheetName),csvField(c.name),c.letter,"genegeerd","","",""].join(";"));
+  }
   downloadBlob("﻿"+L.join("\r\n"),baseName()+"-kolomoverzicht.csv","text/csv;charset=utf-8");
   showToast("Kolomoverzicht geëxporteerd.","good"); log("Export kolomoverzicht");
 }
-function downloadReport(){ if(!lastResult)return; downloadBlob("﻿"+$("reportText").value,baseName()+"-klantrapport.txt","text/plain;charset=utf-8");
-  showToast("Klantrapport gedownload.","good"); log("Export klantrapport"); }
-async function copyReport(){
-  const t=$("reportText");
-  try{ await navigator.clipboard.writeText(t.value); showToast("Klantrapport gekopieerd.","good"); log("Klantrapport gekopieerd"); }
-  catch(e){ t.removeAttribute("readonly"); t.focus(); t.select();
-    try{ document.execCommand("copy"); showToast("Klantrapport gekopieerd.","good"); }
-    catch(_){ showToast("Kopiëren mislukt — selecteer en kopieer handmatig.","bad"); }
-    t.setAttribute("readonly",""); }
-}
+function downloadReport(){const ds=datasets[currentIndex];if(!ds)return;downloadBlob("﻿"+buildReport(ds),baseName()+(ds.isCsv?"":("-"+ds.sheetName))+"-klantrapport.txt","text/plain;charset=utf-8");showToast("Klantrapport gedownload.","good");}
+function downloadFullReport(){if(!datasets.length)return;downloadBlob("﻿"+buildFullReport(),baseName()+"-klantrapport-volledig.txt","text/plain;charset=utf-8");showToast("Volledig rapport gedownload.","good");log("Export volledig rapport");}
+async function copyReport(){const t=$("reportText");try{await navigator.clipboard.writeText(t.value);showToast("Klantrapport gekopieerd.","good");}catch(e){t.removeAttribute("readonly");t.focus();t.select();try{document.execCommand("copy");showToast("Klantrapport gekopieerd.","good");}catch(_){showToast("Kopiëren mislukt — selecteer handmatig.","bad");}t.setAttribute("readonly","");}}
 
 /* ---------- settings modal ---------- */
-function applyTheme(){ document.documentElement.setAttribute("data-theme",settings.theme); $("themeBtn").textContent=settings.theme==="dark"?"☀":"☾"; }
+function applyTheme(){document.documentElement.setAttribute("data-theme",settings.theme);$("themeBtn").textContent=settings.theme==="dark"?"☀":"☾";}
+function fillSevSelect(el,val){el.innerHTML='<option value="critical">🔴 Kritiek</option><option value="warning">🟡 Waarschuwing</option><option value="info">🔵 Info</option>';el.value=val;}
 function syncSettingsUI(){
   $("ignoreText").value=settings.ignore.join("\n"); $("ignoreCount").textContent=settings.ignore.length+" kolommen";
-  $("optionalText").value=settings.optional.join("\n");
-  $("condText").value=condToText(settings.conditional);
-  $("setNameCol").value=settings.nameCol;
-  $("bsnText").value=settings.bsnCols.join(", ");
-  $("ibanText").value=settings.ibanCols.join(", ");
-  $("dateText").value=settings.dateCols.join("\n");
+  $("optionalText").value=settings.optional.join("\n"); $("condText").value=condToText(settings.conditional);
+  $("setNameCol").value=settings.nameCol; $("expectedText").value=settings.expected.join("\n");
+  $("bsnText").value=settings.bsnCols.join(", "); $("ibanText").value=settings.ibanCols.join(", ");
+  $("postcodeText").value=settings.postcodeCols.join(", "); $("dateText").value=settings.dateCols.join("\n");
+  fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevBsn"),settings.severity.bsn);
+  fillSevSelect($("sevIban"),settings.severity.iban); fillSevSelect($("sevPostcode"),settings.severity.postcode);
+  fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevHeader"),settings.severity.header);
   $("setHeaderRow").value=settings.headerRow; $("headerRowInput").value=settings.headerRow;
   $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setTheme").value=settings.theme;
 }
 let lastFocused=null;
-function openSettings(){ lastFocused=document.activeElement; syncSettingsUI();
-  const m=$("settingsModal"); m.hidden=false; requestAnimationFrame(()=>m.classList.add("show")); $("closeSettings").focus(); }
-function closeSettings(){ const m=$("settingsModal"); m.classList.remove("show"); setTimeout(()=>{m.hidden=true;},180); if(lastFocused&&lastFocused.focus) lastFocused.focus(); }
-
+function openSettings(){lastFocused=document.activeElement;syncSettingsUI();const m=$("settingsModal");m.hidden=false;requestAnimationFrame(()=>m.classList.add("show"));$("closeSettings").focus();}
+function closeSettings(){const m=$("settingsModal");m.classList.remove("show");setTimeout(()=>{m.hidden=true;},180);if(lastFocused&&lastFocused.focus)lastFocused.focus();}
 let toastTimer=null;
-function showToast(msg,kind){ const t=$("toast"); t.textContent=msg; t.className="toast show"+(kind?" "+kind:"");
-  clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.className="toast"+(kind?" "+kind:"");},2600); }
+function showToast(msg,kind){const t=$("toast");t.textContent=msg;t.className="toast show"+(kind?" "+kind:"");clearTimeout(toastTimer);toastTimer=setTimeout(()=>{t.className="toast"+(kind?" "+kind:"");},2600);}
 
 /* ---------- events ---------- */
 function wire(){
-  const fi=$("fileInput"), dz=$("dropzone");
+  const fi=$("fileInput"),dz=$("dropzone");
   $("chooseBtn").addEventListener("click",e=>{e.stopPropagation();fi.click();});
   dz.addEventListener("click",()=>fi.click());
   dz.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fi.click();}});
-  fi.addEventListener("change",e=>{if(e.target.files[0])handleFile(e.target.files[0]);e.target.value="";});
+  fi.addEventListener("change",e=>{if(e.target.files.length)handleFiles(e.target.files);e.target.value="";});
   ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
   ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
-  dz.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)handleFile(f);});
+  dz.addEventListener("drop",e=>{if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);});
   document.addEventListener("dragover",e=>{if(!$("resultView").hidden)e.preventDefault();});
-  document.addEventListener("drop",e=>{if(!$("resultView").hidden){e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleFile(f);}});
+  document.addEventListener("drop",e=>{if(!$("resultView").hidden){e.preventDefault();if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);}});
 
   $("newFileBtn").addEventListener("click",()=>fi.click());
-  $("sheetSelect").addEventListener("change",e=>switchSheet(parseInt(e.target.value,10)));
-  $("headerRowInput").addEventListener("change",e=>{ settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000); persist(); reanalyze(); });
+  $("tabsBar").addEventListener("click",e=>{const t=e.target.closest(".tab-chip");if(t)selectDataset(parseInt(t.dataset.i,10));});
+  $("headerRowInput").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);persist();reanalyze();});
   $("exportIssuesBtn").addEventListener("click",exportIssues);
   $("exportColsBtn").addEventListener("click",exportCols);
   $("copyReportBtn").addEventListener("click",copyReport);
   $("downloadReportBtn").addEventListener("click",downloadReport);
+  $("fullReportBtn").addEventListener("click",downloadFullReport);
   $("themeBtn").addEventListener("click",()=>{settings.theme=settings.theme==="dark"?"light":"dark";applyTheme();persist();});
 
   $("settingsBtn").addEventListener("click",openSettings);
   $("closeSettings").addEventListener("click",closeSettings);
   $("settingsModal").addEventListener("click",e=>{if(e.target.id==="settingsModal")closeSettings();});
 
-  const reSoft=debounce(()=>{ if(sheetData) reanalyze(); },250);
-  $("ignoreText").addEventListener("input",e=>{ settings.ignore=parseList(e.target.value); $("ignoreCount").textContent=settings.ignore.length+" kolommen"; persist(); reSoft(); });
-  $("optionalText").addEventListener("input",e=>{ settings.optional=parseList(e.target.value); persist(); reSoft(); });
-  $("condText").addEventListener("input",e=>{ settings.conditional=parseConditional(e.target.value); persist(); reSoft(); });
-  $("setNameCol").addEventListener("input",e=>{ settings.nameCol=e.target.value.trim()||"Naam"; persist(); reSoft(); });
-  $("bsnText").addEventListener("input",e=>{ settings.bsnCols=parseList(e.target.value); persist(); reSoft(); });
-  $("ibanText").addEventListener("input",e=>{ settings.ibanCols=parseList(e.target.value); persist(); reSoft(); });
-  $("dateText").addEventListener("input",e=>{ settings.dateCols=parseList(e.target.value); persist(); reSoft(); });
-  $("resetIgnoreBtn").addEventListener("click",()=>{ settings.ignore=[...DEFAULT_IGNORE]; syncSettingsUI(); persist(); if(sheetData)reanalyze(); showToast("Standaard negeerlijst hersteld.","good"); });
-  $("setHeaderRow").addEventListener("change",e=>{ settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000); $("headerRowInput").value=settings.headerRow; persist(); if(sheetData)reanalyze(); });
-  $("setTrim").addEventListener("change",e=>{ settings.trimWhitespace=e.target.checked; persist(); if(sheetData)reanalyze(); });
-  $("setCase").addEventListener("change",e=>{ settings.caseInsensitive=e.target.checked; persist(); if(sheetData)reanalyze(); });
-  $("setTheme").addEventListener("change",e=>{ settings.theme=e.target.value; applyTheme(); persist(); });
-  $("resetAllSettingsBtn").addEventListener("click",()=>{ const keepTheme=settings.theme; settings=defaultSettings(); settings.theme=keepTheme; syncSettingsUI(); persist(); if(sheetData)reanalyze(); showToast("Alle standaardregels hersteld.","good"); });
-  $("resetAllBtn").addEventListener("click",()=>{
-    if(!confirm("Alle instellingen wissen en terug naar standaard?")) return;
-    try{localStorage.removeItem(LS_KEY);}catch(e){}
-    settings=defaultSettings(); applyTheme(); syncSettingsUI(); persist(); if(sheetData)reanalyze(); closeSettings();
-    showToast("Instellingen gewist.","good"); log("Instellingen gereset.");
-  });
+  const reSoft=debounce(()=>{if(datasets.length)reanalyze();},250);
+  $("ignoreText").addEventListener("input",e=>{settings.ignore=parseList(e.target.value);$("ignoreCount").textContent=settings.ignore.length+" kolommen";persist();reSoft();});
+  $("optionalText").addEventListener("input",e=>{settings.optional=parseList(e.target.value);persist();reSoft();});
+  $("condText").addEventListener("input",e=>{settings.conditional=parseConditional(e.target.value);persist();reSoft();});
+  $("setNameCol").addEventListener("input",e=>{settings.nameCol=e.target.value.trim()||"Naam";persist();reSoft();});
+  $("expectedText").addEventListener("input",e=>{settings.expected=parseList(e.target.value);persist();reSoft();});
+  $("bsnText").addEventListener("input",e=>{settings.bsnCols=parseList(e.target.value);persist();reSoft();});
+  $("ibanText").addEventListener("input",e=>{settings.ibanCols=parseList(e.target.value);persist();reSoft();});
+  $("postcodeText").addEventListener("input",e=>{settings.postcodeCols=parseList(e.target.value);persist();reSoft();});
+  $("dateText").addEventListener("input",e=>{settings.dateCols=parseList(e.target.value);persist();reSoft();});
+  [["sevMissing","missing"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevHeader","header"]].forEach(([id,key])=>{
+    $(id).addEventListener("change",e=>{settings.severity[key]=e.target.value;persist();if(datasets.length)reanalyze();});});
+  $("resetIgnoreBtn").addEventListener("click",()=>{settings.ignore=[...DEFAULT_IGNORE];syncSettingsUI();persist();reanalyze();showToast("Standaard negeerlijst hersteld.","good");});
+  $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
+  $("setTrim").addEventListener("change",e=>{settings.trimWhitespace=e.target.checked;persist();reanalyze();});
+  $("setCase").addEventListener("change",e=>{settings.caseInsensitive=e.target.checked;persist();reanalyze();});
+  $("setTheme").addEventListener("change",e=>{settings.theme=e.target.value;applyTheme();persist();});
+  $("resetAllSettingsBtn").addEventListener("click",()=>{const kt=settings.theme;settings=defaultSettings();settings.theme=kt;syncSettingsUI();persist();reanalyze();showToast("Alle standaardregels hersteld.","good");});
+  $("resetAllBtn").addEventListener("click",()=>{if(!confirm("Alle instellingen wissen en terug naar standaard?"))return;try{localStorage.removeItem(LS_KEY);}catch(e){}settings=defaultSettings();applyTheme();syncSettingsUI();persist();reanalyze();closeSettings();showToast("Instellingen gewist.","good");log("Instellingen gereset.");});
 
-  document.addEventListener("click",e=>{ const info=e.target.closest(".info");
-    document.querySelectorAll(".info.open").forEach(el=>{if(el!==info)el.classList.remove("open");});
-    if(info){e.preventDefault();info.classList.toggle("open");} });
-  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ if(!$("settingsModal").hidden)closeSettings();
-    document.querySelectorAll(".info.open").forEach(el=>el.classList.remove("open")); } });
+  document.addEventListener("click",e=>{const info=e.target.closest(".info");document.querySelectorAll(".info.open").forEach(el=>{if(el!==info)el.classList.remove("open");});if(info){e.preventDefault();info.classList.toggle("open");}});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){if(!$("settingsModal").hidden)closeSettings();document.querySelectorAll(".info.open").forEach(el=>el.classList.remove("open"));}});
 }
 
 /* ---------- boot ---------- */
@@ -1017,7 +930,7 @@ function boot(){
   applyTheme(); syncSettingsUI(); wire();
   if(typeof DecompressionStream==="undefined") warn("DecompressionStream ontbreekt — .xlsx kan niet worden uitgepakt; .csv werkt wel.");
   else log("DecompressionStream beschikbaar — .xlsx wordt lokaal uitgepakt.");
-  log("Regels: "+settings.ignore.length+" genegeerd, "+settings.optional.length+" niet-verplicht, "+settings.conditional.length+" voorwaardelijk; validaties BSN/IBAN/datum actief.");
+  log("Regels: "+settings.ignore.length+" genegeerd, "+settings.optional.length+" niet-verplicht, "+settings.conditional.length+" voorwaardelijk; validaties BSN/IBAN/postcode/datum; ernst-niveaus actief.");
   log("Klaar. Tip: plak deze logs terug als er iets misgaat.");
 }
 document.addEventListener("DOMContentLoaded",boot);
