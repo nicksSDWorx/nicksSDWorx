@@ -353,6 +353,12 @@
           <textarea id="optionalText" class="cfg" spellcheck="false"></textarea>
         </div>
         <div class="field">
+          <div class="label">Aanbevolen velden <span class="tag val">leeg = info</span>
+            <button class="info" data-tip="Niet verplicht, maar als ze leeg zijn komt er een 🔵 info-melding (niet kritiek). Bijv. NaamSamenstelling, NaamPartner." aria-label="Uitleg aanbevolen">i</button></div>
+          <div class="desc">Leeg = info-melding i.p.v. kritiek.</div>
+          <textarea id="recommendedText" class="cfg" spellcheck="false"></textarea>
+        </div>
+        <div class="field">
           <div class="label">Voorwaardelijk verplicht
             <button class="info" data-tip="Eén regel per voorwaarde: 'Kolom verplicht als AndereKolom = waarde'. Meerdere waarden met komma's." aria-label="Uitleg voorwaardelijk">i</button></div>
           <div class="desc">Vorm: <code>Kolom verplicht als AndereKolom = waarde</code></div>
@@ -405,6 +411,7 @@
         <div class="field" style="padding-bottom:6px">
           <div class="desc">Bepaal het niveau per soort issue. 🔴 Kritiek telt mee als blocker.</div>
           <div class="sev-row"><span>Ontbrekend verplicht veld</span><select id="sevMissing"></select></div>
+          <div class="sev-row"><span>Aanbevolen veld leeg</span><select id="sevRecommended"></select></div>
           <div class="sev-row"><span>Ongeldig BSN</span><select id="sevBsn"></select></div>
           <div class="sev-row"><span>Ongeldige IBAN</span><select id="sevIban"></select></div>
           <div class="sev-row"><span>Ongeldige postcode</span><select id="sevPostcode"></select></div>
@@ -475,26 +482,29 @@ const warn = (...a) => console.warn(LOG, ...a);
 const errl = (...a) => console.error(LOG, ...a);
 
 const ALWAYS_IGNORE=["HuisnummerToev","Voorvoegsels","Telefoon2","za","zo"]; // hoeven nooit gecontroleerd te worden
+const IGNORE_V7=["RegBuitenlandseWerkn","Risgrp","CdInvlvpl","CodeSalUur","UurLoon1","NettoUurLoon1","PeriodiekPeriode","Perc1"];
 const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","KleurTabel","SpecTabel",
   "CodeTijdvak","SoortInkomen","CodeLoonHeffing","CodeZW","CodeWW","CodeWAO","CdZvw","IABZvw","CdAard",
-  "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE", ...ALWAYS_IGNORE];
+  "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE", ...ALWAYS_IGNORE, ...IGNORE_V7];
 const DEFAULT_OPTIONAL=[];
+const DEFAULT_RECOMMENDED=["NaamSamenstelling","NaamPartner"]; // niet verplicht; leeg = info
 const DEFAULT_NAMECOLS=["Roepnaam","Naam"];
 const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sme@sdworx.com",logo:"",
   greeting:"Beste relatie,",
   intro:"Wij hebben het door u aangeleverde bestand gecontroleerd op volledigheid en juistheid. Hieronder vindt u de velden die nog ontbreken of aangepast moeten worden.",
   outro:"Wij verzoeken u vriendelijk deze gegevens aan te vullen of te corrigeren en het bestand opnieuw aan te leveren. Heeft u vragen, neem dan gerust contact met ons op."};
-const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]}];
+const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]},{column:"Trede",whenColumn:"Schaal",filled:true}];
 const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
 const DEFAULT_LOOKUP=["functietabel","afdelingstabel"];
-const DEFAULT_SEVERITY={missing:"critical",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",header:"info"};
+const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",header:"info"};
 
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
-const CATLABEL={missing:"Ontbrekende verplichte velden",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
+const CATLABEL={missing:"Ontbrekende verplichte velden",recommended:"Aanbevolen velden (niet ingevuld)",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
   postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",duplicate:"Dubbele BSN-nummers",datelogic:"Onlogische datums",header:"Structuur / kolomnamen"};
 function suggestionFor(type){return {
   missing:"Vul dit verplichte veld in.",
+  recommended:"Vul dit veld in indien van toepassing.",
   bsn:"Controleer het BSN: 9 cijfers die voldoen aan de 11-proef.",
   iban:"Controleer het IBAN-formaat, bijv. NL91 ABNA 0417 1643 00.",
   date:"Gebruik de notatie dd-mm-jjjj, bijv. 31-12-2025.",
@@ -545,8 +555,8 @@ let skippedSheets=[];
 
 /* ---------- settings ---------- */
 function defaultSettings(){
-  return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],
-    conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,equals:[...c.equals]})),
+  return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],recommended:[...DEFAULT_RECOMMENDED],
+    conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,filled:!!c.filled,equals:c.equals?[...c.equals]:[]})),
     nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
     dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],autoDetect:true,skipSheets:[],autoSkipEmpty:true,severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
     headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"dark"};
@@ -557,13 +567,13 @@ function loadSettings(){
   try{
     const o=JSON.parse(raw); const s=defaultSettings(); const rs=(o&&o.settings)||o||{};
     const sa=(a,fb)=>Array.isArray(a)?a.filter(x=>typeof x==="string"):fb;
-    s.ignore=sa(rs.ignore,s.ignore); s.optional=sa(rs.optional,s.optional);
+    s.ignore=sa(rs.ignore,s.ignore); s.optional=sa(rs.optional,s.optional); s.recommended=sa(rs.recommended,s.recommended);
     s.expected=sa(rs.expected,s.expected); s.bsnCols=sa(rs.bsnCols,s.bsnCols);
     s.ibanCols=sa(rs.ibanCols,s.ibanCols); s.postcodeCols=sa(rs.postcodeCols,s.postcodeCols); s.dateCols=sa(rs.dateCols,s.dateCols);
     s.lookupSheets=sa(rs.lookupSheets,s.lookupSheets); s.skipSheets=sa(rs.skipSheets,s.skipSheets);
     s.autoDetect=rs.autoDetect!==false; s.autoSkipEmpty=rs.autoSkipEmpty!==false;
     if(Array.isArray(rs.conditional)) s.conditional=rs.conditional.filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
-      .map(c=>({column:c.column,whenColumn:c.whenColumn,equals:Array.isArray(c.equals)?c.equals.map(String):[String(c.equals)]}));
+      .map(c=>({column:c.column,whenColumn:c.whenColumn,filled:c.filled===true,equals:Array.isArray(c.equals)?c.equals.map(String):(c.equals!=null?[String(c.equals)]:[])}));
     if(rs.severity&&typeof rs.severity==="object") for(const k of Object.keys(DEFAULT_SEVERITY)) if(["critical","warning","info"].includes(rs.severity[k])) s.severity[k]=rs.severity[k];
     if(Array.isArray(rs.nameCols)) s.nameCols=rs.nameCols.filter(x=>typeof x==="string"&&x.trim());
     else if(typeof rs.nameCol==="string"&&rs.nameCol.trim()) s.nameCols=[rs.nameCol.trim()];
@@ -583,13 +593,24 @@ function loadSettings(){
       if(s.report.contactEmail==="nick.schepel@sdworx.com") s.report.contactEmail="implementations.sme@sdworx.com";
       log("Migratie v6: rapport-defaults (bedrijf/contact) bijgewerkt.");
     }
+    if(ver<7){
+      for(const c of IGNORE_V7){ if(!s.ignore.some(x=>x.toLowerCase()===c.toLowerCase())) s.ignore.push(c); }
+      for(const c of DEFAULT_RECOMMENDED){ if(!s.recommended.some(x=>x.toLowerCase()===c.toLowerCase())) s.recommended.push(c); }
+      if(!s.conditional.some(r=>r.column.toLowerCase()==="trede")) s.conditional.push({column:"Trede",whenColumn:"Schaal",filled:true,equals:[]});
+      log("Migratie v7: extra negeerkolommen, aanbevolen velden, Trede/Schaal-regel.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:6,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:7,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
-function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{const m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);if(m)out.push({column:m[1].trim(),whenColumn:m[2].trim(),equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});});return out;}
-function condToText(a){return (a||[]).map(c=>`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n");}
+function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
+  let m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s+is\s+gevuld$/i);
+  if(m){out.push({column:m[1].trim(),whenColumn:m[2].trim(),filled:true,equals:[]});return;}
+  m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);
+  if(m)out.push({column:m[1].trim(),whenColumn:m[2].trim(),filled:false,equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});
+});return out;}
+function condToText(a){return (a||[]).map(c=>c.filled?`${c.column} verplicht als ${c.whenColumn} is gevuld`:`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n");}
 
 /* ---------- ZIP (xlsx) reader via native DecompressionStream ---------- */
 function readZip(buf){
@@ -727,11 +748,12 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   const present=k=>headerIndex[norm(k)]!==undefined;
   const ignoreSet=new Set(opt.ignore.map(norm).filter(Boolean));
   const optionalSet=new Set(opt.optional.map(norm).filter(Boolean));
+  const recommendedSet=new Set((opt.recommended||[]).map(norm).filter(Boolean));
   const bsnSet=new Set((opt.bsnCols||[]).map(norm).filter(Boolean));
   const ibanSet=new Set((opt.ibanCols||[]).map(norm).filter(Boolean));
   const pcSet=new Set((opt.postcodeCols||[]).map(norm).filter(Boolean));
   const dateSet=new Set((opt.dateCols||[]).map(norm).filter(Boolean));
-  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[]};});
+  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),filled:!!c.filled,equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[]};});
   const dataRows=sheet.rows.filter(r=>r.r>usedHeader);
 
   const cols=[];
@@ -739,7 +761,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
     const name=headers[i];const key=norm(name); const hasData=dataRows.some(r=>!isEmpty(r.cells[i]));
     if(!name&&!hasData) continue;
     cols.push({index:i,letter:numToCol(i),name:name||("(kolom "+numToCol(i)+")"),key,named:!!name,
-      ignored:name?ignoreSet.has(key):false,optional:name?optionalSet.has(key):false,conditional:name?!!condByCol[key]:false,
+      ignored:name?ignoreSet.has(key):false,optional:name?optionalSet.has(key):false,recommended:name?recommendedSet.has(key):false,conditional:name?!!condByCol[key]:false,
       isBsn:name?bsnSet.has(key):false,isIban:name?ibanSet.has(key):false,isPostcode:name?pcSet.has(key):false,
       isDate:(name&&(dateSet.has(key)||/datum/i.test(name)))||sheet.dateCols.has(i),
       missing:0,invalid:0,emptyCount:0,total:dataRows.length,fullyEmpty:false});
@@ -779,9 +801,15 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   for(const p of perRow){ const r=p.row;
     for(const c of checkedCols){
       const val=r.cells[c.index]; const empty=isEmpty(val); if(empty)c.emptyCount++;
-      let required=!c.optional,because=null;
-      if(c.conditional){const cond=condByCol[c.key];const wIdx=headerIndex[cond.whenKey];const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";required=cond.equals.includes(wVal);if(required)because="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";}
-      if(required){reqTotal++;if(empty){add(p,"missing",c.name,"",sevOf("missing"),c.name+" ontbreekt","Het veld '"+c.name+"' is niet ingevuld"+(because?(" (verplicht omdat "+because+")"):"")+".",because);c.missing++;}else reqFilled++;}
+      if(c.recommended){
+        if(empty){add(p,"recommended",c.name,"",sevOf("recommended"),c.name+" leeg (aanbevolen)","Het aanbevolen veld '"+c.name+"' is niet ingevuld.");c.missing++;}
+      } else {
+        let required=!c.optional,because=null;
+        if(c.conditional){const cond=condByCol[c.key];const wIdx=headerIndex[cond.whenKey];
+          if(cond.filled){required=wIdx!==undefined&&!isEmpty(r.cells[wIdx]);if(required)because="'"+cond.when+"' is ingevuld";}
+          else{const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";required=cond.equals.includes(wVal);if(required)because="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";}}
+        if(required){reqTotal++;if(empty){add(p,"missing",c.name,"",sevOf("missing"),c.name+" ontbreekt","Het veld '"+c.name+"' is niet ingevuld"+(because?(" (verplicht omdat "+because+")"):"")+".",because);c.missing++;}else reqFilled++;}
+      }
       if(!empty){const sval=String(val).trim();
         if(c.isBsn&&!isValidBSN(sval)){add(p,"bsn",c.name,sval,sevOf("bsn"),"BSN ✗ 11-proef","Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef).");c.invalid++;}
         if(c.isIban&&!isValidIBAN(sval)){add(p,"iban",c.name,sval,sevOf("iban"),"IBAN ✗","De IBAN '"+sval+"' is ongeldig.");c.invalid++;}
@@ -811,7 +839,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   // aggregatie
   const rowIssues=[]; let missingCells=0,invalidCells=0; const sevCount={critical:0,warning:0,info:0}; const blockerMap={};
   for(const p of perRow){ if(!p.issues.length)continue; p.issues.sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank);
-    for(const is of p.issues){ sevCount[is.severity]++; if(is.type==="missing")missingCells++;else invalidCells++;
+    for(const is of p.issues){ sevCount[is.severity]++; if(is.type==="missing"||is.type==="recommended")missingCells++;else invalidCells++;
       if(is.severity!=="info"){const k=is.type+"|"+is.col;(blockerMap[k]||(blockerMap[k]={type:is.type,col:is.col,severity:is.severity,count:0})).count++;}}
     rowIssues.push({r:p.r,id:p.id,issues:p.issues});
   }
@@ -988,7 +1016,7 @@ function renderResult(ds,res){
   $("colDesc").textContent=res.checkedCols.length+" kolommen gecontroleerd · "+res.optionalCols.length+" niet verplicht · "+res.ignoredCols.length+" genegeerd.";
   $("colList").innerHTML=checked.map(c=>{
     const filled=c.total-c.emptyCount,pct=c.total?Math.round((filled/c.total)*100):100;
-    const tags=[]; if(c.conditional)tags.push('<span class="tag cond">voorwaardelijk</span>'); if(c.optional)tags.push('<span class="tag optt">niet verplicht</span>');
+    const tags=[]; if(c.conditional)tags.push('<span class="tag cond">voorwaardelijk</span>'); if(c.optional)tags.push('<span class="tag optt">niet verplicht</span>'); if(c.recommended)tags.push('<span class="tag optt">aanbevolen</span>');
     if(c.isBsn)tags.push('<span class="tag val">BSN</span>'); if(c.isIban)tags.push('<span class="tag val">IBAN</span>');
     if(c.isPostcode)tags.push('<span class="tag val">postcode</span>'); if(c.isDate)tags.push('<span class="tag val">datum</span>');
     if(c.autoKind)tags.push('<span class="tag cond">auto</span>');
@@ -1190,13 +1218,13 @@ function applyTheme(){document.documentElement.setAttribute("data-theme",setting
 function fillSevSelect(el,val){el.innerHTML='<option value="critical">🔴 Kritiek</option><option value="warning">🟡 Waarschuwing</option><option value="info">🔵 Info</option>';el.value=val;}
 function syncSettingsUI(){
   $("ignoreText").value=settings.ignore.join("\n"); $("ignoreCount").textContent=settings.ignore.length+" kolommen";
-  $("optionalText").value=settings.optional.join("\n"); $("condText").value=condToText(settings.conditional);
+  $("optionalText").value=settings.optional.join("\n"); $("recommendedText").value=settings.recommended.join("\n"); $("condText").value=condToText(settings.conditional);
   $("setNameCols").value=settings.nameCols.join(", "); $("expectedText").value=settings.expected.join("\n");
   $("lookupText").value=settings.lookupSheets.join(", "); $("skipText").value=settings.skipSheets.join(", ");
   $("setAutoSkip").checked=settings.autoSkipEmpty; $("setAutoDetect").checked=settings.autoDetect;
   $("bsnText").value=settings.bsnCols.join(", "); $("ibanText").value=settings.ibanCols.join(", ");
   $("postcodeText").value=settings.postcodeCols.join(", "); $("dateText").value=settings.dateCols.join("\n");
-  fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevBsn"),settings.severity.bsn);
+  fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevRecommended"),settings.severity.recommended); fillSevSelect($("sevBsn"),settings.severity.bsn);
   fillSevSelect($("sevIban"),settings.severity.iban); fillSevSelect($("sevPostcode"),settings.severity.postcode);
   fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevDuplicate"),settings.severity.duplicate);
   fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevHeader"),settings.severity.header);
@@ -1251,6 +1279,7 @@ function wire(){
   const reSoft=debounce(()=>{if(datasets.length)reanalyze();},250);
   $("ignoreText").addEventListener("input",e=>{settings.ignore=parseList(e.target.value);$("ignoreCount").textContent=settings.ignore.length+" kolommen";persist();reSoft();});
   $("optionalText").addEventListener("input",e=>{settings.optional=parseList(e.target.value);persist();reSoft();});
+  $("recommendedText").addEventListener("input",e=>{settings.recommended=parseList(e.target.value);persist();reSoft();});
   $("condText").addEventListener("input",e=>{settings.conditional=parseConditional(e.target.value);persist();reSoft();});
   $("setNameCols").addEventListener("input",e=>{const v=parseList(e.target.value);settings.nameCols=v.length?v:["Naam"];persist();reSoft();});
   $("expectedText").addEventListener("input",e=>{settings.expected=parseList(e.target.value);persist();reSoft();});
@@ -1270,7 +1299,7 @@ function wire(){
   $("repOutro").addEventListener("input",e=>{settings.report.outro=e.target.value;persist();});
   $("repLogo").addEventListener("change",e=>{if(e.target.files[0])handleLogo(e.target.files[0]);e.target.value="";});
   $("repLogoClear").addEventListener("click",()=>{settings.report.logo="";persist();$("logoPreview").innerHTML="";showToast("Logo verwijderd.","good");});
-  [["sevMissing","missing"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevHeader","header"]].forEach(([id,key])=>{
+  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevHeader","header"]].forEach(([id,key])=>{
     $(id).addEventListener("change",e=>{settings.severity[key]=e.target.value;persist();if(datasets.length)reanalyze();});});
   $("resetIgnoreBtn").addEventListener("click",()=>{settings.ignore=[...DEFAULT_IGNORE];syncSettingsUI();persist();reanalyze();showToast("Standaard negeerlijst hersteld.","good");});
   $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
