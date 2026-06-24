@@ -486,7 +486,7 @@ const IGNORE_V7=["RegBuitenlandseWerkn","Risgrp","CdInvlvpl","CodeSalUur","UurLo
 const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","KleurTabel","SpecTabel",
   "CodeTijdvak","SoortInkomen","CodeLoonHeffing","CodeZW","CodeWW","CodeWAO","CdZvw","IABZvw","CdAard",
   "CodeZiekenGeld","PercZiekenGeld","CBSCAOCODE", ...ALWAYS_IGNORE, ...IGNORE_V7];
-const DEFAULT_OPTIONAL=[];
+const DEFAULT_OPTIONAL=["Schaal"];
 const DEFAULT_RECOMMENDED=["NaamSamenstelling","NaamPartner"]; // niet verplicht; leeg = info
 const DEFAULT_NAMECOLS=["Roepnaam","Naam"];
 const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sme@sdworx.com",logo:"",
@@ -599,10 +599,14 @@ function loadSettings(){
       if(!s.conditional.some(r=>r.column.toLowerCase()==="trede")) s.conditional.push({column:"Trede",whenColumn:"Schaal",filled:true,equals:[]});
       log("Migratie v7: extra negeerkolommen, aanbevolen velden, Trede/Schaal-regel.");
     }
+    if(ver<8){
+      if(!s.optional.some(x=>x.toLowerCase()==="schaal")) s.optional.push("Schaal");
+      log("Migratie v8: Schaal als niet-verplicht ingesteld.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:7,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:8,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
   let m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s+is\s+gevuld$/i);
