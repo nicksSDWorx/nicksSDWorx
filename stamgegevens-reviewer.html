@@ -488,7 +488,7 @@ const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sm
   greeting:"Beste relatie,",
   intro:"Wij hebben het door u aangeleverde bestand gecontroleerd op volledigheid en juistheid. Hieronder vindt u de velden die nog ontbreken of aangepast moeten worden.",
   outro:"Wij verzoeken u vriendelijk deze gegevens aan te vullen of te corrigeren en het bestand opnieuw aan te leveren. Heeft u vragen, neem dan gerust contact met ons op."};
-const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]},{column:"Trede",whenColumn:"Schaal",filled:true},{column:"NaamPartner",whenColumn:"BurgerlijkeStaat",equals:["2","5"]},{column:"NaamSamenstelling",whenColumn:"NaamPartner",filled:true}];
+const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]},{column:"Trede",whenColumn:"Schaal",filled:true},{column:"NaamPartner",whenColumn:"BurgerlijkeStaat",equals:["2","5"],recommend:true},{column:"NaamSamenstelling",whenColumn:"NaamPartner",filled:true}];
 const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
 const DEFAULT_LOOKUP=["functietabel","afdelingstabel"];
@@ -551,7 +551,7 @@ let skippedSheets=[];
 /* ---------- settings ---------- */
 function defaultSettings(){
   return {ignore:[...DEFAULT_IGNORE],optional:[...DEFAULT_OPTIONAL],recommended:[...DEFAULT_RECOMMENDED],
-    conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,filled:!!c.filled,equals:c.equals?[...c.equals]:[]})),
+    conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,filled:!!c.filled,equals:c.equals?[...c.equals]:[],recommend:!!c.recommend})),
     nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
     dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],autoDetect:true,skipSheets:[],autoSkipEmpty:true,severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
     headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"light"};
@@ -618,18 +618,23 @@ function loadSettings(){
       if(!s.recommended.some(x=>x.toLowerCase()==="burgerlijkestaat")) s.recommended.push("BurgerlijkeStaat");
       log("Migratie v12: BurgerlijkeStaat als aanbevolen ingesteld.");
     }
+    if(ver<13){
+      const r=s.conditional.find(x=>x.column.toLowerCase()==="naampartner");
+      if(r)r.recommend=true; else s.conditional.push({column:"NaamPartner",whenColumn:"BurgerlijkeStaat",filled:false,equals:["2","5"],recommend:true});
+      log("Migratie v13: NaamPartner aanbevolen (info) bij BurgerlijkeStaat 2/5.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:12,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:13,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
-  let m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s+is\s+gevuld$/i);
-  if(m){out.push({column:m[1].trim(),whenColumn:m[2].trim(),filled:true,equals:[]});return;}
-  m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s*=\s*(.+)$/i);
-  if(m)out.push({column:m[1].trim(),whenColumn:m[2].trim(),filled:false,equals:m[3].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean)});
+  let m=line.match(/^(.+?)\s+(verplicht|aanbevolen)\s+als\s+(.+?)\s+is\s+gevuld$/i);
+  if(m){out.push({column:m[1].trim(),whenColumn:m[3].trim(),filled:true,equals:[],recommend:/aanbevolen/i.test(m[2])});return;}
+  m=line.match(/^(.+?)\s+(verplicht|aanbevolen)\s+als\s+(.+?)\s*=\s*(.+)$/i);
+  if(m)out.push({column:m[1].trim(),whenColumn:m[3].trim(),filled:false,equals:m[4].split(/\s*(?:,|\/| of )\s*/i).map(s=>s.trim()).filter(Boolean),recommend:/aanbevolen/i.test(m[2])});
 });return out;}
-function condToText(a){return (a||[]).map(c=>c.filled?`${c.column} verplicht als ${c.whenColumn} is gevuld`:`${c.column} verplicht als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`).join("\n");}
+function condToText(a){return (a||[]).map(c=>{const kw=c.recommend?"aanbevolen":"verplicht";return c.filled?`${c.column} ${kw} als ${c.whenColumn} is gevuld`:`${c.column} ${kw} als ${c.whenColumn} = ${(c.equals||[]).join(", ")}`;}).join("\n");}
 
 /* ---------- ZIP (xlsx) reader via native DecompressionStream ---------- */
 function readZip(buf){
@@ -772,7 +777,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   const ibanSet=new Set((opt.ibanCols||[]).map(norm).filter(Boolean));
   const pcSet=new Set((opt.postcodeCols||[]).map(norm).filter(Boolean));
   const dateSet=new Set((opt.dateCols||[]).map(norm).filter(Boolean));
-  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),filled:!!c.filled,equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[]};});
+  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),filled:!!c.filled,equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[],recommend:!!c.recommend};});
   const dataRows=sheet.rows.filter(r=>r.r>usedHeader);
 
   const cols=[];
@@ -825,8 +830,12 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
       } else {
         let required=!c.optional,because=null;
         if(c.conditional){const cond=condByCol[c.key];const wIdx=headerIndex[cond.whenKey];
-          if(cond.filled){required=wIdx!==undefined&&!isEmpty(r.cells[wIdx]);if(required)because="'"+cond.when+"' is ingevuld";}
-          else{const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";required=cond.equals.includes(wVal);if(required)because="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";}}
+          let condHolds,why;
+          if(cond.filled){condHolds=wIdx!==undefined&&!isEmpty(r.cells[wIdx]);why="'"+cond.when+"' is ingevuld";}
+          else{const wVal=wIdx!==undefined?norm(r.cells[wIdx]):"";condHolds=cond.equals.includes(wVal);why="'"+cond.when+"' = '"+cond.equalsRaw.join("/")+"'";}
+          if(cond.recommend){required=false;
+            if(condHolds&&empty){add(p,"recommended",c.name,"",sevOf("recommended"),c.name+" leeg (aanbevolen)","Het aanbevolen veld '"+c.name+"' is niet ingevuld (aanbevolen omdat "+why+").",why);c.missing++;}}
+          else{required=condHolds;if(required)because=why;}}
         if(required){reqTotal++;if(empty){add(p,"missing",c.name,"",sevOf("missing"),c.name+" ontbreekt","Het veld '"+c.name+"' is niet ingevuld"+(because?(" (verplicht omdat "+because+")"):"")+".",because);c.missing++;}else reqFilled++;}
       }
       if(!empty){const sval=String(val).trim();
