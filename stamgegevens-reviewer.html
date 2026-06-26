@@ -567,7 +567,7 @@ function isEuropeanDate(v){const s=String(v).trim();const m=s.match(/^(\d{1,2})[
 function isValidPostcode(v){return /^[1-9]\d{3}\s?[A-Za-z]{2}$/.test(String(v).trim());}
 // Landafhankelijke postcodenotatie. Onbekend land -> niet controleren; leeg/geen Land-kolom -> Nederland.
 const PC_INFO={
-  NL:{label:"Nederland",hint:"1234 AB",re:/^[1-9]\d{3}\s?[A-Za-z]{2}$/},
+  NL:{label:"Nederland",hint:"1234AB",re:/^[1-9]\d{3}[A-Za-z]{2}$/},
   BE:{label:"België",hint:"4 cijfers, bijv. 1000",re:/^[1-9]\d{3}$/},
   DE:{label:"Duitsland",hint:"5 cijfers, bijv. 10115",re:/^\d{5}$/},
   LU:{label:"Luxemburg",hint:"4 cijfers, bijv. 1009",re:/^(L[-\s]?)?\d{4}$/i}};
@@ -920,12 +920,13 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
         if(c.isBsn&&!isValidBSN(sval)){add(p,"bsn",c.name,sval,sevOf("bsn"),"BSN ✗ 11-proef","Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef).");c.invalid++;}
         if(c.isIban&&!isValidIBAN(sval)){add(p,"iban",c.name,sval,sevOf("iban"),"IBAN ✗","De IBAN '"+sval+"' is ongeldig.");c.invalid++;}
         if(c.isPostcode){const pcKind=postcodeKind(landIdx!==undefined?r.cells[landIdx]:"");
-          if(pcKind&&!isValidPostcodeForKind(pcKind,sval)){const pi=PC_INFO[pcKind];add(p,"postcode",c.name,sval,sevOf("postcode"),"Postcode ✗","De postcode '"+sval+"' is geen geldige notatie voor "+pi.label+" (verwacht: "+pi.hint+").");c.invalid++;}}
+          if(pcKind&&!isValidPostcodeForKind(pcKind,sval)){const pi=PC_INFO[pcKind];
+            if(/\s/.test(sval)&&pi.re.test(sval.replace(/\s+/g,""))){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spaties","De postcode '"+sval+"' mag geen spaties bevatten — alles aaneengesloten (verwacht: "+pi.hint+").");c.invalid++;}
+            else{add(p,"postcode",c.name,sval,sevOf("postcode"),"Postcode ✗","De postcode '"+sval+"' is geen geldige notatie voor "+pi.label+" (verwacht: "+pi.hint+").");c.invalid++;}}}
         if(c.isDate&&!isEuropeanDate(sval)){add(p,"date",c.name,sval,sevOf("date"),c.name+" ✗ datum","De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).");c.invalid++;}
         if(c.isEmail&&!isValidEmail(sval)){add(p,"email",c.name,sval,sevOf("email"),"E-mail ✗","Het e-mailadres '"+sval+"' heeft geen geldige notatie.");c.invalid++;}
         if(c.isPhone&&!isPlausiblePhone(sval)){add(p,"phone",c.name,sval,sevOf("phone"),"Telefoon ?","Het telefoonnummer '"+sval+"' lijkt geen geldig nummer (verwacht 8–15 cijfers).");c.invalid++;}
         if(c.isIban&&/\s/.test(sval)){add(p,"ibanspaces",c.name,sval,sevOf("ibanspaces"),"IBAN spaties","De IBAN '"+sval+"' mag geen spaties bevatten; de inhoud moet aaneengesloten staan.");c.invalid++;}
-        if(c.isPostcode&&/\s/.test(sval)){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spaties","De postcode '"+sval+"' mag geen spaties bevatten.");c.invalid++;}
       }
     }
   }
