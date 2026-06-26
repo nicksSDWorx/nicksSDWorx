@@ -1272,7 +1272,7 @@ function zipStore(entries){
 function escXml(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]));}
 function xlsxSheet(headerArr,dataRows,opt){
   opt=opt||{};
-  const sevStyle={critical:2,warning:3,info:4}, rowSev=opt.rowSeverity||[];
+  const sevStyle={critical:2,warning:3,info:4}, rowSev=opt.rowSeverity||[], cellSev=opt.cellSeverity||null;
   const cell=(ref,v,st)=>{const s=st?` s="${st}"`:'';if(typeof v==="number"&&isFinite(v))return `<c r="${ref}"${s}><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr"${s}><is><t xml:space="preserve">${escXml(v)}</t></is></c>`;};
   const lastRef=numToCol(Math.max(0,headerArr.length-1))+(dataRows.length+1);
   let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">';
@@ -1280,7 +1280,7 @@ function xlsxSheet(headerArr,dataRows,opt){
   if(opt.colWidths&&opt.colWidths.length) xml+='<cols>'+opt.colWidths.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join("")+'</cols>';
   xml+='<sheetData>';
   xml+='<row r="1">'+headerArr.map((h,i)=>cell(numToCol(i)+"1",h,1)).join("")+'</row>';
-  dataRows.forEach((row,ri)=>{const r=ri+2;const st=sevStyle[rowSev[ri]]||0;xml+=`<row r="${r}">`+row.map((v,i)=>cell(numToCol(i)+r,v,st)).join("")+'</row>';});
+  dataRows.forEach((row,ri)=>{const r=ri+2;const rs=sevStyle[rowSev[ri]]||0;const cs=cellSev?cellSev[ri]:null;xml+=`<row r="${r}">`+row.map((v,i)=>cell(numToCol(i)+r,v,cs?(sevStyle[cs[i]]||0):rs)).join("")+'</row>';});
   return xml+'</sheetData><autoFilter ref="A1:'+lastRef+'"/></worksheet>';
 }
 const XLSX_STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8D7DA"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
@@ -1311,7 +1311,7 @@ function downloadReportExcel(){
 }
 // Geannoteerd bronbestand: originele kolommen + kolom 'Aandachtspunten' per rij, rij gekleurd op zwaarste ernst.
 function buildAnnotatedXlsx(){
-  const worst=iss=>iss.reduce((w,is)=>SEV[is.severity].rank<SEV[w].rank?is.severity:w,"info");
+  const worse=(a,b)=>!a?b:(!b?a:(SEV[a].rank<=SEV[b].rank?a:b)); // zwaarste van twee ernsten
   const sheets=[];
   for(const d of datasets){
     const R=d.result; if(!R||R.error) continue;
@@ -1320,18 +1320,24 @@ function buildAnnotatedXlsx(){
     const colCount=Math.max(data.maxCol||0, headerRow?headerRow.cells.length:0);
     const headers=[]; for(let i=0;i<colCount;i++) headers.push(headerRow?String(headerRow.cells[i]==null?"":headerRow.cells[i]):"");
     headers.push("Aandachtspunten");
+    const idxByName={}; (R.cols||[]).forEach(c=>{if(idxByName[c.name]===undefined)idxByName[c.name]=c.index;});
     const byRow={}; (R.rowIssues||[]).forEach(it=>{byRow[it.r]=it;});
-    const rows=[], rowSev=[];
+    const rows=[], cellSev=[];
     for(const r of data.rows){ if(r.r<=hr) continue;
       const cells=[]; for(let i=0;i<colCount;i++){const v=r.cells[i];cells.push(v==null?"":v);}
+      const sevRow=new Array(colCount+1); // per-cel ernst; alleen betreffende cellen gekleurd
       const it=byRow[r.r];
-      if(it&&it.issues&&it.issues.length){ cells.push(it.issues.map(is=>is.message||is.short||"").filter(Boolean).join("; ")); rowSev.push(worst(it.issues)); }
-      else { cells.push(""); rowSev.push(undefined); }
-      rows.push(cells);
+      if(it&&it.issues&&it.issues.length){
+        let rowWorst;
+        it.issues.forEach(is=>{const idx=idxByName[is.col];if(idx!==undefined&&idx<colCount)sevRow[idx]=worse(sevRow[idx],is.severity);rowWorst=worse(rowWorst,is.severity);});
+        cells.push(it.issues.map(is=>is.message||is.short||"").filter(Boolean).join("; "));
+        sevRow[colCount]=rowWorst; // samenvattingscel op zwaarste ernst
+      } else cells.push("");
+      rows.push(cells); cellSev.push(sevRow);
     }
     const widths=headers.map((h,i)=>i===headers.length-1?70:16);
     const nm=d.isCsv?d.fileName.replace(/\.[^.]+$/,""):(d.sheetName||d.fileName);
-    sheets.push({name:nm,xml:xlsxSheet(headers,rows,{rowSeverity:rowSev,colWidths:widths})});
+    sheets.push({name:nm,xml:xlsxSheet(headers,rows,{cellSeverity:cellSev,colWidths:widths})});
   }
   if(!sheets.length) sheets.push({name:"Leeg",xml:xlsxSheet(["Geen analyseerbare data"],[],{})});
   return packXlsx(sheets);
