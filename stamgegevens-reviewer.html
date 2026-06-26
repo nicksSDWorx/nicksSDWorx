@@ -673,10 +673,18 @@ function loadSettings(){
       if(!s.conditional.some(r=>r.column.toLowerCase()==="telefoontype1")) s.conditional.push({column:"TelefoonType1",whenColumn:"Telefoon1",filled:true,equals:[]});
       log("Migratie v14: Kostenplts1 & Telefoon1 aanbevolen; TelefoonType1 verplicht bij gevulde Telefoon1.");
     }
+    if(ver<15){
+      // NaamPartner is nooit verplicht — alleen aanbevolen bij BurgerlijkeStaat 2/5. Forceer dit ook in oudere bewaarde instellingen.
+      s.conditional=s.conditional.filter(x=>x.column.toLowerCase()!=="naampartner");
+      s.conditional.push({column:"NaamPartner",whenColumn:"BurgerlijkeStaat",filled:false,equals:["2","5"],recommend:true});
+      s.recommended=s.recommended.filter(x=>x.toLowerCase()!=="naampartner");
+      s.optional=s.optional.filter(x=>x.toLowerCase()!=="naampartner");
+      log("Migratie v15: NaamPartner nooit verplicht — aanbevolen bij BurgerlijkeStaat 2/5.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:14,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:15,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
   let m=line.match(/^(.+?)\s+(verplicht|aanbevolen)\s+als\s+(.+?)\s+is\s+gevuld$/i);
