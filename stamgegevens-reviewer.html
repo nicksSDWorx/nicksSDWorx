@@ -296,10 +296,11 @@
 
       <section class="block" id="reportBlock">
         <h3>Klantrapport <button class="info" data-tip="Klantvriendelijke samenvatting met fouten per categorie én per record (rijnummer + Naam), inclusief verbetersuggesties. Download als PDF of Excel — alle bestanden/tabbladen gecombineerd. Personaliseer in ⚙ (huisstijl, contact, logo)." aria-label="Uitleg klantrapport">i</button></h3>
-        <div class="desc">Eén gecombineerd rapport over alle bestanden/tabbladen — klaar om naar de klant te sturen. Download als <b>PDF</b> of <b>Excel</b>.</div>
+        <div class="desc">Eén gecombineerd rapport over alle bestanden/tabbladen — klaar om naar de klant te sturen. Download als <b>PDF</b> of <b>Excel</b>, of je bestand <b>geannoteerd</b> terug (originele data + aandachtspunten per rij).</div>
         <div class="report-actions">
           <button class="btn primary" id="pdfReportBtn">📄 Download PDF</button>
           <button class="btn primary" id="excelReportBtn">📊 Download Excel</button>
+          <button class="btn" id="annotatedBtn" title="Je originele bestand(en) terug, met per rij een kolom 'Aandachtspunten' en een kleur op basis van de zwaarste melding">🗂️ Geannoteerd bestand</button>
           <button class="btn" id="copyReportBtn">📋 Kopieer tekst</button>
           <button class="btn" id="downloadReportBtn">⬇ .txt</button>
         </div>
@@ -1225,30 +1226,63 @@ function xlsxSheet(headerArr,dataRows,opt){
   dataRows.forEach((row,ri)=>{const r=ri+2;const st=sevStyle[rowSev[ri]]||0;xml+=`<row r="${r}">`+row.map((v,i)=>cell(numToCol(i)+r,v,st)).join("")+'</row>';});
   return xml+'</sheetData><autoFilter ref="A1:'+lastRef+'"/></worksheet>';
 }
+const XLSX_STYLES='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8D7DA"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+// Generieke xlsx-verpakker: één of meer tabbladen, gedeelde stijlen, unieke/geldige tabbladnamen.
+function packXlsx(sheetDefs){
+  const enc=new TextEncoder(), n=sheetDefs.length, used={};
+  const sName=(nm,i)=>{let s=String(nm||("Blad"+(i+1))).replace(/[\\\/?*:\[\]]/g,"-").slice(0,31)||("Blad"+(i+1));const base=s;let k=2;while(used[s.toLowerCase()]){s=(base.slice(0,27)+" ("+k+")").slice(0,31);k++;}used[s.toLowerCase()]=1;return s;};
+  const sheetsX=sheetDefs.map((s,i)=>`<sheet name="${escXml(sName(s.name,i))}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("");
+  const wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheetsX+'</sheets></workbook>';
+  const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheetDefs.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")+`<Relationship Id="rId${n+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")+'<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
+  const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
+  const entries=[{name:"[Content_Types].xml",data:enc.encode(ct)},{name:"_rels/.rels",data:enc.encode(rels)},{name:"xl/workbook.xml",data:enc.encode(wb)},{name:"xl/_rels/workbook.xml.rels",data:enc.encode(wbRels)},{name:"xl/styles.xml",data:enc.encode(XLSX_STYLES)}];
+  sheetDefs.forEach((s,i)=>entries.push({name:"xl/worksheets/sheet"+(i+1)+".xml",data:enc.encode(s.xml)}));
+  return zipStore(entries);
+}
 function buildReportXlsx(){
-  const enc=new TextEncoder();
   // Kaal: één regel per aandachtspunt
   const detH=["Bestand","Tabblad","Rij","Naam","Kolom","Ernst","Toelichting"];
   const detR=[],detSev=[];
   datasets.forEach(d=>{for(const ln of tabIssueLines(d)){detR.push([d.fileName,d.isCsv?"":d.sheetName,ln.structuur?"":ln.r,ln.structuur?"":(ln.id||""),ln.col||"",SEV[ln.severity].label,ln.message]);detSev.push(ln.severity);}});
-  const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF8D7DA"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFDDEBF7"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="5"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="3" borderId="0" xfId="0" applyFill="1"/><xf numFmtId="0" fontId="0" fillId="4" borderId="0" xfId="0" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
-  const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
-  const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
-  const wb='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Aandachtspunten" sheetId="1" r:id="rId1"/></sheets></workbook>';
-  const wbRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
-  return zipStore([
-    {name:"[Content_Types].xml",data:enc.encode(ct)},
-    {name:"_rels/.rels",data:enc.encode(rels)},
-    {name:"xl/workbook.xml",data:enc.encode(wb)},
-    {name:"xl/_rels/workbook.xml.rels",data:enc.encode(wbRels)},
-    {name:"xl/styles.xml",data:enc.encode(styles)},
-    {name:"xl/worksheets/sheet1.xml",data:enc.encode(xlsxSheet(detH,detR,{rowSeverity:detSev,colWidths:[28,16,5,22,18,14,80]}))},
-  ]);
+  return packXlsx([{name:"Aandachtspunten",xml:xlsxSheet(detH,detR,{rowSeverity:detSev,colWidths:[28,16,5,22,18,14,80]})}]);
 }
 function downloadReportExcel(){
   if(!datasets.length)return;
   try{downloadBlob(buildReportXlsx(),baseName()+"-klantrapport.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");showToast("Excel-rapport gedownload.","good");log("Export Excel-rapport");}
   catch(e){errl("Excel-export mislukt:",e.message);showToast("Excel-export mislukt.","bad");}
+}
+// Geannoteerd bronbestand: originele kolommen + kolom 'Aandachtspunten' per rij, rij gekleurd op zwaarste ernst.
+function buildAnnotatedXlsx(){
+  const worst=iss=>iss.reduce((w,is)=>SEV[is.severity].rank<SEV[w].rank?is.severity:w,"info");
+  const sheets=[];
+  for(const d of datasets){
+    const R=d.result; if(!R||R.error) continue;
+    const data=d.data, hr=R.usedHeader||1;
+    const headerRow=data.rows.find(r=>r.r===hr);
+    const colCount=Math.max(data.maxCol||0, headerRow?headerRow.cells.length:0);
+    const headers=[]; for(let i=0;i<colCount;i++) headers.push(headerRow?String(headerRow.cells[i]==null?"":headerRow.cells[i]):"");
+    headers.push("Aandachtspunten");
+    const byRow={}; (R.rowIssues||[]).forEach(it=>{byRow[it.r]=it;});
+    const rows=[], rowSev=[];
+    for(const r of data.rows){ if(r.r<=hr) continue;
+      const cells=[]; for(let i=0;i<colCount;i++){const v=r.cells[i];cells.push(v==null?"":v);}
+      const it=byRow[r.r];
+      if(it&&it.issues&&it.issues.length){ cells.push(it.issues.map(is=>is.message||is.short||"").filter(Boolean).join("; ")); rowSev.push(worst(it.issues)); }
+      else { cells.push(""); rowSev.push(undefined); }
+      rows.push(cells);
+    }
+    const widths=headers.map((h,i)=>i===headers.length-1?70:16);
+    const nm=d.isCsv?d.fileName.replace(/\.[^.]+$/,""):(d.sheetName||d.fileName);
+    sheets.push({name:nm,xml:xlsxSheet(headers,rows,{rowSeverity:rowSev,colWidths:widths})});
+  }
+  if(!sheets.length) sheets.push({name:"Leeg",xml:xlsxSheet(["Geen analyseerbare data"],[],{})});
+  return packXlsx(sheets);
+}
+function downloadAnnotated(){
+  if(!datasets.length)return;
+  try{downloadBlob(buildAnnotatedXlsx(),baseName()+"-geannoteerd.xlsx","application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");showToast("Geannoteerd bestand gedownload.","good");log("Export geannoteerd bronbestand");}
+  catch(e){errl("Annotatie-export mislukt:",e.message);showToast("Export mislukt.","bad");}
 }
 
 /* ---------- reset ---------- */
@@ -1315,6 +1349,7 @@ function wire(){
   $("exportColsBtn").addEventListener("click",exportCols);
   $("pdfReportBtn").addEventListener("click",openReportPdf);
   $("excelReportBtn").addEventListener("click",downloadReportExcel);
+  $("annotatedBtn").addEventListener("click",downloadAnnotated);
   $("copyReportBtn").addEventListener("click",copyReport);
   $("downloadReportBtn").addEventListener("click",downloadReport);
   $("resetBtn").addEventListener("click",openReset);
