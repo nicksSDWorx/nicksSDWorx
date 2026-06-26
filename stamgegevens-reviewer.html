@@ -432,6 +432,7 @@
         <div class="field"><div class="field-row"><div><div class="label">Kopregel (rijnummer)</div></div><input type="number" id="setHeaderRow" min="1" max="100" step="1"></div></div>
         <div class="field"><div class="field-row"><div><div class="label">Spaties tellen als leeg</div></div><label class="switch"><input type="checkbox" id="setTrim"><span class="track"></span></label></div></div>
         <div class="field"><div class="field-row"><div><div class="label">Hoofdletterongevoelig vergelijken</div></div><label class="switch"><input type="checkbox" id="setCase"><span class="track"></span></label></div></div>
+        <div class="field"><div class="field-row"><div><div class="label">Losse kolomnaam-herkenning</div><div class="desc">Negeer spaties, punten en hoofdletters bij het matchen van kolomnamen (bv. "Burgerlijke staat" = "BurgerlijkeStaat").</div></div><label class="switch"><input type="checkbox" id="setLoose"><span class="track"></span></label></div></div>
         <div class="field"><div class="field-row"><div><div class="label">Thema</div></div><select id="setTheme"><option value="dark">Donker</option><option value="light">Licht</option></select></div></div>
 
         <div class="sec-title">Gegevens</div>
@@ -554,7 +555,7 @@ function defaultSettings(){
     conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,filled:!!c.filled,equals:c.equals?[...c.equals]:[],recommend:!!c.recommend})),
     nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
     dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],autoDetect:true,skipSheets:[],autoSkipEmpty:true,severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
-    headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"light"};
+    headerRow:1,trimWhitespace:true,caseInsensitive:true,looseHeaders:true,theme:"light"};
 }
 function loadSettings(){
   let raw=null; try{raw=localStorage.getItem(LS_KEY);}catch(e){warn("localStorage niet leesbaar:",e.message);}
@@ -575,7 +576,7 @@ function loadSettings(){
     if(rs.report&&typeof rs.report==="object"){const r=rs.report;const st=k=>typeof r[k]==="string"?r[k]:s.report[k];
       s.report={company:st("company"),contactName:st("contactName"),contactEmail:st("contactEmail"),logo:typeof r.logo==="string"?r.logo:"",greeting:st("greeting"),intro:st("intro"),outro:st("outro")};}
     s.headerRow=clamp(parseInt(rs.headerRow,10)||1,1,1000);
-    s.trimWhitespace=rs.trimWhitespace!==false; s.caseInsensitive=rs.caseInsensitive!==false; s.theme=rs.theme==="light"?"light":"dark";
+    s.trimWhitespace=rs.trimWhitespace!==false; s.caseInsensitive=rs.caseInsensitive!==false; s.looseHeaders=rs.looseHeaders!==false; s.theme=rs.theme==="light"?"light":"dark";
     const ver=Number(o&&o.version)||0;
     if(ver<5){
       for(const c of ALWAYS_IGNORE){ if(!s.ignore.some(x=>x.toLowerCase()===c.toLowerCase())) s.ignore.push(c); s.optional=s.optional.filter(x=>x.toLowerCase()!==c.toLowerCase()); }
@@ -762,27 +763,28 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   if(sheetName&&lookupSet.has(ci(sheetName).replace(/\s+/g,""))) return analyzeLookup(sheet,opt,sheetName);
   if(!sheet||!sheet.rows.length) return {error:"Het werkblad is leeg.",empty:true,dataRowCount:0,rowIssues:[],headerIssues:[],sev:{critical:0,warning:0,info:0},pct:100};
   const norm=s=>opt.caseInsensitive?ci(s):String(s).trim();
+  const hkey=s=>opt.looseHeaders===false?norm(s):ci(s).replace(/[^a-z0-9]+/g,""); // losse kolomnaam-herkenning: negeer spaties/punten/hoofdletters
   const isEmpty=v=>{const s=String(v==null?"":v);return opt.trimWhitespace?s.trim()==="":s==="";};
   let headerRow=sheet.rows.find(r=>r.r===headerRowNumber);let usedHeader=headerRowNumber;
   if(!headerRow||headerRow.cells.every(c=>String(c).trim()==="")){headerRow=sheet.rows.find(r=>r.cells.some(c=>String(c).trim()!==""));usedHeader=headerRow?headerRow.r:headerRowNumber;}
   if(!headerRow) return {error:"Geen kopregel met kolomnamen gevonden.",empty:true,dataRowCount:0,rowIssues:[],headerIssues:[],sev:{critical:0,warning:0,info:0},pct:100};
   const colCount=Math.max(sheet.maxCol,headerRow.cells.length);
   const headers=[];for(let i=0;i<colCount;i++)headers.push(String(headerRow.cells[i]??"").trim());
-  const headerIndex={};headers.forEach((h,i)=>{if(h&&headerIndex[norm(h)]===undefined)headerIndex[norm(h)]=i;});
-  const present=k=>headerIndex[norm(k)]!==undefined;
-  const ignoreSet=new Set(opt.ignore.map(norm).filter(Boolean));
-  const optionalSet=new Set(opt.optional.map(norm).filter(Boolean));
-  const recommendedSet=new Set((opt.recommended||[]).map(norm).filter(Boolean));
-  const bsnSet=new Set((opt.bsnCols||[]).map(norm).filter(Boolean));
-  const ibanSet=new Set((opt.ibanCols||[]).map(norm).filter(Boolean));
-  const pcSet=new Set((opt.postcodeCols||[]).map(norm).filter(Boolean));
-  const dateSet=new Set((opt.dateCols||[]).map(norm).filter(Boolean));
-  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[norm(c.column)]={when:c.whenColumn,whenKey:norm(c.whenColumn),filled:!!c.filled,equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[],recommend:!!c.recommend};});
+  const headerIndex={};headers.forEach((h,i)=>{if(h&&headerIndex[hkey(h)]===undefined)headerIndex[hkey(h)]=i;});
+  const present=k=>headerIndex[hkey(k)]!==undefined;
+  const ignoreSet=new Set(opt.ignore.map(hkey).filter(Boolean));
+  const optionalSet=new Set(opt.optional.map(hkey).filter(Boolean));
+  const recommendedSet=new Set((opt.recommended||[]).map(hkey).filter(Boolean));
+  const bsnSet=new Set((opt.bsnCols||[]).map(hkey).filter(Boolean));
+  const ibanSet=new Set((opt.ibanCols||[]).map(hkey).filter(Boolean));
+  const pcSet=new Set((opt.postcodeCols||[]).map(hkey).filter(Boolean));
+  const dateSet=new Set((opt.dateCols||[]).map(hkey).filter(Boolean));
+  const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[hkey(c.column)]={when:c.whenColumn,whenKey:hkey(c.whenColumn),filled:!!c.filled,equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[],recommend:!!c.recommend};});
   const dataRows=sheet.rows.filter(r=>r.r>usedHeader);
 
   const cols=[];
   for(let i=0;i<colCount;i++){
-    const name=headers[i];const key=norm(name); const hasData=dataRows.some(r=>!isEmpty(r.cells[i]));
+    const name=headers[i];const key=hkey(name); const hasData=dataRows.some(r=>!isEmpty(r.cells[i]));
     if(!name&&!hasData) continue;
     cols.push({index:i,letter:numToCol(i),name:name||("(kolom "+numToCol(i)+")"),key,named:!!name,
       ignored:name?ignoreSet.has(key):false,optional:name?optionalSet.has(key):false,recommended:name?recommendedSet.has(key):false,conditional:name?!!condByCol[key]:false,
@@ -806,7 +808,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   const headerIssues=[];
   // noemer = combinatie van kolommen (bv. Roepnaam + Naam)
   const nameColsCfg=(opt.nameCols&&opt.nameCols.length)?opt.nameCols:["Naam"];
-  const nameIdxs=nameColsCfg.map(n=>headerIndex[norm(n)]).filter(i=>i!==undefined);
+  const nameIdxs=nameColsCfg.map(n=>headerIndex[hkey(n)]).filter(i=>i!==undefined);
   let fallbackIdx=0;
   if(!nameIdxs.length){const f=cols.find(c=>c.named&&!c.ignored);fallbackIdx=f?f.index:(cols[0]?cols[0].index:0);
     headerIssues.push({type:"header",severity:sevOf("header"),col:nameColsCfg.join(" + "),message:"Naam-kolom(men) '"+nameColsCfg.join("', '")+"' niet gevonden; de eerste kolom wordt als noemer gebruikt.",suggestion:suggestionFor("header")});}
@@ -1258,7 +1260,7 @@ function syncSettingsUI(){
   fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevDuplicate"),settings.severity.duplicate);
   fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevHeader"),settings.severity.header);
   $("setHeaderRow").value=settings.headerRow; $("headerRowInput").value=settings.headerRow;
-  $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setTheme").value=settings.theme;
+  $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setLoose").checked=settings.looseHeaders; $("setTheme").value=settings.theme;
   const rp=settings.report||{};
   $("repCompany").value=rp.company||""; $("repContactName").value=rp.contactName||""; $("repContactEmail").value=rp.contactEmail||"";
   $("repGreeting").value=rp.greeting||""; $("repIntro").value=rp.intro||""; $("repOutro").value=rp.outro||"";
@@ -1334,6 +1336,7 @@ function wire(){
   $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
   $("setTrim").addEventListener("change",e=>{settings.trimWhitespace=e.target.checked;persist();reanalyze();});
   $("setCase").addEventListener("change",e=>{settings.caseInsensitive=e.target.checked;persist();reanalyze();});
+  $("setLoose").addEventListener("change",e=>{settings.looseHeaders=e.target.checked;persist();reanalyze();});
   $("setTheme").addEventListener("change",e=>{settings.theme=e.target.value;applyTheme();persist();});
   $("resetAllSettingsBtn").addEventListener("click",()=>{const kt=settings.theme;settings=defaultSettings();settings.theme=kt;syncSettingsUI();persist();reanalyze();showToast("Alle standaardregels hersteld.","good");});
   $("resetAllBtn").addEventListener("click",()=>{if(!confirm("Alle instellingen wissen en terug naar standaard?"))return;try{localStorage.removeItem(LS_KEY);}catch(e){}settings=defaultSettings();applyTheme();syncSettingsUI();persist();reanalyze();closeSettings();showToast("Instellingen gewist.","good");log("Instellingen gereset.");});
