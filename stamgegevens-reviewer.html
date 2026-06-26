@@ -441,6 +441,8 @@
           <div class="sev-row"><span>Onlogische datum (eind&lt;begin, leeftijd)</span><select id="sevDatelogic"></select></div>
           <div class="sev-row"><span>Ongeldig e-mailadres</span><select id="sevEmail"></select></div>
           <div class="sev-row"><span>Onwaarschijnlijk telefoonnummer</span><select id="sevPhone"></select></div>
+          <div class="sev-row"><span>Spaties in IBAN/postcode</span><select id="sevSpaces"></select></div>
+          <div class="sev-row"><span>Voorletters ≠ voornamen</span><select id="sevInitials"></select></div>
           <div class="sev-row"><span>Headermismatch (structuur)</span><select id="sevHeader"></select></div>
         </div>
 
@@ -523,23 +525,25 @@ const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_EMAIL=["Email","E-mail","Emailadres","E-mailadres"], DEFAULT_PHONE=["Telefoon","Telefoon1","GSM","Mobiel"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
 const DEFAULT_LOOKUP=["functietabel","afdelingstabel"];
-const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",email:"warning",phone:"info",header:"info"};
+const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",email:"warning",phone:"info",spaces:"warning",initials:"warning",header:"info"};
 
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
 const CATLABEL={missing:"Ontbrekende verplichte velden",recommended:"Aanbevolen velden (niet ingevuld)",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
   postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",duplicate:"Dubbele BSN-nummers",datelogic:"Onlogische datums",
-  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",header:"Structuur / kolomnamen"};
+  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Spaties in IBAN/postcode",initials:"Voorletters komen niet overeen met voornamen",header:"Structuur / kolomnamen"};
 function suggestionFor(type){return {
   missing:"Vul dit verplichte veld in.",
   recommended:"Vul dit veld in indien van toepassing.",
   bsn:"Controleer het BSN: 9 cijfers die voldoen aan de 11-proef.",
   iban:"Controleer het IBAN-formaat, bijv. NL91 ABNA 0417 1643 00.",
   date:"Gebruik de notatie dd-mm-jjjj, bijv. 31-12-2025.",
-  postcode:"Gebruik de notatie 1234 AB.",
+  postcode:"Gebruik de notatie 1234AB (zonder spatie).",
   duplicate:"Controleer of dit een dubbele werknemer is; elk BSN hoort uniek te zijn.",
   datelogic:"Controleer de datums: de einddatum mag niet vóór de begindatum liggen en de geboortedatum moet realistisch zijn.",
   email:"Controleer het e-mailadres, bijv. naam@bedrijf.nl.",
   phone:"Controleer het telefoonnummer (8–15 cijfers, alleen cijfers/spaties/+/-).",
+  spaces:"Verwijder de spaties; noteer IBAN en postcode aaneengesloten (bijv. NL91ABNA0417164300, 1234AB).",
+  initials:"Zorg dat de voorletters de beginletters van álle voornamen zijn (bijv. 'Johannes Adrianus' = JA).",
   header:"Controleer de kolomnaam of voeg de kolom toe."}[type]||"";}
 
 /* ---------- helpers ---------- */
@@ -895,6 +899,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
         if(c.isDate&&!isEuropeanDate(sval)){add(p,"date",c.name,sval,sevOf("date"),c.name+" ✗ datum","De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).");c.invalid++;}
         if(c.isEmail&&!isValidEmail(sval)){add(p,"email",c.name,sval,sevOf("email"),"E-mail ✗","Het e-mailadres '"+sval+"' heeft geen geldige notatie.");c.invalid++;}
         if(c.isPhone&&!isPlausiblePhone(sval)){add(p,"phone",c.name,sval,sevOf("phone"),"Telefoon ?","Het telefoonnummer '"+sval+"' lijkt geen geldig nummer (verwacht 8–15 cijfers).");c.invalid++;}
+        if((c.isIban||c.isPostcode)&&/\s/.test(sval)){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spaties","De waarde '"+sval+"' in '"+c.name+"' mag geen spaties bevatten.");c.invalid++;}
       }
     }
   }
@@ -910,6 +915,18 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
     for(const gC of gebCols){const d=parseEuDate(r.cells[gC.index]);if(!d)continue;const gv=String(r.cells[gC.index]).trim();
       if(d>now){add(p,"datelogic",gC.name,gv,sevOf("datelogic"),gC.name+" toekomst","De geboortedatum '"+gv+"' in '"+gC.name+"' ligt in de toekomst.");gC.invalid++;}
       else{const age=Math.floor((now-d)/(365.25*86400000));if(age<15||age>90){add(p,"datelogic",gC.name,gv,sevOf("datelogic"),gC.name+" leeftijd","De geboortedatum '"+gv+"' in '"+gC.name+"' geeft een leeftijd van "+age+" jaar — controleer of dit klopt.");gC.invalid++;}}}
+  }
+  // voorletters moeten gelijk zijn aan de beginletters van de voornamen (exact)
+  const vnIdx=headerIndex[hkey("Voornamen")], vlIdx=headerIndex[hkey("Voorletters")];
+  if(vnIdx!==undefined && vlIdx!==undefined){
+    const vlCol=cols.find(c=>c.index===vlIdx), vlName=vlCol?vlCol.name:(headers[vlIdx]||"Voorletters");
+    const wordInits=s=>String(s==null?"":s).trim().split(/[\s-]+/).filter(Boolean).map(w=>w[0]).join("").toUpperCase();
+    const lettersOnly=s=>String(s==null?"":s).replace(/[^\p{L}]/gu,"").toUpperCase();
+    for(const p of perRow){ const vn=p.row.cells[vnIdx], vl=p.row.cells[vlIdx];
+      if(isEmpty(vn)||isEmpty(vl)) continue;
+      const exp=wordInits(vn), got=lettersOnly(vl);
+      if(exp&&got&&exp!==got){add(p,"initials",vlName,String(vl).trim(),sevOf("initials"),"Voorletters ✗","De voorletters '"+String(vl).trim()+"' komen niet overeen met de voornamen '"+String(vn).trim()+"' (verwacht: "+exp+").");if(vlCol)vlCol.invalid++;}
+    }
   }
   // duplicaat-BSN
   checkedCols.filter(c=>c.isBsn).forEach(bc=>{const map={};
@@ -1385,7 +1402,7 @@ function syncSettingsUI(){
   fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevRecommended"),settings.severity.recommended); fillSevSelect($("sevBsn"),settings.severity.bsn);
   fillSevSelect($("sevIban"),settings.severity.iban); fillSevSelect($("sevPostcode"),settings.severity.postcode);
   fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevDuplicate"),settings.severity.duplicate);
-  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevEmail"),settings.severity.email); fillSevSelect($("sevPhone"),settings.severity.phone); fillSevSelect($("sevHeader"),settings.severity.header);
+  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevEmail"),settings.severity.email); fillSevSelect($("sevPhone"),settings.severity.phone); fillSevSelect($("sevSpaces"),settings.severity.spaces); fillSevSelect($("sevInitials"),settings.severity.initials); fillSevSelect($("sevHeader"),settings.severity.header);
   $("setHeaderRow").value=settings.headerRow; $("headerRowInput").value=settings.headerRow;
   $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setLoose").checked=settings.looseHeaders; $("setTheme").value=settings.theme;
   const rp=settings.report||{};
@@ -1461,7 +1478,7 @@ function wire(){
   $("repOutro").addEventListener("input",e=>{settings.report.outro=e.target.value;persist();});
   $("repLogo").addEventListener("change",e=>{if(e.target.files[0])handleLogo(e.target.files[0]);e.target.value="";});
   $("repLogoClear").addEventListener("click",()=>{settings.report.logo="";persist();$("logoPreview").innerHTML="";showToast("Logo verwijderd.","good");});
-  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevEmail","email"],["sevPhone","phone"],["sevHeader","header"]].forEach(([id,key])=>{
+  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevEmail","email"],["sevPhone","phone"],["sevSpaces","spaces"],["sevInitials","initials"],["sevHeader","header"]].forEach(([id,key])=>{
     $(id).addEventListener("change",e=>{settings.severity[key]=e.target.value;persist();if(datasets.length)reanalyze();});});
   $("resetIgnoreBtn").addEventListener("click",()=>{settings.ignore=[...DEFAULT_IGNORE];syncSettingsUI();persist();reanalyze();showToast("Standaard negeerlijst hersteld.","good");});
   $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
