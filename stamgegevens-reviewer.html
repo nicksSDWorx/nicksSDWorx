@@ -441,7 +441,8 @@
           <div class="sev-row"><span>Onlogische datum (eind&lt;begin, leeftijd)</span><select id="sevDatelogic"></select></div>
           <div class="sev-row"><span>Ongeldig e-mailadres</span><select id="sevEmail"></select></div>
           <div class="sev-row"><span>Onwaarschijnlijk telefoonnummer</span><select id="sevPhone"></select></div>
-          <div class="sev-row"><span>Spaties in IBAN/postcode</span><select id="sevSpaces"></select></div>
+          <div class="sev-row"><span>Spaties in IBAN (moet aaneengesloten)</span><select id="sevIbanspaces"></select></div>
+          <div class="sev-row"><span>Spaties in postcode</span><select id="sevSpaces"></select></div>
           <div class="sev-row"><span>Voorletters ≠ voornamen</span><select id="sevInitials"></select></div>
           <div class="sev-row"><span>Headermismatch (structuur)</span><select id="sevHeader"></select></div>
         </div>
@@ -525,12 +526,12 @@ const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_EMAIL=["Email","E-mail","Emailadres","E-mailadres"], DEFAULT_PHONE=["Telefoon","Telefoon1","GSM","Mobiel"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
 const DEFAULT_LOOKUP=["functietabel","afdelingstabel"];
-const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",email:"warning",phone:"info",spaces:"warning",initials:"warning",header:"info"};
+const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",email:"warning",phone:"info",spaces:"warning",ibanspaces:"critical",initials:"warning",header:"info"};
 
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
 const CATLABEL={missing:"Ontbrekende verplichte velden",recommended:"Aanbevolen velden (niet ingevuld)",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
   postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",duplicate:"Dubbele BSN-nummers",datelogic:"Onlogische datums",
-  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Spaties in IBAN/postcode",initials:"Voorletters komen niet overeen met voornamen",header:"Structuur / kolomnamen"};
+  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Spaties in postcode",ibanspaces:"Spaties in IBAN (moet aaneengesloten)",initials:"Voorletters komen niet overeen met voornamen",header:"Structuur / kolomnamen"};
 function suggestionFor(type){return {
   missing:"Vul dit verplichte veld in.",
   recommended:"Vul dit veld in indien van toepassing.",
@@ -542,7 +543,8 @@ function suggestionFor(type){return {
   datelogic:"Controleer de datums: de einddatum mag niet vóór de begindatum liggen en de geboortedatum moet realistisch zijn.",
   email:"Controleer het e-mailadres, bijv. naam@bedrijf.nl.",
   phone:"Controleer het telefoonnummer (8–15 cijfers, alleen cijfers/spaties/+/-).",
-  spaces:"Verwijder de spaties; noteer IBAN en postcode aaneengesloten (bijv. NL91ABNA0417164300, 1234AB).",
+  spaces:"Noteer de postcode zonder spaties (bijv. 1234AB).",
+  ibanspaces:"Noteer de IBAN aaneengesloten, zonder spaties (bijv. NL91ABNA0417164300).",
   initials:"Zorg dat de voorletters de beginletters van álle voornamen zijn (bijv. 'Johannes Adrianus' = JA).",
   header:"Controleer de kolomnaam of voeg de kolom toe."}[type]||"";}
 
@@ -563,6 +565,19 @@ function xmlEntities(s){return String(s).replace(/&(#x?[0-9a-fA-F]+|amp|lt|gt|qu
 function isValidBSN(v){let s=String(v).trim();if(!/^\d+$/.test(s))return false;if(s.length===8)s="0"+s;if(s.length!==9)return false;if(/^0+$/.test(s))return false;let sum=0;for(let i=0;i<8;i++)sum+=(9-i)*(+s[i]);sum+=-1*(+s[8]);return sum%11===0;}
 function isEuropeanDate(v){const s=String(v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return false;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return false;const dt=new Date(Date.UTC(y,mo-1,d));return dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d;}
 function isValidPostcode(v){return /^[1-9]\d{3}\s?[A-Za-z]{2}$/.test(String(v).trim());}
+// Landafhankelijke postcodenotatie. Onbekend land -> niet controleren; leeg/geen Land-kolom -> Nederland.
+const PC_INFO={
+  NL:{label:"Nederland",hint:"1234 AB",re:/^[1-9]\d{3}\s?[A-Za-z]{2}$/},
+  BE:{label:"België",hint:"4 cijfers, bijv. 1000",re:/^[1-9]\d{3}$/},
+  DE:{label:"Duitsland",hint:"5 cijfers, bijv. 10115",re:/^\d{5}$/},
+  LU:{label:"Luxemburg",hint:"4 cijfers, bijv. 1009",re:/^(L[-\s]?)?\d{4}$/i}};
+function postcodeKind(land){const l=String(land==null?"":land).trim().toLowerCase();
+  if(/belg|^be$/.test(l)) return "BE";
+  if(/duits|deutsch|german|^de$/.test(l)) return "DE";
+  if(/luxemb|^lu$/.test(l)) return "LU";
+  if(/neder|netherl|holland|^nl$/.test(l)) return "NL";
+  return l?null:"NL";}
+function isValidPostcodeForKind(kind,v){const k=PC_INFO[kind];return k?k.re.test(String(v).trim()):true;}
 function isValidEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim());}
 function isPlausiblePhone(v){const s=String(v).trim();if(!/^[\d\s()+.\/-]+$/.test(s))return false;const d=s.replace(/\D/g,"");return d.length>=8&&d.length<=15;}
 function parseEuDate(v){const s=String(v==null?"":v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return null;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return null;const dt=new Date(Date.UTC(y,mo-1,d));return (dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d)?dt:null;}
@@ -839,6 +854,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   const emailSet=new Set((opt.emailCols||[]).map(hkey).filter(Boolean));
   const phoneSet=new Set((opt.phoneCols||[]).map(hkey).filter(Boolean));
   const condByCol={};(opt.conditional||[]).forEach(c=>{condByCol[hkey(c.column)]={when:c.whenColumn,whenKey:hkey(c.whenColumn),filled:!!c.filled,equals:(c.equals||[]).map(norm),equalsRaw:c.equals||[],recommend:!!c.recommend};});
+  const landIdx=headerIndex[hkey("Land")];
   const dataRows=sheet.rows.filter(r=>r.r>usedHeader);
 
   const cols=[];
@@ -903,11 +919,13 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
       if(!empty){const sval=String(val).trim();
         if(c.isBsn&&!isValidBSN(sval)){add(p,"bsn",c.name,sval,sevOf("bsn"),"BSN ✗ 11-proef","Het BSN '"+sval+"' is ongeldig (klopt niet met de 11-proef).");c.invalid++;}
         if(c.isIban&&!isValidIBAN(sval)){add(p,"iban",c.name,sval,sevOf("iban"),"IBAN ✗","De IBAN '"+sval+"' is ongeldig.");c.invalid++;}
-        if(c.isPostcode&&!isValidPostcode(sval)){add(p,"postcode",c.name,sval,sevOf("postcode"),"Postcode ✗","De postcode '"+sval+"' heeft geen geldige notatie.");c.invalid++;}
+        if(c.isPostcode){const pcKind=postcodeKind(landIdx!==undefined?r.cells[landIdx]:"");
+          if(pcKind&&!isValidPostcodeForKind(pcKind,sval)){const pi=PC_INFO[pcKind];add(p,"postcode",c.name,sval,sevOf("postcode"),"Postcode ✗","De postcode '"+sval+"' is geen geldige notatie voor "+pi.label+" (verwacht: "+pi.hint+").");c.invalid++;}}
         if(c.isDate&&!isEuropeanDate(sval)){add(p,"date",c.name,sval,sevOf("date"),c.name+" ✗ datum","De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).");c.invalid++;}
         if(c.isEmail&&!isValidEmail(sval)){add(p,"email",c.name,sval,sevOf("email"),"E-mail ✗","Het e-mailadres '"+sval+"' heeft geen geldige notatie.");c.invalid++;}
         if(c.isPhone&&!isPlausiblePhone(sval)){add(p,"phone",c.name,sval,sevOf("phone"),"Telefoon ?","Het telefoonnummer '"+sval+"' lijkt geen geldig nummer (verwacht 8–15 cijfers).");c.invalid++;}
-        if((c.isIban||c.isPostcode)&&/\s/.test(sval)){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spaties","De waarde '"+sval+"' in '"+c.name+"' mag geen spaties bevatten.");c.invalid++;}
+        if(c.isIban&&/\s/.test(sval)){add(p,"ibanspaces",c.name,sval,sevOf("ibanspaces"),"IBAN spaties","De IBAN '"+sval+"' mag geen spaties bevatten; de inhoud moet aaneengesloten staan.");c.invalid++;}
+        if(c.isPostcode&&/\s/.test(sval)){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spaties","De postcode '"+sval+"' mag geen spaties bevatten.");c.invalid++;}
       }
     }
   }
@@ -1410,7 +1428,7 @@ function syncSettingsUI(){
   fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevRecommended"),settings.severity.recommended); fillSevSelect($("sevBsn"),settings.severity.bsn);
   fillSevSelect($("sevIban"),settings.severity.iban); fillSevSelect($("sevPostcode"),settings.severity.postcode);
   fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevDuplicate"),settings.severity.duplicate);
-  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevEmail"),settings.severity.email); fillSevSelect($("sevPhone"),settings.severity.phone); fillSevSelect($("sevSpaces"),settings.severity.spaces); fillSevSelect($("sevInitials"),settings.severity.initials); fillSevSelect($("sevHeader"),settings.severity.header);
+  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevEmail"),settings.severity.email); fillSevSelect($("sevPhone"),settings.severity.phone); fillSevSelect($("sevSpaces"),settings.severity.spaces); fillSevSelect($("sevIbanspaces"),settings.severity.ibanspaces); fillSevSelect($("sevInitials"),settings.severity.initials); fillSevSelect($("sevHeader"),settings.severity.header);
   $("setHeaderRow").value=settings.headerRow; $("headerRowInput").value=settings.headerRow;
   $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setLoose").checked=settings.looseHeaders; $("setTheme").value=settings.theme;
   const rp=settings.report||{};
@@ -1486,7 +1504,7 @@ function wire(){
   $("repOutro").addEventListener("input",e=>{settings.report.outro=e.target.value;persist();});
   $("repLogo").addEventListener("change",e=>{if(e.target.files[0])handleLogo(e.target.files[0]);e.target.value="";});
   $("repLogoClear").addEventListener("click",()=>{settings.report.logo="";persist();$("logoPreview").innerHTML="";showToast("Logo verwijderd.","good");});
-  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevEmail","email"],["sevPhone","phone"],["sevSpaces","spaces"],["sevInitials","initials"],["sevHeader","header"]].forEach(([id,key])=>{
+  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevEmail","email"],["sevPhone","phone"],["sevSpaces","spaces"],["sevIbanspaces","ibanspaces"],["sevInitials","initials"],["sevHeader","header"]].forEach(([id,key])=>{
     $(id).addEventListener("change",e=>{settings.severity[key]=e.target.value;persist();if(datasets.length)reanalyze();});});
   $("resetIgnoreBtn").addEventListener("click",()=>{settings.ignore=[...DEFAULT_IGNORE];syncSettingsUI();persist();reanalyze();showToast("Standaard negeerlijst hersteld.","good");});
   $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
