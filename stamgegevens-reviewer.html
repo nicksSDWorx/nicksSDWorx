@@ -187,6 +187,21 @@
   .cap-note{font-size:12px;color:var(--faint);margin-top:10px}
   .empty-good{text-align:center;padding:30px;color:var(--good);font-weight:600}
   .empty-good .big{font-size:40px;display:block;margin-bottom:6px}
+  .grid-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:600px}
+  table.grid{border-collapse:separate;border-spacing:0;width:auto;min-width:100%;font-size:12.5px}
+  table.grid th,table.grid td{padding:6px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  table.grid thead th{position:sticky;top:0;z-index:2;background:var(--panel-2);color:var(--muted);font-size:11.5px;font-weight:600}
+  table.grid thead th.ign{color:var(--faint);font-style:italic}
+  table.grid .rh{position:sticky;left:0;background:var(--panel-2);color:var(--faint);font-weight:700;font-variant-numeric:tabular-nums;text-align:right;z-index:1}
+  table.grid thead th.rh{z-index:3}
+  table.grid td.e{color:var(--faint)}
+  table.grid td.bad{background:#fde7e9;color:#a01020;font-weight:600;cursor:help}
+  table.grid td.warn{background:#fff3cf;color:#7a5200;font-weight:600;cursor:help}
+  table.grid td.info{background:#e1eefb;color:#1c4e80;font-weight:600;cursor:help}
+  [data-theme="dark"] table.grid td.bad{background:rgba(255,107,107,.2);color:#ffd0d0}
+  [data-theme="dark"] table.grid td.warn{background:rgba(255,206,92,.2);color:#ffe6ad}
+  [data-theme="dark"] table.grid td.info{background:rgba(92,200,255,.2);color:#cdeaff}
+  .grid-cap{font-size:12px;color:var(--faint);margin-top:8px}
 
   .modal-overlay{position:fixed;inset:0;background:rgba(5,7,16,.6);backdrop-filter:blur(3px);display:flex;align-items:center;
     justify-content:center;padding:18px;z-index:80;opacity:0;transition:opacity .18s}
@@ -318,6 +333,15 @@
         <h3>Rijen met aandachtspunten</h3>
         <div class="desc" id="rowDesc"></div>
         <div id="rowResult"></div>
+      </section>
+
+      <section class="block" id="previewBlock">
+        <h3>Gegevensvoorbeeld <button class="info" data-tip="De ingelezen rijen met probleemcellen gemarkeerd: 🔴 kritiek, 🟡 waarschuwing, 🔵 info. Hover over een gemarkeerde cel voor de reden. Genegeerde kolommen staan cursief." aria-label="Uitleg voorbeeld">i</button></h3>
+        <div class="view-controls">
+          <label><input type="checkbox" id="previewOnlyChk"> Alleen rijen met aandachtspunten</label>
+          <span class="desc" id="previewDesc" style="margin:0"></span>
+        </div>
+        <div id="previewGrid"></div>
       </section>
     </div>
   </main>
@@ -557,7 +581,7 @@ function isValidIBAN(v){let s=String(v).replace(/\s+/g,"").toUpperCase();if(!/^[
 let settings=loadSettings();
 let datasets=[];        // {id,fileName,sheetName,isCsv,data,result}
 let currentIndex=0, multiFile=false;
-let viewOnlyIssues=false, viewSortSeverity=false;
+let viewOnlyIssues=false, viewSortSeverity=false, previewOnlyIssues=false;
 let skippedSheets=[];
 
 /* ---------- settings ---------- */
@@ -1033,7 +1057,8 @@ function renderCurrent(){
 }
 function renderError(msg){
   $("cards").innerHTML="";$("colList").innerHTML="";$("ignoredWrap").innerHTML="";$("colDesc").textContent="";
-  $("rowResult").innerHTML="";$("rowDesc").textContent="";$("blockersBlock").hidden=true;setBanner(msg,"err");
+  $("rowResult").innerHTML="";$("rowDesc").textContent="";$("blockersBlock").hidden=true;
+  $("previewGrid").innerHTML="";$("previewDesc").textContent="";setBanner(msg,"err");
 }
 function card(k,v,sub,cls,tip){return `<div class="card ${cls||""}"><div class="k">${escapeHtml(k)}${tip?` <button class="info tip-left" data-tip="${escapeHtml(tip)}" aria-label="Uitleg">i</button>`:""}</div><div class="v">${escapeHtml(String(v))}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}</div>`;}
 function renderResult(ds,res){
@@ -1077,6 +1102,7 @@ function renderResult(ds,res){
   $("ignoredWrap").innerHTML=res.ignoredCols.length?'Genegeerd in dit tabblad ('+res.ignoredCols.length+'): <span class="chips">'+res.ignoredCols.map(c=>`<span class="chip" style="cursor:default">${escapeHtml(c.name)}</span>`).join("")+'</span>':'<span style="color:var(--faint)">Geen van de te negeren kolommen komt in dit tabblad voor.</span>';
 
   renderRowIssues(res);
+  renderPreview(ds,res);
 }
 function renderRowIssues(res){
   const box=$("rowResult"),desc=$("rowDesc");
@@ -1093,6 +1119,37 @@ function renderRowIssues(res){
     html=list.slice(0,CAP).map(it=>`<tr><td class="rownum">${it.r}</td><td class="idcell">${escapeHtml(it.id||"(leeg)")}</td><td><span class="chips">${chipsOf(it)}</span></td></tr>`).join(""); }
   box.innerHTML=`<div class="tablewrap"><table><thead>${thead}</thead><tbody>${html}</tbody></table></div>`+
     (res.rowIssues.length>CAP?`<div class="cap-note">Eerste ${CAP} van ${res.rowIssues.length} rijen getoond. Het klantrapport en de CSV-export bevatten alles.</div>`:"");
+}
+// Gegevensvoorbeeld: de ingelezen rijen met probleemcellen gemarkeerd op ernst.
+function renderPreview(ds,res){
+  const wrap=$("previewGrid"),desc=$("previewDesc"); if(!wrap)return;
+  const SEVCLS={critical:"bad",warning:"warn",info:"info"};
+  const data=ds.data,hr=res.usedHeader||1;
+  const headerRow=data.rows.find(r=>r.r===hr);
+  const colCount=Math.max(data.maxCol||0, headerRow?headerRow.cells.length:0);
+  const ignoredIdx=new Set((res.ignoredCols||[]).map(c=>c.index));
+  const nameByIdx={}; (res.cols||[]).forEach(c=>{if(nameByIdx[c.index]===undefined)nameByIdx[c.index]=c.name;});
+  const idxByName={}; (res.cols||[]).forEach(c=>{if(idxByName[c.name]===undefined)idxByName[c.name]=c.index;});
+  const headers=[]; for(let i=0;i<colCount;i++){const h=headerRow?String(headerRow.cells[i]==null?"":headerRow.cells[i]).trim():""; headers.push(h||nameByIdx[i]||("kolom "+numToCol(i)));}
+  const cellMap={},issueRows=new Set();
+  (res.rowIssues||[]).forEach(it=>{issueRows.add(it.r);const m=cellMap[it.r]||(cellMap[it.r]={});
+    it.issues.forEach(is=>{const idx=idxByName[is.col]; if(idx===undefined)return; let c=m[idx]; if(!c){c=m[idx]={sev:is.severity,msgs:[]};} if(SEV[is.severity].rank<SEV[c.sev].rank)c.sev=is.severity; c.msgs.push(is.message);});});
+  let dataRows=data.rows.filter(r=>r.r>hr); const totalData=dataRows.length;
+  if(previewOnlyIssues) dataRows=dataRows.filter(r=>issueRows.has(r.r));
+  const CAP=200,shown=dataRows.slice(0,CAP);
+  const thead='<tr><th class="rh">#</th>'+headers.map((h,i)=>`<th${ignoredIdx.has(i)?' class="ign"':''} title="${escapeHtml(h)+(ignoredIdx.has(i)?" (genegeerd)":"")}">${escapeHtml(h)}</th>`).join("")+'</tr>';
+  const body=shown.map(r=>{const m=cellMap[r.r]||{};let tds=`<td class="rh">${r.r}</td>`;
+    for(let i=0;i<colCount;i++){const raw=r.cells[i];const v=raw==null?"":String(raw).trim();const cell=m[i];
+      let cls="",title="";
+      if(cell){cls=SEVCLS[cell.sev]||"info";title=` title="${escapeHtml(cell.msgs.join("  •  "))}"`;}
+      else if(!v)cls="e";
+      tds+=`<td${cls?` class="${cls}"`:""}${title}>${v?escapeHtml(v):(cell?"—":"")}</td>`;}
+    return `<tr>${tds}</tr>`;}).join("");
+  wrap.innerHTML=`<div class="grid-wrap"><table class="grid"><thead>${thead}</thead><tbody>${body}</tbody></table></div>`+
+    (dataRows.length>CAP?`<div class="grid-cap">Eerste ${CAP} van ${nl(dataRows.length)} rijen getoond.</div>`:"");
+  desc.textContent=previewOnlyIssues
+    ?`${nl(dataRows.length)} van ${nl(totalData)} rijen met aandachtspunten · ${nl(colCount)} kolommen`
+    :`${nl(totalData)} rijen · ${nl(colCount)} kolommen · gemarkeerde cellen = aandachtspunt`;
 }
 
 /* ---------- export ---------- */
@@ -1343,6 +1400,7 @@ function wire(){
   $("newFileBtn").addEventListener("click",()=>fi.click());
   $("tabsBar").addEventListener("click",e=>{const t=e.target.closest(".tab-chip");if(t)selectDataset(parseInt(t.dataset.i,10));});
   $("onlyIssuesChk").addEventListener("change",e=>{viewOnlyIssues=e.target.checked;const cur=datasets[currentIndex];if(viewOnlyIssues&&cur&&!cur.result.rowIssues.length&&!cur.result.headerIssues.length){const i=datasets.findIndex(d=>d.result.rowIssues.length||d.result.headerIssues.length);if(i>=0){selectDataset(i);return;}}renderTabs();});
+  $("previewOnlyChk").addEventListener("change",e=>{previewOnlyIssues=e.target.checked;const ds=datasets[currentIndex];if(ds&&ds.result&&!ds.result.error)renderPreview(ds,ds.result);});
   $("sortSevChk").addEventListener("change",e=>{viewSortSeverity=e.target.checked;if(datasets.length)renderCurrent();});
   $("headerRowInput").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);persist();reanalyze();});
   $("exportIssuesBtn").addEventListener("click",exportIssues);
