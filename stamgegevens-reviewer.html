@@ -892,8 +892,8 @@ function tabSummaryText(ds){
 }
 function tabIssueLines(ds){
   const R=ds.result,out=[];
-  for(const it of R.rowIssues) for(const is of it.issues) out.push({r:it.r,id:it.id,severity:is.severity,message:is.message,suggestion:is.suggestion||"",structuur:false});
-  for(const h of R.headerIssues) out.push({r:"",id:"",severity:h.severity,message:h.message,suggestion:h.suggestion||"",structuur:true});
+  for(const it of R.rowIssues) for(const is of it.issues) out.push({r:it.r,id:it.id,col:is.col||"",severity:is.severity,message:is.message,suggestion:is.suggestion||"",structuur:false});
+  for(const h of R.headerIssues) out.push({r:"",id:"",col:h.col||"",severity:h.severity,message:h.message,suggestion:h.suggestion||"",structuur:true});
   return out;
 }
 function buildReport(ds){ // tekstblok voor één tabblad (zonder aanhef/contact)
@@ -1181,17 +1181,18 @@ function zipStore(entries){
 function escXml(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]));}
 function xlsxSheet(headerArr,dataRows){
   const cell=(ref,v,bold)=>{if(typeof v==="number"&&isFinite(v))return `<c r="${ref}"${bold?' s="1"':''}><v>${v}</v></c>`;return `<c r="${ref}" t="inlineStr"${bold?' s="1"':''}><is><t xml:space="preserve">${escXml(v)}</t></is></c>`;};
+  const lastRef=numToCol(Math.max(0,headerArr.length-1))+(dataRows.length+1);
   let xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
   xml+='<row r="1">'+headerArr.map((h,i)=>cell(numToCol(i)+"1",h,true)).join("")+'</row>';
   dataRows.forEach((row,ri)=>{const r=ri+2;xml+=`<row r="${r}">`+row.map((v,i)=>cell(numToCol(i)+r,v,false)).join("")+'</row>';});
-  return xml+'</sheetData></worksheet>';
+  return xml+'</sheetData><autoFilter ref="A1:'+lastRef+'"/></worksheet>';
 }
 function buildReportXlsx(){
   const enc=new TextEncoder();
   // Kaal: één regel per aandachtspunt
-  const detH=["Bestand","Tabblad","Rij","Naam","Ernst","Toelichting"];
+  const detH=["Bestand","Tabblad","Rij","Naam","Kolom","Ernst","Toelichting"];
   const detR=[];
-  datasets.forEach(d=>{for(const ln of tabIssueLines(d)) detR.push([d.fileName,d.isCsv?"":d.sheetName,ln.structuur?"":ln.r,ln.structuur?"":(ln.id||""),SEV[ln.severity].label,ln.message]);});
+  datasets.forEach(d=>{for(const ln of tabIssueLines(d)) detR.push([d.fileName,d.isCsv?"":d.sheetName,ln.structuur?"":ln.r,ln.structuur?"":(ln.id||""),ln.col||"",SEV[ln.severity].label,ln.message]);});
   const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
   const ct='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>';
   const rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>';
