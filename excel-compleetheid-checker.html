@@ -1,23 +1,25 @@
 <!doctype html>
-<html lang="nl" data-theme="dark">
+<html lang="nl" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Excel Compleetheidscheck</title>
 <style>
   :root{
-    --bg:#0c0f1f; --bg-2:#11152b; --panel:#151a33; --panel-2:#1a2040;
-    --line:#272e54; --line-2:#323b6b;
-    --ink:#eaecff; --muted:#9aa3cf; --faint:#6b74a3;
-    --accent:#7c5cff; --accent-2:#5cc8ff;
-    --good:#39d98a; --bad:#ff6b6b; --warn:#ffce5c; --info:#5cc8ff; --orange:#ff9a3c;
-    --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.35);
+    --bg:#0b1622; --bg-2:#0f1d2e; --panel:#13273c; --panel-2:#193049;
+    --line:#244260; --line-2:#2f4f71;
+    --ink:#e9eff7; --muted:#9aacc2; --faint:#647d99;
+    --accent:#5e9bdd; --accent-2:#588fb8;
+    --good:#39d98a; --bad:#ff6b6b; --warn:#ffce5c; --info:#5fb0f0; --orange:#ff9a3c;
+    --radius:14px; --shadow:0 10px 30px rgba(0,0,0,.4);
   }
   :root[data-theme="light"]{
-    --bg:#eef1f8; --bg-2:#e6eaf5; --panel:#ffffff; --panel-2:#f4f6fc;
-    --line:#dfe4f2; --line-2:#cdd5ec;
-    --ink:#161a2e; --muted:#5a6386; --faint:#8b93b6;
-    --shadow:0 10px 30px rgba(40,50,90,.12);
+    --bg:#eef2f7; --bg-2:#e4eaf2; --panel:#ffffff; --panel-2:#f5f8fc;
+    --line:#dde5ef; --line-2:#cbd6e5;
+    --ink:#16263f; --muted:#566377; --faint:#8893a6;
+    --accent:#1a2e52; --accent-2:#3f6fa6;
+    --good:#1f9d57; --bad:#e2001a; --warn:#c47b00; --info:#2f6fb0;
+    --shadow:0 10px 30px rgba(26,46,82,.12);
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -25,14 +27,14 @@
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,system-ui,sans-serif;
     background:radial-gradient(1100px 600px at 85% -15%, var(--bg-2), var(--bg)); color:var(--ink);-webkit-font-smoothing:antialiased}
   button{font-family:inherit}
-  ::selection{background:rgba(124,92,255,.35)}
+  ::selection{background:rgba(94,155,221,.30)}
 
-  .app-header{display:flex;align-items:center;gap:10px;padding:12px 18px;
+  .app-header{display:flex;align-items:center;gap:12px;padding:11px 18px;
     background:linear-gradient(180deg,var(--panel),var(--panel-2));border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
-  .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
-  .logo{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;
-    background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 4px 12px rgba(124,92,255,.45)}
-  .logo svg{width:18px;height:18px}
+  .brand{display:flex;align-items:center;gap:13px;font-weight:700;letter-spacing:.2px}
+  .logo{display:flex;align-items:center;background:#fff;border:1px solid var(--line);border-radius:9px;padding:5px 10px}
+  .logo svg{height:22px;width:auto;display:block}
+  .brand .appname{padding-left:13px;border-left:1px solid var(--line-2)}
   .brand small{color:var(--muted);font-weight:500;font-size:11px;display:block;margin-top:-3px}
   .header-actions{margin-left:auto;display:flex;align-items:center;gap:8px}
 
@@ -41,7 +43,7 @@
     transition:transform .06s,background .15s,border-color .15s}
   .btn:hover{border-color:var(--accent);background:var(--panel)}
   .btn:active{transform:translateY(1px)}
-  .btn.primary{background:linear-gradient(135deg,var(--accent),#6b4cff);border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(124,92,255,.4)}
+  .btn.primary{background:var(--accent);border-color:transparent;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.18)}
   .btn.primary:hover{filter:brightness(1.07)}
   .btn.danger{border-color:rgba(255,107,107,.5);color:var(--bad);background:transparent}
   .btn.danger:hover{background:rgba(255,107,107,.12)}
@@ -131,7 +133,7 @@
   section.block{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px}
   section.block > h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
   section.block > .desc{margin:0 0 14px;color:var(--muted);font-size:13px}
-  #reportBlock{border-color:rgba(124,92,255,.4);box-shadow:0 0 0 1px rgba(124,92,255,.15)}
+  #reportBlock{border-color:rgba(88,143,184,.45);box-shadow:0 0 0 1px rgba(88,143,184,.18)}
   .report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
   .logo-preview{margin-top:10px}
   .logo-preview img{max-height:50px;max-width:170px;border:1px solid var(--line-2);border-radius:8px;background:#fff;padding:5px}
@@ -164,7 +166,7 @@
   .pill.opt{background:var(--bg-2);color:var(--muted)}
   .tag{font-size:10px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:6px;text-transform:uppercase}
   .tag.val{background:rgba(92,200,255,.15);color:#9bdcff}
-  .tag.cond{background:rgba(124,92,255,.16);color:#c3b4ff}
+  .tag.cond{background:rgba(94,155,221,.18);color:#7fb0e6}
   .tag.optt{background:var(--bg-2);color:var(--faint)}
   .ignored-wrap{margin-top:14px;font-size:13px;color:var(--muted)}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -237,10 +239,10 @@
 
   <header class="app-header">
     <span class="brand">
-      <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3v18M3 9h18M3 15h18M15 3v18"/></svg>
+      <span class="logo">
+        <svg viewBox="70.61 150.14 352 119.25" role="img" aria-label="SD Worx"><path fill="#1a2e52" d="M402.108 216.495 L416.218 196.483 L407.024 196.483 L401.199 205.308 L400.399 206.601 C399.452 208.127 398.477 209.7 397.51 211.416 C396.329 209.429 395.136 207.458 393.748 205.376 L387.848 196.483 L378.415 196.483 L392.431 216.739 L377.745 237.828 L387.104 237.828 L393.09 228.505 C393.44 227.942 393.785 227.392 394.126 226.85 C395.123 225.261 396.071 223.751 396.987 222.137 C398.295 224.362 399.527 226.41 400.955 228.514 L407.022 237.828 L416.615 237.828 Z M373.418 195.567 C368.733 195.567 364.551 198.503 362.393 203.177 L362.181 196.483 L355.078 196.483 L355.078 237.828 L363.364 237.828 L363.364 215.823 C363.364 214.61 363.528 213.46 363.688 212.502 C364.68 207.046 368.336 203.52 373.002 203.52 C373.925 203.52 374.638 203.591 375.387 203.758 L376.021 203.899 L376.021 195.932 L375.627 195.833 C374.863 195.642 374.244 195.567 373.418 195.567 M328.784 195.567 C340.7 195.567 348.707 204.109 348.707 216.822 C348.707 231.965 338.366 238.744 328.118 238.744 C316.436 238.744 308.278 230.003 308.278 217.488 C308.278 204.376 316.519 195.567 328.784 195.567 M328.617 202.104 C320.406 202.104 316.73 209.705 316.73 217.238 C316.73 225.912 321.659 232.207 328.45 232.207 C335.242 232.207 340.171 225.842 340.171 217.072 C340.171 209.863 336.556 202.104 328.617 202.104 M300.076 196.483 L294.223 217.097 C293.212 220.698 292.193 224.517 291.466 228.327 C290.639 224.875 289.62 221.224 288.31 217.002 L281.951 196.483 L275.025 196.483 L268.327 217.427 C267.204 221.076 266.049 224.831 265.162 228.407 C264.447 224.86 263.516 221.27 262.539 217.501 L257.072 196.483 L248.474 196.483 L260.834 237.458 L260.945 237.828 L268.367 237.828 L274.983 218.317 C276.104 214.889 277.262 211.152 278.238 206.884 C279.132 210.776 280.164 214.293 281.405 218.231 L287.682 237.828 L295.103 237.828 L308.429 196.483 Z M236.935 237.828 L229.673 237.828 L229.389 231.855 C226.627 236.138 221.606 238.743 215.93 238.743 C205.64 238.743 198.172 229.91 198.172 217.739 C198.13 210.844 200.331 204.806 204.371 200.741 C207.687 197.404 212.087 195.567 216.763 195.567 C223.474 195.567 227.002 198.757 228.566 200.786 L228.566 182.165 L236.935 182.165 Z M228.958 216.877 C228.966 215.501 229.323 202.354 218.178 202.354 C211.267 202.354 206.624 208.403 206.624 217.405 C206.624 224.041 209.607 231.79 218.012 231.79 C221.011 231.79 228.873 230.747 228.958 216.877 M183.055 213.422 C177.99 211.491 175.73 210.118 175.73 207.08 C175.73 204.104 178.231 202.104 181.954 202.104 C185.783 202.104 188.589 203.514 189.92 204.355 L190.477 204.707 L192.66 198.354 L192.295 198.138 C189.579 196.528 185.776 195.567 182.121 195.567 C173.626 195.567 167.694 200.644 167.694 207.912 C167.694 213.132 171.499 217.246 178.693 219.808 C183.975 221.759 185.847 223.571 185.847 226.731 C185.847 230.16 183.116 232.207 178.54 232.207 C175.054 232.207 171.32 230.786 169.165 229.377 L168.598 229.006 L166.423 235.628 L166.785 235.841 C169.832 237.633 174.055 238.66 178.374 238.66 C187.846 238.66 193.966 233.716 193.966 226.066 C193.966 220.116 190.703 216.335 183.055 213.422"/><path fill="#ffb300" d="M122.869 237.593 L146.64 156.142 L160.683 156.142 L136.903 237.593 Z"/><path fill="#ff0033" d="M112.492 263.387 L122.166 182.033 L108.589 182.033 L98.923 263.387 Z"/><path fill="#588fb8" d="M97.298 237.593 L89.646 196.416 L76.614 196.416 L84.194 237.593 Z"/></svg>
       </span>
-      <span>Compleetheidscheck<small>controleer Excel-bestanden op lege &amp; foutieve velden</small></span>
+      <span class="appname">Compleetheidscheck<small>controleer Excel-bestanden op lege &amp; foutieve velden</small></span>
     </span>
     <div class="header-actions">
       <button class="btn" id="newFileBtn" hidden>Andere bestanden</button>
@@ -489,7 +491,8 @@ const DEFAULT_IGNORE = ["Bedrijfsnr","WrknmGroep","CodeActief","LHKorting","Kleu
 const DEFAULT_OPTIONAL=["Schaal"];
 const DEFAULT_RECOMMENDED=["NaamSamenstelling","NaamPartner"]; // niet verplicht; leeg = info
 const DEFAULT_NAMECOLS=["Roepnaam","Naam"];
-const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sme@sdworx.com",logo:"",
+const SDWORX_LOGO="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjcwLjYxIDE1MC4xNCAzNTIgMTE5LjI1IiByb2xlPSJpbWciIGFyaWEtbGFiZWw9IlNEIFdvcngiPgo8cGF0aCBmaWxsPSIjMWEyZTUyIiBkPSJNNDAyLjEwOCAyMTYuNDk1IEw0MTYuMjE4IDE5Ni40ODMgTDQwNy4wMjQgMTk2LjQ4MyBMNDAxLjE5OSAyMDUuMzA4IEw0MDAuMzk5IDIwNi42MDEgQzM5OS40NTIgMjA4LjEyNyAzOTguNDc3IDIwOS43IDM5Ny41MSAyMTEuNDE2IEMzOTYuMzI5IDIwOS40MjkgMzk1LjEzNiAyMDcuNDU4IDM5My43NDggMjA1LjM3NiBMMzg3Ljg0OCAxOTYuNDgzIEwzNzguNDE1IDE5Ni40ODMgTDM5Mi40MzEgMjE2LjczOSBMMzc3Ljc0NSAyMzcuODI4IEwzODcuMTA0IDIzNy44MjggTDM5My4wOSAyMjguNTA1IEMzOTMuNDQgMjI3Ljk0MiAzOTMuNzg1IDIyNy4zOTIgMzk0LjEyNiAyMjYuODUgQzM5NS4xMjMgMjI1LjI2MSAzOTYuMDcxIDIyMy43NTEgMzk2Ljk4NyAyMjIuMTM3IEMzOTguMjk1IDIyNC4zNjIgMzk5LjUyNyAyMjYuNDEgNDAwLjk1NSAyMjguNTE0IEw0MDcuMDIyIDIzNy44MjggTDQxNi42MTUgMjM3LjgyOCBaIE0zNzMuNDE4IDE5NS41NjcgQzM2OC43MzMgMTk1LjU2NyAzNjQuNTUxIDE5OC41MDMgMzYyLjM5MyAyMDMuMTc3IEwzNjIuMTgxIDE5Ni40ODMgTDM1NS4wNzggMTk2LjQ4MyBMMzU1LjA3OCAyMzcuODI4IEwzNjMuMzY0IDIzNy44MjggTDM2My4zNjQgMjE1LjgyMyBDMzYzLjM2NCAyMTQuNjEgMzYzLjUyOCAyMTMuNDYgMzYzLjY4OCAyMTIuNTAyIEMzNjQuNjggMjA3LjA0NiAzNjguMzM2IDIwMy41MiAzNzMuMDAyIDIwMy41MiBDMzczLjkyNSAyMDMuNTIgMzc0LjYzOCAyMDMuNTkxIDM3NS4zODcgMjAzLjc1OCBMMzc2LjAyMSAyMDMuODk5IEwzNzYuMDIxIDE5NS45MzIgTDM3NS42MjcgMTk1LjgzMyBDMzc0Ljg2MyAxOTUuNjQyIDM3NC4yNDQgMTk1LjU2NyAzNzMuNDE4IDE5NS41NjcgTTMyOC43ODQgMTk1LjU2NyBDMzQwLjcgMTk1LjU2NyAzNDguNzA3IDIwNC4xMDkgMzQ4LjcwNyAyMTYuODIyIEMzNDguNzA3IDIzMS45NjUgMzM4LjM2NiAyMzguNzQ0IDMyOC4xMTggMjM4Ljc0NCBDMzE2LjQzNiAyMzguNzQ0IDMwOC4yNzggMjMwLjAwMyAzMDguMjc4IDIxNy40ODggQzMwOC4yNzggMjA0LjM3NiAzMTYuNTE5IDE5NS41NjcgMzI4Ljc4NCAxOTUuNTY3IE0zMjguNjE3IDIwMi4xMDQgQzMyMC40MDYgMjAyLjEwNCAzMTYuNzMgMjA5LjcwNSAzMTYuNzMgMjE3LjIzOCBDMzE2LjczIDIyNS45MTIgMzIxLjY1OSAyMzIuMjA3IDMyOC40NSAyMzIuMjA3IEMzMzUuMjQyIDIzMi4yMDcgMzQwLjE3MSAyMjUuODQyIDM0MC4xNzEgMjE3LjA3MiBDMzQwLjE3MSAyMDkuODYzIDMzNi41NTYgMjAyLjEwNCAzMjguNjE3IDIwMi4xMDQgTTMwMC4wNzYgMTk2LjQ4MyBMMjk0LjIyMyAyMTcuMDk3IEMyOTMuMjEyIDIyMC42OTggMjkyLjE5MyAyMjQuNTE3IDI5MS40NjYgMjI4LjMyNyBDMjkwLjYzOSAyMjQuODc1IDI4OS42MiAyMjEuMjI0IDI4OC4zMSAyMTcuMDAyIEwyODEuOTUxIDE5Ni40ODMgTDI3NS4wMjUgMTk2LjQ4MyBMMjY4LjMyNyAyMTcuNDI3IEMyNjcuMjA0IDIyMS4wNzYgMjY2LjA0OSAyMjQuODMxIDI2NS4xNjIgMjI4LjQwNyBDMjY0LjQ0NyAyMjQuODYgMjYzLjUxNiAyMjEuMjcgMjYyLjUzOSAyMTcuNTAxIEwyNTcuMDcyIDE5Ni40ODMgTDI0OC40NzQgMTk2LjQ4MyBMMjYwLjgzNCAyMzcuNDU4IEwyNjAuOTQ1IDIzNy44MjggTDI2OC4zNjcgMjM3LjgyOCBMMjc0Ljk4MyAyMTguMzE3IEMyNzYuMTA0IDIxNC44ODkgMjc3LjI2MiAyMTEuMTUyIDI3OC4yMzggMjA2Ljg4NCBDMjc5LjEzMiAyMTAuNzc2IDI4MC4xNjQgMjE0LjI5MyAyODEuNDA1IDIxOC4yMzEgTDI4Ny42ODIgMjM3LjgyOCBMMjk1LjEwMyAyMzcuODI4IEwzMDguNDI5IDE5Ni40ODMgWiBNMjM2LjkzNSAyMzcuODI4IEwyMjkuNjczIDIzNy44MjggTDIyOS4zODkgMjMxLjg1NSBDMjI2LjYyNyAyMzYuMTM4IDIyMS42MDYgMjM4Ljc0MyAyMTUuOTMgMjM4Ljc0MyBDMjA1LjY0IDIzOC43NDMgMTk4LjE3MiAyMjkuOTEgMTk4LjE3MiAyMTcuNzM5IEMxOTguMTMgMjEwLjg0NCAyMDAuMzMxIDIwNC44MDYgMjA0LjM3MSAyMDAuNzQxIEMyMDcuNjg3IDE5Ny40MDQgMjEyLjA4NyAxOTUuNTY3IDIxNi43NjMgMTk1LjU2NyBDMjIzLjQ3NCAxOTUuNTY3IDIyNy4wMDIgMTk4Ljc1NyAyMjguNTY2IDIwMC43ODYgTDIyOC41NjYgMTgyLjE2NSBMMjM2LjkzNSAxODIuMTY1IFogTTIyOC45NTggMjE2Ljg3NyBDMjI4Ljk2NiAyMTUuNTAxIDIyOS4zMjMgMjAyLjM1NCAyMTguMTc4IDIwMi4zNTQgQzIxMS4yNjcgMjAyLjM1NCAyMDYuNjI0IDIwOC40MDMgMjA2LjYyNCAyMTcuNDA1IEMyMDYuNjI0IDIyNC4wNDEgMjA5LjYwNyAyMzEuNzkgMjE4LjAxMiAyMzEuNzkgQzIyMS4wMTEgMjMxLjc5IDIyOC44NzMgMjMwLjc0NyAyMjguOTU4IDIxNi44NzcgTTE4My4wNTUgMjEzLjQyMiBDMTc3Ljk5IDIxMS40OTEgMTc1LjczIDIxMC4xMTggMTc1LjczIDIwNy4wOCBDMTc1LjczIDIwNC4xMDQgMTc4LjIzMSAyMDIuMTA0IDE4MS45NTQgMjAyLjEwNCBDMTg1Ljc4MyAyMDIuMTA0IDE4OC41ODkgMjAzLjUxNCAxODkuOTIgMjA0LjM1NSBMMTkwLjQ3NyAyMDQuNzA3IEwxOTIuNjYgMTk4LjM1NCBMMTkyLjI5NSAxOTguMTM4IEMxODkuNTc5IDE5Ni41MjggMTg1Ljc3NiAxOTUuNTY3IDE4Mi4xMjEgMTk1LjU2NyBDMTczLjYyNiAxOTUuNTY3IDE2Ny42OTQgMjAwLjY0NCAxNjcuNjk0IDIwNy45MTIgQzE2Ny42OTQgMjEzLjEzMiAxNzEuNDk5IDIxNy4yNDYgMTc4LjY5MyAyMTkuODA4IEMxODMuOTc1IDIyMS43NTkgMTg1Ljg0NyAyMjMuNTcxIDE4NS44NDcgMjI2LjczMSBDMTg1Ljg0NyAyMzAuMTYgMTgzLjExNiAyMzIuMjA3IDE3OC41NCAyMzIuMjA3IEMxNzUuMDU0IDIzMi4yMDcgMTcxLjMyIDIzMC43ODYgMTY5LjE2NSAyMjkuMzc3IEwxNjguNTk4IDIyOS4wMDYgTDE2Ni40MjMgMjM1LjYyOCBMMTY2Ljc4NSAyMzUuODQxIEMxNjkuODMyIDIzNy42MzMgMTc0LjA1NSAyMzguNjYgMTc4LjM3NCAyMzguNjYgQzE4Ny44NDYgMjM4LjY2IDE5My45NjYgMjMzLjcxNiAxOTMuOTY2IDIyNi4wNjYgQzE5My45NjYgMjIwLjExNiAxOTAuNzAzIDIxNi4zMzUgMTgzLjA1NSAyMTMuNDIyIi8+CjxwYXRoIGZpbGw9IiNmZmIzMDAiIGQ9Ik0xMjIuODY5IDIzNy41OTMgTDE0Ni42NCAxNTYuMTQyIEwxNjAuNjgzIDE1Ni4xNDIgTDEzNi45MDMgMjM3LjU5MyBaIi8+CjxwYXRoIGZpbGw9IiNmZjAwMzMiIGQ9Ik0xMTIuNDkyIDI2My4zODcgTDEyMi4xNjYgMTgyLjAzMyBMMTA4LjU4OSAxODIuMDMzIEw5OC45MjMgMjYzLjM4NyBaIi8+CjxwYXRoIGZpbGw9IiM1ODhmYjgiIGQ9Ik05Ny4yOTggMjM3LjU5MyBMODkuNjQ2IDE5Ni40MTYgTDc2LjYxNCAxOTYuNDE2IEw4NC4xOTQgMjM3LjU5MyBaIi8+Cjwvc3ZnPgo=";
+const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sme@sdworx.com",logo:SDWORX_LOGO,
   greeting:"Beste relatie,",
   intro:"Wij hebben het door u aangeleverde bestand gecontroleerd op volledigheid en juistheid. Hieronder vindt u de velden die nog ontbreken of aangepast moeten worden.",
   outro:"Wij verzoeken u vriendelijk deze gegevens aan te vullen of te corrigeren en het bestand opnieuw aan te leveren. Heeft u vragen, neem dan gerust contact met ons op."};
@@ -559,7 +562,7 @@ function defaultSettings(){
     conditional:DEFAULT_COND.map(c=>({column:c.column,whenColumn:c.whenColumn,filled:!!c.filled,equals:c.equals?[...c.equals]:[]})),
     nameCols:[...DEFAULT_NAMECOLS],expected:[],bsnCols:[...DEFAULT_BSN],ibanCols:[...DEFAULT_IBAN],postcodeCols:[...DEFAULT_POSTCODE],
     dateCols:[...DEFAULT_DATE],lookupSheets:[...DEFAULT_LOOKUP],autoDetect:true,skipSheets:[],autoSkipEmpty:true,severity:{...DEFAULT_SEVERITY},report:{...DEFAULT_REPORT},
-    headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"dark"};
+    headerRow:1,trimWhitespace:true,caseInsensitive:true,theme:"light"};
 }
 function loadSettings(){
   let raw=null; try{raw=localStorage.getItem(LS_KEY);}catch(e){warn("localStorage niet leesbaar:",e.message);}
@@ -603,10 +606,14 @@ function loadSettings(){
       if(!s.optional.some(x=>x.toLowerCase()==="schaal")) s.optional.push("Schaal");
       log("Migratie v8: Schaal als niet-verplicht ingesteld.");
     }
+    if(ver<9){
+      if(!s.report.logo) s.report.logo=SDWORX_LOGO;
+      log("Migratie v9: SD Worx-logo als standaard rapportlogo.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:8,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:9,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
   let m=line.match(/^(.+?)\s+verplicht\s+als\s+(.+?)\s+is\s+gevuld$/i);
@@ -1109,23 +1116,23 @@ function buildReportHtml(){
   return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Controlerapport${m.company?" — "+esc(m.company):""}</title><style>
 *{box-sizing:border-box}body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1b2230;margin:0;background:#fff;font-size:13px;line-height:1.5}
 .page{max-width:820px;margin:0 auto;padding:32px}
-.head{display:flex;align-items:center;gap:16px;border-bottom:3px solid #7c5cff;padding-bottom:16px}
-.head .logo{height:44px;width:auto}.head .ttl{font-size:22px;font-weight:800;color:#5b3df5}.head .co{font-size:13px;color:#6b7390}
+.head{display:flex;align-items:center;gap:16px;border-bottom:3px solid #1a2e52;padding-bottom:16px}
+.head .logo{height:44px;width:auto}.head .ttl{font-size:22px;font-weight:800;color:#1a2e52}.head .co{font-size:13px;color:#6b7390}
 .meta{color:#6b7390;font-size:12px;margin:8px 0 18px}.greet{margin:14px 0}.intro,.outro{margin:12px 0;color:#2a3142}
 .totals{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
 .totals .t{flex:1;min-width:92px;border:1px solid #e6e8f0;border-radius:10px;padding:10px 12px;text-align:center}
 .totals .t b{display:block;font-size:20px}.totals .t span{font-size:11px;color:#6b7390}
 .totals .crit b{color:#e23b3b}.totals .warn b{color:#c98a00}.totals .info b{color:#2a7fc0}
 h2{font-size:16px;margin:22px 0 4px;border-top:1px solid #eef0f6;padding-top:14px}
-h3{font-size:12px;margin:14px 0 6px;color:#5b3df5;text-transform:uppercase;letter-spacing:.05em}
+h3{font-size:12px;margin:14px 0 6px;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em}
 .muted{color:#6b7390}.ok{color:#1f9d57;font-weight:600}
 .summary{margin:6px 0 12px;color:#2a3142;line-height:1.55}
 .cat{margin:8px 0}.cat .cnt{color:#6b7390}.cat .tip{color:#6b7390;font-style:italic}.cat ul{margin:4px 0 0 18px;padding:0}.cat li{margin:2px 0}
 .sev{font-weight:700;font-size:12px}.sev.critical{color:#e23b3b}.sev.warning{color:#c98a00}.sev.info{color:#2a7fc0}
 table.rep{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:12px}
-table.rep th{background:#f3f1ff;text-align:left;padding:7px 9px;border:1px solid #e6e8f0;color:#4a3aa0}
+table.rep th{background:#eef2f8;text-align:left;padding:7px 9px;border:1px solid #dbe2ee;color:#1a2e52}
 table.rep td{padding:6px 9px;border:1px solid #eef0f6;vertical-align:top}
-.foot{margin-top:26px;border-top:1px solid #eef0f6;padding-top:14px;color:#4a5168;font-size:12px}a{color:#5b3df5}
+.foot{margin-top:26px;border-top:1px solid #eef0f6;padding-top:14px;color:#4a5168;font-size:12px}a{color:#2f6fb0}
 @media print{.page{padding:0}@page{margin:16mm}}
 </style></head><body><div class="page">
 <div class="head">${logo}<div><div class="ttl">Controlerapport loongegevens</div>${m.company?`<div class="co">${esc(m.company)}</div>`:""}</div></div>
