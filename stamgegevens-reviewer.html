@@ -1277,10 +1277,15 @@ function reportMeta(){const r=settings.report||{};return {company:r.company||"",
 function buildReportHtml(){
   const m=reportMeta(),esc=escapeHtml,today=new Date().toLocaleDateString("nl-NL");
   const ds=datasets.filter(d=>d.result&&!d.result.error);
-  let tc=0,tw=0,ti=0,recs=0,rows=0;
-  ds.forEach(d=>{const R=d.result;tc+=R.sev.critical;tw+=R.sev.warning;ti+=R.sev.info;recs+=R.rowIssues.length;rows+=R.dataRowCount;});
+  let nCrit=0,nWarn=0,nAanb=0,nInfo=0,recs=0,rows=0;
+  const catOf=is=>(is.severity==="critical"||is.severity==="warning")?"verplicht":(is.type==="recommended"?"aanbevolen":"info");
+  ds.forEach(d=>{const R=d.result;recs+=R.rowIssues.length;rows+=R.dataRowCount;
+    const tally=is=>{if(is.severity==="critical")nCrit++;else if(is.severity==="warning")nWarn++;else if(catOf(is)==="aanbevolen")nAanb++;else nInfo++;};
+    for(const it of R.rowIssues) for(const is of it.issues) tally(is);
+    for(const h of R.headerIssues) tally(h);});
+  const nVerpl=nCrit+nWarn;
 
-  // categorie-samenvatting (alleen kritiek + waarschuwing)
+  // categorie-samenvatting (verplicht: kritiek + waarschuwing)
   const catMap={};
   ds.forEach(d=>{const R=d.result;
     const bump=(type,sev)=>{if(sev==="info")return;const c=catMap[type]||(catMap[type]={label:CATLABEL[type]||type,severity:sev,count:0});c.count++;if(SEV[sev].rank<SEV[c.severity].rank)c.severity=sev;};
@@ -1288,53 +1293,54 @@ function buildReportHtml(){
     for(const h of R.headerIssues) bump(h.type,h.severity);});
   const cats=Object.values(catMap).sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank||b.count-a.count);
 
-  const concl = tc>0 ? "De onderstaande gegevens vragen uw aandacht. De <b>kritieke</b> punten moeten worden aangepast voordat wij de gegevens kunnen verwerken."
-    : tw>0 ? "We vragen u de onderstaande punten te controleren en waar nodig aan te passen."
-    : ti>0 ? "De verplichte gegevens zijn in orde. Hieronder vindt u enkele aanbevolen aanvullingen."
+  const concl = nCrit>0 ? "De onderstaande gegevens vragen uw aandacht. De <b>verplichte</b> punten moeten worden aangepast voordat wij de gegevens kunnen verwerken."
+    : nWarn>0 ? "We vragen u de onderstaande punten te controleren en waar nodig aan te passen."
+    : nAanb>0 ? "De verplichte gegevens zijn in orde. Hieronder vindt u enkele aanbevolen aanvullingen."
     : "Alle gecontroleerde gegevens zijn in orde. Er is geen actie nodig.";
 
-  let head=`<div class="callout ${tc>0?'crit':tw>0?'warn':'ok'}">${concl}</div>`;
+  let head=`<div class="callout ${nCrit>0?'crit':nWarn>0?'warn':'ok'}">${concl}</div>`;
   head+=`<div class="cards">`+
     `<div class="c"><b>${nl(rows)}</b><span>records gecontroleerd</span></div>`+
-    `<div class="c"><b>${nl(recs)}</b><span>met aandachtspunten</span></div>`+
-    `<div class="c crit"><b>${nl(tc)}</b><span>kritiek — aanpassen</span></div>`+
-    `<div class="c warn"><b>${nl(tw)}</b><span>waarschuwing — controleren</span></div>`+
-    (ti?`<div class="c info"><b>${nl(ti)}</b><span>aanbevolen</span></div>`:"")+`</div>`;
-  head+=`<div class="legenda"><span><i class="dot crit"></i>Kritiek — moet worden aangepast</span><span><i class="dot warn"></i>Waarschuwing — controleren</span><span><i class="dot binfo"></i>Info — aanbevolen</span></div>`;
-  if(cats.length) head+=`<div class="catsum"><div class="ttl3">Samenvatting van de aandachtspunten</div><ul>`+cats.map(c=>`<li><i class="dot ${SEV[c.severity].cls}"></i>${esc(c.label)}<span class="cnt">${nl(c.count)}×</span></li>`).join("")+`</ul></div>`;
+    `<div class="c verplicht"><b>${nl(nVerpl)}</b><span>verplicht — aanpassen</span>${(nCrit||nWarn)?`<em>${nl(nCrit)} kritiek · ${nl(nWarn)} waarschuwing</em>`:""}</div>`+
+    `<div class="c aanbevolen"><b>${nl(nAanb)}</b><span>aanbevolen — aanvullen</span></div>`+
+    `<div class="c infok"><b>${nl(nInfo)}</b><span>info — ter kennisgeving</span></div>`+`</div>`;
+  head+=`<div class="legenda"><span><i class="sq sv"></i>Verplicht — moet worden aangepast/gecontroleerd</span><span><i class="sq sa"></i>Aanbevolen — graag aanvullen (niet verplicht)</span><span><i class="sq si"></i>Info — ter kennisgeving</span></div>`;
+  if(cats.length) head+=`<div class="catsum"><div class="ttl3">Samenvatting verplichte aandachtspunten</div><ul>`+cats.map(c=>`<li><i class="dot ${SEV[c.severity].cls}"></i>${esc(c.label)}<span class="cnt">${nl(c.count)}×</span></li>`).join("")+`</ul></div>`;
 
   let body="";const multi=ds.length>1;
   ds.forEach(d=>{const R=d.result;
     if(multi) body+=`<h2>${esc(d.fileName)}${d.isCsv?"":" › "+esc(d.sheetName)}</h2>`;
     if(R.lookup){const lines=tabIssueLines(d);
       if(!lines.length){body+=`<p class="ok">✓ Alle codes hebben een bijbehorende naam.</p>`;return;}
-      body+=`<h3 class="sec">Aan te vullen</h3><table class="rep"><thead><tr><th>Regel</th><th>Aandachtspunt</th></tr></thead><tbody>`+
+      body+=`<h3 class="sec sv">Verplicht — aan te vullen</h3><table class="rep"><thead><tr><th>Regel</th><th>Aandachtspunt</th></tr></thead><tbody>`+
         lines.map(ln=>`<tr><td>${ln.structuur?"—":ln.r}</td><td>${esc(ln.message)}</td></tr>`).join("")+`</tbody></table>`;return;}
     if(!R.rowIssues.length&&!R.headerIssues.length){body+=`<p class="ok">✓ Geen ontbrekende of foutieve velden. Alles is in orde.</p>`;return;}
 
-    // Actielijst per medewerker — kritiek + waarschuwing
-    const actionRows=R.rowIssues.map(it=>({it,must:it.issues.filter(is=>is.severity!=="info")})).filter(x=>x.must.length)
-      .sort((a,b)=>SEV[a.must[0].severity].rank-SEV[b.must[0].severity].rank||a.it.r-b.it.r);
-    if(actionRows.length){
-      body+=`<h3 class="sec">Aan te passen / te controleren <span class="secn">${nl(actionRows.length)} ${actionRows.length===1?'medewerker':'medewerkers'}</span></h3>`;
-      for(const {it,must} of actionRows){
+    // 1) VERPLICHT — per medewerker (kritiek + waarschuwing)
+    const verplRows=R.rowIssues.map(it=>({it,iss:it.issues.filter(is=>is.severity==="critical"||is.severity==="warning")})).filter(x=>x.iss.length)
+      .sort((a,b)=>SEV[a.iss[0].severity].rank-SEV[b.iss[0].severity].rank||a.it.r-b.it.r);
+    const structMust=R.headerIssues.filter(h=>h.severity!=="info");
+    if(verplRows.length||structMust.length){
+      body+=`<h3 class="sec sv">Verplicht — aan te passen / te controleren${verplRows.length?` <span class="secn">${nl(verplRows.length)} ${verplRows.length===1?'medewerker':'medewerkers'}</span>`:""}</h3>`;
+      for(const {it,iss} of verplRows){
         body+=`<div class="rec"><div class="rec-h"><span class="rn">Rij ${it.r}</span><span class="nm">${esc(it.id||"(geen naam)")}</span></div><table class="rec-tbl"><tbody>`+
-          must.map(is=>`<tr><td class="bdg"><i class="dot ${SEV[is.severity].cls}"></i></td><td class="fld">${esc(is.col||"—")}</td><td class="msg">${esc(is.message)}</td><td class="todo">${esc(is.suggestion||"")}</td></tr>`).join("")+
+          iss.map(is=>`<tr><td class="bdg"><i class="dot ${SEV[is.severity].cls}"></i></td><td class="fld">${esc(is.col||"—")}</td><td class="msg">${esc(is.message)}</td><td class="todo">${esc(is.suggestion||"")}</td></tr>`).join("")+
           `</tbody></table></div>`;
       }
+      if(structMust.length) body+=`<ul class="plain">`+structMust.map(h=>`<li><i class="dot ${SEV[h.severity].cls}"></i>${esc(h.message)}</li>`).join("")+`</ul>`;
     }
-    // Structuur / kolommen (kritiek + waarschuwing)
-    const structMust=R.headerIssues.filter(h=>h.severity!=="info");
-    if(structMust.length) body+=`<h3 class="sec">Structuur / kolommen</h3><ul class="plain">`+structMust.map(h=>`<li><i class="dot ${SEV[h.severity].cls}"></i>${esc(h.message)}</li>`).join("")+`</ul>`;
-    // Aanbevolen aanvullingen (info) — apart, lichter
-    const infoRows=R.rowIssues.map(it=>({it,info:it.issues.filter(is=>is.severity==="info")})).filter(x=>x.info.length);
+
+    // 2) AANBEVOLEN — lege aanbevolen velden
+    const aanb=[];R.rowIssues.forEach(it=>it.issues.forEach(is=>{if(is.type==="recommended")aanb.push({r:it.r,id:it.id,is});}));
+    if(aanb.length) body+=`<h3 class="sec sa">Aanbevolen — graag aanvullen <span class="secn">niet verplicht</span></h3><ul class="alist">`+
+      aanb.map(x=>`<li><i class="sq sa"></i><span><b>Rij ${x.r}</b> ${esc(x.id||"—")} — <b class="fldn">${esc(x.is.col||"")}</b> ${esc(x.is.message)}</span></li>`).join("")+`</ul>`;
+
+    // 3) INFO — structureel / ter kennisgeving (severity info, niet 'recommended')
+    const infoItems=[];R.rowIssues.forEach(it=>it.issues.forEach(is=>{if(is.severity==="info"&&is.type!=="recommended")infoItems.push({r:it.r,id:it.id,is});}));
     const infoHead=R.headerIssues.filter(h=>h.severity==="info");
-    if(infoRows.length||infoHead.length){
-      body+=`<div class="info-sec"><div class="ttl3 light">Aanbevolen aanvullingen <span class="opt">(niet verplicht)</span></div><ul class="info-list">`;
-      for(const {it,info} of infoRows) for(const is of info) body+=`<li><b>Rij ${it.r}</b> ${esc(it.id||"—")} — ${esc(is.message)}</li>`;
-      for(const h of infoHead) body+=`<li>${esc(h.message)}</li>`;
-      body+=`</ul></div>`;
-    }
+    if(infoItems.length||infoHead.length) body+=`<h3 class="sec si">Info — ter kennisgeving</h3><ul class="alist info">`+
+      infoItems.map(x=>`<li><i class="sq si"></i><span><b>Rij ${x.r}</b> ${esc(x.id||"—")} — ${esc(x.is.message)}</span></li>`).join("")+
+      infoHead.map(h=>`<li><i class="sq si"></i><span>${esc(h.message)}</span></li>`).join("")+`</ul>`;
   });
 
   const logo=m.logo?`<img class="logo" src="${m.logo}" alt="logo">`:"";
@@ -1352,18 +1358,26 @@ function buildReportHtml(){
 .cards{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
 .cards .c{flex:1;min-width:104px;border:1px solid #e6e8f0;border-radius:10px;padding:12px;text-align:center}
 .cards .c b{display:block;font-size:22px;font-weight:800;color:#1a2e52}.cards .c span{font-size:10.5px;color:#6b7390;text-transform:uppercase;letter-spacing:.03em}
-.cards .crit b{color:#e23b3b}.cards .warn b{color:#c98a00}.cards .info b{color:#2a7fc0}
+.cards .c.verplicht b{color:#e23b3b}.cards .c.aanbevolen b{color:#0e8c8c}.cards .c.infok b{color:#6b7390}
+.cards .c em{display:block;font-style:normal;font-size:9.5px;color:#9aa3b2;margin-top:4px;text-transform:none;letter-spacing:0}
 .legenda{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:#6b7390;margin:4px 0 18px}.legenda span{display:inline-flex;align-items:center}
 .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;flex:none}
 .dot.crit{background:#e23b3b}.dot.warn{background:#e0a106}.dot.binfo{background:#2a7fc0}
+.sq{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;flex:none;background:#9aa3b2}.sq.sv{background:#e23b3b}.sq.sa{background:#0e8c8c}.sq.si{background:#9aa3b2}
 .catsum{border:1px solid #e6e8f0;border-radius:10px;padding:12px 16px;margin:14px 0 22px;background:#fafbfd}
 .catsum .ttl3{font-size:11px;font-weight:700;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
 .catsum ul{list-style:none;margin:0;padding:0}.catsum li{display:flex;align-items:center;padding:3px 0;font-size:13px}
 .catsum .cnt{margin-left:auto;color:#6b7390;font-variant-numeric:tabular-nums;font-weight:600}
 h2{font-size:15px;color:#1a2e52;margin:26px 0 6px;border-top:1px solid #eef0f6;padding-top:16px}
-h3.sec{font-size:12px;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;padding-bottom:5px;border-bottom:1px solid #e6e8f0;display:flex;align-items:baseline}
+h3.sec{font-size:12px;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em;margin:24px 0 10px;padding-bottom:6px;border-bottom:2px solid #e6e8f0;display:flex;align-items:center}
+h3.sec::before{content:"";display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:9px;background:#9aa3b2;flex:none}
 h3.sec .secn{margin-left:auto;font-weight:500;color:#9aa3b2;text-transform:none;letter-spacing:0}
-h3.sec.light{color:#8a93a3;border-color:#eef0f6}
+h3.sec.sv::before{background:#e23b3b}h3.sec.sv{border-bottom-color:#eebcbc}
+h3.sec.sa::before{background:#0e8c8c}h3.sec.sa{border-bottom-color:#a9dada}
+h3.sec.si::before{background:#9aa3b2}h3.sec.si{border-bottom-color:#d7dbe3}
+ul.alist{list-style:none;margin:8px 0 6px;padding:0}
+ul.alist li{display:flex;align-items:flex-start;padding:5px 2px;font-size:12.5px;border-bottom:1px solid #f1f3f7}
+ul.alist li .sq{margin-top:4px}ul.alist .fldn{color:#0e8c8c}ul.alist.info{color:#5e6678}
 .ok{color:#1f9d57;font-weight:600}
 .rec{border:1px solid #e3e7ee;border-radius:10px;margin:10px 0;padding:0;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
 .rec-h{display:flex;align-items:baseline;gap:10px;background:#f5f7fa;padding:8px 14px;border-bottom:1px solid #e9edf3}
