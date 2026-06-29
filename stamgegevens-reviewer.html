@@ -546,7 +546,7 @@ function suggestionFor(type){return {
   spaces:"Noteer de postcode zonder spaties (bijv. 1234AB).",
   ibanspaces:"Noteer de IBAN aaneengesloten, zonder spaties (bijv. NL91ABNA0417164300).",
   initials:"Zorg dat de voorletters de beginletters van álle voornamen zijn (bijv. 'Johannes Adrianus' = JA).",
-  jaarloonbt:"Controleer het jaarloon BT (meestal het jaarloon van vorig jaar); let op dat er geen maandbedrag of foutief bedrag is ingevuld.",
+  jaarloonbt:"Controleer het jaarloon BT (meestal het jaarloon van vorig jaar); let op dat er geen foutief bedrag is ingevuld.",
   header:"Controleer de kolomnaam of voeg de kolom toe."}[type]||"";}
 
 /* ---------- helpers ---------- */
@@ -1009,7 +1009,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
       if(jb==null||ss==null||jb<=0||ss<=0) continue;
       const verwacht=ss*12.96;
       if(jb<0.8*verwacht||jb>2.0*verwacht){
-        add(p,"jaarloonbt",jbName,String(p.row.cells[jbIdx]).trim(),sevOf("jaarloonbt"),"Jaarloon BT ?","Het jaarloon BT ("+fmt(jb)+") is onwaarschijnlijk ten opzichte van het verwachte jaarbedrag (ongeveer "+fmt(verwacht)+", op basis van Stamsalaris "+fmt(ss)+" × 12,96). Controleer of er geen maandbedrag of foutief bedrag is ingevuld.");
+        add(p,"jaarloonbt",jbName,String(p.row.cells[jbIdx]).trim(),sevOf("jaarloonbt"),"Jaarloon BT ?","Het jaarloon BT ("+fmt(jb)+") is onwaarschijnlijk ten opzichte van het verwachte jaarbedrag (ongeveer "+fmt(verwacht)+", op basis van Stamsalaris "+fmt(ss)+" × 12,96). Controleer of er geen foutief bedrag is ingevuld.");
         if(jbCol)jbCol.invalid++;
       }
     }
