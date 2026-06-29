@@ -714,10 +714,16 @@ function loadSettings(){
       if(!s.conditional.some(r=>r.column.toLowerCase()==="stamsalaris")) s.conditional.push({column:"Stamsalaris",whenColumn:"UurLoon1",whenEmpty:true,filled:false,equals:[]});
       log("Migratie v18: Stamsalaris mag leeg zijn als UurLoon1 is gevuld.");
     }
+    if(ver<19){
+      // Stamsalaris-regel opnieuw afdwingen: verplicht TENZIJ UurLoon1 gevuld. Corrigeert ook een eerder verkeerd opgeslagen/bewerkte regel.
+      s.conditional=s.conditional.filter(x=>x.column.toLowerCase()!=="stamsalaris");
+      s.conditional.push({column:"Stamsalaris",whenColumn:"UurLoon1",whenEmpty:true,filled:false,equals:[]});
+      log("Migratie v19: Stamsalaris verplicht tenzij UurLoon1 gevuld — opnieuw afgedwongen.");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:18,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:19,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
   let m=line.match(/^(.+?)\s+(verplicht|aanbevolen)\s+tenzij\s+(.+?)\s+is\s+gevuld$/i);
