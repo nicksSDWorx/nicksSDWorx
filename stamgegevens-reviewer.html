@@ -130,6 +130,34 @@
   .card.pct{display:flex;align-items:center;gap:14px}
   .card.pct .right .k{margin-bottom:3px}
 
+  /* kwaliteitsdashboard */
+  .dash{display:grid;grid-template-columns:auto auto 1fr;gap:22px;align-items:start}
+  @media(max-width:820px){.dash{grid-template-columns:1fr;gap:18px}}
+  .dash-panel{min-width:0}
+  .dash-panel .ph{font-size:11.5px;color:var(--muted);margin-bottom:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .ring.q{background:conic-gradient(var(--qc,var(--good)) calc(var(--p)*1%), var(--line) 0)}
+  .ring.big{width:104px;height:104px}
+  .ring.big::after{width:80px;height:80px}
+  .ring.big span{font-size:28px}
+  .score-wrap{display:flex;align-items:center;gap:15px}
+  .score-wrap .scnote{font-size:12px;color:var(--faint);max-width:160px;line-height:1.5}
+  .score-wrap .scnote b{color:var(--text);font-weight:800}
+  .donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .donut-wrap svg .dnum{fill:var(--text);font-size:26px;font-weight:800}
+  .donut-wrap svg .dlbl{fill:var(--faint);font-size:10px;font-weight:600}
+  .donut-legend{list-style:none;margin:0;padding:0;font-size:12px;min-width:150px}
+  .donut-legend li{display:flex;align-items:center;gap:9px;margin:5px 0}
+  .donut-legend i{width:11px;height:11px;border-radius:3px;flex:none}
+  .donut-legend .ll{color:var(--muted)}
+  .donut-legend .lc{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;padding-left:16px}
+  .topcols{display:flex;flex-direction:column;gap:8px}
+  .topcol{display:grid;grid-template-columns:minmax(80px,34%) 1fr auto;gap:11px;align-items:center;font-size:12px}
+  .topcol .tn{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topcol .tb{height:9px;border-radius:5px;background:var(--line);overflow:hidden}
+  .topcol .tb i{display:block;height:100%;border-radius:5px}
+  .topcol .tc{font-weight:800;font-variant-numeric:tabular-nums;color:var(--muted)}
+  .dash-empty{color:var(--faint);font-size:12px;line-height:1.5;max-width:230px}
+
   section.block{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:18px}
   section.block > h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
   section.block > .desc{margin:0 0 14px;color:var(--muted);font-size:13px}
@@ -302,6 +330,12 @@
       <div class="skip-note" id="skipNote" hidden></div>
 
       <div class="cards" id="cards"></div>
+
+      <section class="block" id="qualityBlock" hidden>
+        <h3>Kwaliteitsdashboard <button class="info" data-tip="Eén oogopslag-overzicht van dit tabblad: de kwaliteitsscore (aandeel records zonder verplichte aandachtspunten), de verdeling van alle meldingen naar ernst, en de kolommen met de meeste aandachtspunten." aria-label="Uitleg kwaliteitsdashboard">i</button></h3>
+        <div class="desc" id="qualityDesc"></div>
+        <div class="dash" id="qualityDash"></div>
+      </section>
 
       <section class="block" id="blockersBlock" hidden>
         <h3>Top blockers <button class="info" data-tip="De meest voorkomende kritieke en waarschuwings-issues — waar je het eerst op moet sturen om dit bestand verwerkbaar te maken." aria-label="Uitleg blockers">i</button></h3>
@@ -1225,10 +1259,66 @@ function renderCurrent(){
 }
 function renderError(msg){
   $("cards").innerHTML="";$("colList").innerHTML="";$("ignoredWrap").innerHTML="";$("colDesc").textContent="";
-  $("rowResult").innerHTML="";$("rowDesc").textContent="";$("blockersBlock").hidden=true;
+  $("rowResult").innerHTML="";$("rowDesc").textContent="";$("blockersBlock").hidden=true;$("qualityBlock").hidden=true;
   $("previewGrid").innerHTML="";$("previewDesc").textContent="";setBanner(msg,"err");
 }
 function card(k,v,sub,cls,tip){return `<div class="card ${cls||""}"><div class="k">${escapeHtml(k)}${tip?` <button class="info tip-left" data-tip="${escapeHtml(tip)}" aria-label="Uitleg">i</button>`:""}</div><div class="v">${escapeHtml(String(v))}</div>${sub?`<div class="sub">${escapeHtml(sub)}</div>`:""}</div>`;}
+// kleuren dashboard (komen overeen met de categorieën in het klantrapport)
+const DASHCLR={crit:"#e2403a",warn:"#e0a106",aanb:"#0e9b9b",info:"#5fb0f0"};
+// donut (inline SVG) — segmenten als boog-paden; volledige cirkel bij één segment
+function svgDonut(segs,size){
+  const cx=size/2,cy=size/2,r=size/2-9,sw=13;
+  const pol=deg=>{const a=(deg-90)*Math.PI/180;return [(cx+r*Math.cos(a)).toFixed(2),(cy+r*Math.sin(a)).toFixed(2)];};
+  const live=segs.filter(s=>s.v>0),total=live.reduce((a,s)=>a+s.v,0);
+  const track=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--line)" stroke-width="${sw}" opacity=".5"/>`;
+  let parts="";
+  if(live.length===1){ parts=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${live[0].color}" stroke-width="${sw}"/>`; }
+  else{ let ang=0; for(const s of live){const a0=ang,a1=ang+360*(s.v/total);ang=a1;
+    const [x0,y0]=pol(a0),[x1,y1]=pol(a1),large=(a1-a0)>180?1:0;
+    parts+=`<path d="M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}" fill="none" stroke="${s.color}" stroke-width="${sw}"/>`; } }
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="Verdeling van aandachtspunten naar ernst">`+
+    track+parts+`<text x="${cx}" y="${cy-2}" text-anchor="middle" class="dnum">${nl(total)}</text><text x="${cx}" y="${cy+14}" text-anchor="middle" class="dlbl">punten</text></svg>`;
+}
+// telt issues per categorie (zelfde logica als het klantrapport) + records zonder verplichte punten
+function qualityStats(res){
+  let crit=0,warn=0,aanb=0,info=0,recVerpl=0;
+  const bump=is=>{if(is.severity==="critical")crit++;else if(is.severity==="warning")warn++;else if(is.type==="recommended")aanb++;else info++;};
+  for(const it of res.rowIssues){let v=false;for(const is of it.issues){bump(is);if(is.severity==="critical"||is.severity==="warning")v=true;}if(v)recVerpl++;}
+  for(const h of (res.headerIssues||[])) bump(h);
+  const n=res.dataRowCount||0;
+  return {crit,warn,aanb,info,total:crit+warn+aanb+info,recVerpl,n,clean:Math.max(0,n-res.rowIssues.length),
+    score:n?Math.round(100*(n-recVerpl)/n):100};
+}
+function renderQuality(ds,res){
+  const block=$("qualityBlock"); if(!block)return;
+  if(!res||res.error||res.lookup){block.hidden=true;return;}
+  block.hidden=false;
+  const q=qualityStats(res),C=DASHCLR;
+  const band=q.score>=90?"var(--good)":q.score>=70?"var(--warn)":"var(--bad)";
+  const scoreHtml=`<div class="score-wrap"><div class="ring big q" style="--p:${q.score};--qc:${band}"><span>${q.score}</span></div>`+
+    `<div class="scnote"><b>${nl(q.n-q.recVerpl)} van ${nl(q.n)}</b> records direct verwerkbaar — zonder verplichte aandachtspunten.${q.recVerpl?` ${nl(q.recVerpl)} ${q.recVerpl===1?"record vraagt":"records vragen"} eerst aanpassing.`:""}</div></div>`;
+  let donutHtml;
+  if(q.total){
+    const segs=[{v:q.crit,color:C.crit},{v:q.warn,color:C.warn},{v:q.aanb,color:C.aanb},{v:q.info,color:C.info}];
+    const leg=[["Kritiek",q.crit,C.crit],["Waarschuwing",q.warn,C.warn],["Aanbevolen",q.aanb,C.aanb],["Info",q.info,C.info]]
+      .map(([l,v,c])=>`<li><i style="background:${c}"></i><span class="ll">${l}</span><span class="lc">${nl(v)}</span></li>`).join("");
+    donutHtml=`<div class="donut-wrap">${svgDonut(segs,108)}<ul class="donut-legend">${leg}</ul></div>`;
+  }else donutHtml=`<div class="dash-empty">✅ Geen aandachtspunten — alle gecontroleerde gegevens in dit tabblad zijn in orde.</div>`;
+  const colSev={};
+  for(const it of res.rowIssues) for(const is of it.issues){const k=is.col; if(!k)continue; if(colSev[k]===undefined||SEV[is.severity].rank<SEV[colSev[k]].rank)colSev[k]=is.severity;}
+  const tops=res.checkedCols.map(c=>({name:c.name,n:(c.missing||0)+(c.invalid||0),sev:colSev[c.name]||"info"}))
+    .filter(c=>c.n>0).sort((a,b)=>b.n-a.n).slice(0,6);
+  let colsHtml;
+  if(tops.length){const max=tops[0].n,bc={critical:C.crit,warning:C.warn,info:C.info};
+    colsHtml=`<div class="topcols">`+tops.map(c=>`<div class="topcol"><span class="tn" title="${escapeHtml(c.name)}">${escapeHtml(c.name)}</span><span class="tb"><i style="width:${Math.max(6,Math.round(100*c.n/max))}%;background:${bc[c.sev]||C.info}"></i></span><span class="tc">${nl(c.n)}</span></div>`).join("")+`</div>`;
+  }else colsHtml=`<div class="dash-empty">Geen kolom met ontbrekende of foutieve cellen.</div>`;
+  $("qualityDash").innerHTML=
+    `<div class="dash-panel"><div class="ph">Kwaliteitsscore</div>${scoreHtml}</div>`+
+    `<div class="dash-panel"><div class="ph">Verdeling naar ernst</div>${donutHtml}</div>`+
+    `<div class="dash-panel"><div class="ph">Meeste aandachtspunten per kolom</div>${colsHtml}</div>`;
+  $("qualityDesc").textContent=`Kwaliteitsscore = aandeel records zonder verplichte (kritiek/waarschuwing) aandachtspunten. `+
+    `${q.clean===q.n?"Alle":nl(q.clean)+" van "+nl(q.n)} records zijn volledig zonder aandachtspunten.`;
+}
 function renderResult(ds,res){
   $("cards").innerHTML=
     card("Datarijen",nl(res.dataRowCount),"onder de kopregel")+
@@ -1237,6 +1327,9 @@ function renderResult(ds,res){
     card("🟡 Waarschuwing",nl(res.sev.warning),"format-issues",res.sev.warning?"warn":"good","Issues met niveau Waarschuwing (standaard: postcode- en datumnotatie).")+
     card("🔵 Info",nl(res.sev.info),"structuur",res.sev.info?"binfo":"good","Info-meldingen (standaard: ontbrekende verwachte kolommen / structuur).")+
     card("Records met aandachtspunten",nl(res.rowIssues.length),(res.dataRowCount-res.rowIssues.length)+" in orde",res.rowIssues.length?"warn":"good");
+
+  // kwaliteitsdashboard
+  renderQuality(ds,res);
 
   // top blockers
   const bb=$("blockersBlock");
