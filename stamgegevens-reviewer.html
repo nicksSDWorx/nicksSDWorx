@@ -444,6 +444,9 @@
           <div class="sev-row"><span>Spaties in postcode</span><select id="sevSpaces"></select></div>
           <div class="sev-row"><span>Voorletters ≠ voornamen</span><select id="sevInitials"></select></div>
           <div class="sev-row"><span>Onwaarschijnlijk jaarloon BT</span><select id="sevJaarloonbt"></select></div>
+          <div class="sev-row"><span>Zelfde waarde bij meerdere medewerkers</span><select id="sevDupfield"></select></div>
+          <div class="sev-row"><span>Bedrag-uitschieter (statistisch)</span><select id="sevOutlier"></select></div>
+          <div class="sev-row"><span>Zeldzame/afwijkende waarde (typo)</span><select id="sevRarevalue"></select></div>
           <div class="sev-row"><span>Headermismatch (structuur)</span><select id="sevHeader"></select></div>
         </div>
 
@@ -526,12 +529,12 @@ const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_EMAIL=["Email","E-mail","Emailadres","E-mailadres"], DEFAULT_PHONE=["Telefoon","Telefoon1","GSM","Mobiel"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
 const DEFAULT_LOOKUP=["functietabel","afdelingstabel"];
-const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",email:"warning",phone:"info",spaces:"warning",ibanspaces:"critical",initials:"warning",jaarloonbt:"warning",header:"info"};
+const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iban:"critical",postcode:"warning",date:"warning",duplicate:"critical",datelogic:"warning",email:"warning",phone:"info",spaces:"warning",ibanspaces:"critical",initials:"warning",jaarloonbt:"warning",dupfield:"warning",outlier:"info",rarevalue:"info",header:"info"};
 
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
 const CATLABEL={missing:"Ontbrekende verplichte velden",recommended:"Aanbevolen velden (niet ingevuld)",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
   postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",duplicate:"Dubbele BSN-nummers",datelogic:"Onlogische datums",
-  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Spaties in postcode",ibanspaces:"Spaties in IBAN (moet aaneengesloten)",initials:"Voorletters komen niet overeen met voornamen",jaarloonbt:"Onwaarschijnlijk jaarloon BT",header:"Structuur / kolomnamen"};
+  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Spaties in postcode",ibanspaces:"Spaties in IBAN (moet aaneengesloten)",initials:"Voorletters komen niet overeen met voornamen",jaarloonbt:"Onwaarschijnlijk jaarloon BT",dupfield:"Zelfde waarde bij meerdere medewerkers",outlier:"Bedrag-uitschieters",rarevalue:"Zeldzame/afwijkende waarden (mogelijke typefout)",header:"Structuur / kolomnamen"};
 function suggestionFor(type){return {
   missing:"Vul dit verplichte veld in.",
   recommended:"Vul dit veld in indien van toepassing.",
@@ -547,6 +550,9 @@ function suggestionFor(type){return {
   ibanspaces:"Noteer de IBAN aaneengesloten, zonder spaties (bijv. NL91ABNA0417164300).",
   initials:"Zorg dat de voorletters de beginletters van álle voornamen zijn (bijv. 'Johannes Adrianus' = JA).",
   jaarloonbt:"Controleer het jaarloon BT (meestal het jaarloon van vorig jaar); let op dat er geen foutief bedrag is ingevuld.",
+  dupfield:"Controleer of deze waarde terecht bij meerdere medewerkers voorkomt (mogelijk een knip-plakfout).",
+  outlier:"Controleer het bedrag; het wijkt sterk af van de overige waarden in deze kolom.",
+  rarevalue:"Controleer op een typefout; deze waarde lijkt op een veelgebruikte waarde in deze kolom.",
   header:"Controleer de kolomnaam of voeg de kolom toe."}[type]||"";}
 
 /* ---------- helpers ---------- */
@@ -585,6 +591,9 @@ function parseAmount(v){let s=String(v==null?"":v).trim();if(!s)return null;s=s.
   if(lc>-1&&ld>-1)dec=lc>ld?",":".";else if(lc>-1)dec=(s.length-lc-1)<=2?",":null;else if(ld>-1)dec=(s.length-ld-1)<=2?".":null;
   if(dec){const thou=dec===","?".":",";s=s.split(thou).join("").replace(dec,".");}else s=s.replace(/[.,]/g,"");
   const n=parseFloat(s);return isFinite(n)?n:null;}
+// Levenshtein-afstand (voor typo-detectie); klein en zonder libraries.
+function levenshtein(a,b){a=String(a);b=String(b);const m=a.length,n=b.length;if(!m)return n;if(!n)return m;
+  let prev=Array.from({length:n+1},(_,i)=>i);for(let i=1;i<=m;i++){const cur=[i];for(let j=1;j<=n;j++)cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));prev=cur;}return prev[n];}
 function isValidEmail(v){return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v).trim());}
 function isPlausiblePhone(v){const s=String(v).trim();if(!/^[\d\s()+.\/-]+$/.test(s))return false;const d=s.replace(/\D/g,"");return d.length>=8&&d.length<=15;}
 function parseEuDate(v){const s=String(v==null?"":v).trim();const m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);if(!m)return null;const d=+m[1],mo=+m[2],y=+m[3];if(mo<1||mo>12||d<1||d>31)return null;const dt=new Date(Date.UTC(y,mo-1,d));return (dt.getUTCFullYear()===y&&dt.getUTCMonth()===mo-1&&dt.getUTCDate()===d)?dt:null;}
@@ -1020,6 +1029,40 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   checkedCols.filter(c=>c.isBsn).forEach(bc=>{const map={};
     perRow.forEach(p=>{const v=String(p.row.cells[bc.index]??"").replace(/\s+/g,"");if(v)(map[v]||(map[v]=[])).push(p);});
     Object.keys(map).forEach(v=>{const list=map[v];if(list.length>1)list.forEach(p=>{add(p,"duplicate",bc.name,v,sevOf("duplicate"),"BSN dubbel ("+list.length+"×)","Het BSN '"+v+"' komt "+list.length+" keer voor in '"+bc.name+"' (mogelijk dubbele werknemer).");bc.invalid++;});});});
+
+  // dataset-brede dubbele waarden (IBAN / e-mail) bij verschillende medewerkers
+  checkedCols.filter(c=>c.isIban||c.isEmail).forEach(dc=>{const map={};
+    const keyer=dc.isIban?(v=>String(v).replace(/\s+/g,"").toUpperCase()):(v=>String(v).trim().toLowerCase());
+    perRow.forEach(p=>{const rawc=p.row.cells[dc.index];if(isEmpty(rawc))return;const k=keyer(rawc);if(k)(map[k]||(map[k]=[])).push(p);});
+    Object.keys(map).forEach(k=>{const list=map[k];if(list.length>1)list.forEach(p=>{const rv=String(p.row.cells[dc.index]).trim();add(p,"dupfield",dc.name,rv,sevOf("dupfield"),dc.name+" dubbel ("+list.length+"×)","De waarde '"+rv+"' in '"+dc.name+"' komt bij "+list.length+" medewerkers voor (mogelijk een knip-plakfout).");dc.invalid++;});});});
+
+  // anomalie: bedrag-uitschieters (IQR) in bedragkolommen — conservatief (k=3, min. 12 waarden)
+  const AMT=/salaris|loon|bedrag|uurloon|premie|toeslag|vergoeding|inkomen/i;
+  for(const c of checkedCols){
+    if(c.isBsn||c.isIban||c.isPostcode||c.isDate||c.isPhone||c.isEmail||!AMT.test(c.name)) continue;
+    const vals=[]; for(const p of perRow){const n=parseAmount(p.row.cells[c.index]); if(n!=null&&n>0) vals.push({p,n});}
+    if(vals.length<12) continue;
+    const sorted=vals.map(x=>x.n).slice().sort((a,b)=>a-b);
+    const q=f=>{const i=(sorted.length-1)*f,lo=Math.floor(i),hi=Math.ceil(i);return sorted[lo]+(sorted[hi]-sorted[lo])*(i-lo);};
+    const q1=q(0.25),q3=q(0.75),iqr=q3-q1; if(iqr<=0) continue;
+    const lo=q1-3*iqr,hi=q3+3*iqr;
+    for(const {p,n} of vals){ if(n<lo||n>hi){const rv=String(p.row.cells[c.index]).trim();add(p,"outlier",c.name,rv,sevOf("outlier"),c.name+" uitschieter","Het bedrag '"+rv+"' in '"+c.name+"' wijkt sterk af van de overige waarden (de meeste liggen tussen "+Math.round(q1).toLocaleString("nl-NL")+" en "+Math.round(q3).toLocaleString("nl-NL")+"). Controleer of dit klopt.");c.invalid++;} }
+  }
+
+  // anomalie: zeldzame/afwijkende categoriewaarde die lijkt op een veelgebruikte (mogelijke typefout)
+  for(const c of checkedCols){
+    if(c.isBsn||c.isIban||c.isPostcode||c.isDate||c.isPhone||c.isEmail||AMT.test(c.name)) continue;
+    const counts={},rawOf={}; let total=0;
+    for(const p of perRow){const v=String(p.row.cells[c.index]??"").trim();if(!v)continue;const k=v.toLowerCase();counts[k]=(counts[k]||0)+1;if(!rawOf[k])rawOf[k]=v;total++;}
+    const keys=Object.keys(counts);
+    if(total<20||keys.length<2||keys.length>25||keys.length/total>0.6) continue; // categorisch, genoeg data
+    for(const k of keys){ if(counts[k]!==1) continue;
+      let best=null; for(const o of keys){ if(o===k||counts[o]<5||Math.abs(o.length-k.length)>2) continue;
+        const maxd=k.length>=5?2:1; const d=levenshtein(k,o); if(d<=maxd&&(!best||counts[o]>counts[best])) best=o; }
+      if(best){ for(const p of perRow){ if(String(p.row.cells[c.index]??"").trim().toLowerCase()===k){
+        add(p,"rarevalue",c.name,rawOf[k],sevOf("rarevalue"),c.name+" afwijkend","De waarde '"+rawOf[k]+"' in '"+c.name+"' komt maar 1× voor en lijkt op '"+rawOf[best]+"' ("+counts[best]+"×). Controleer op een typefout."); c.invalid++; } } }
+    }
+  }
 
   // aggregatie
   const rowIssues=[]; let missingCells=0,invalidCells=0; const sevCount={critical:0,warning:0,info:0}; const blockerMap={};
@@ -1586,7 +1629,7 @@ function syncSettingsUI(){
   fillSevSelect($("sevMissing"),settings.severity.missing); fillSevSelect($("sevRecommended"),settings.severity.recommended); fillSevSelect($("sevBsn"),settings.severity.bsn);
   fillSevSelect($("sevIban"),settings.severity.iban); fillSevSelect($("sevPostcode"),settings.severity.postcode);
   fillSevSelect($("sevDate"),settings.severity.date); fillSevSelect($("sevDuplicate"),settings.severity.duplicate);
-  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevEmail"),settings.severity.email); fillSevSelect($("sevPhone"),settings.severity.phone); fillSevSelect($("sevSpaces"),settings.severity.spaces); fillSevSelect($("sevIbanspaces"),settings.severity.ibanspaces); fillSevSelect($("sevInitials"),settings.severity.initials); fillSevSelect($("sevJaarloonbt"),settings.severity.jaarloonbt); fillSevSelect($("sevHeader"),settings.severity.header);
+  fillSevSelect($("sevDatelogic"),settings.severity.datelogic); fillSevSelect($("sevEmail"),settings.severity.email); fillSevSelect($("sevPhone"),settings.severity.phone); fillSevSelect($("sevSpaces"),settings.severity.spaces); fillSevSelect($("sevIbanspaces"),settings.severity.ibanspaces); fillSevSelect($("sevInitials"),settings.severity.initials); fillSevSelect($("sevJaarloonbt"),settings.severity.jaarloonbt); fillSevSelect($("sevDupfield"),settings.severity.dupfield); fillSevSelect($("sevOutlier"),settings.severity.outlier); fillSevSelect($("sevRarevalue"),settings.severity.rarevalue); fillSevSelect($("sevHeader"),settings.severity.header);
   $("setHeaderRow").value=settings.headerRow; $("headerRowInput").value=settings.headerRow;
   $("setTrim").checked=settings.trimWhitespace; $("setCase").checked=settings.caseInsensitive; $("setLoose").checked=settings.looseHeaders; $("setTheme").value=settings.theme;
   const rp=settings.report||{};
@@ -1661,7 +1704,7 @@ function wire(){
   $("repOutro").addEventListener("input",e=>{settings.report.outro=e.target.value;persist();});
   $("repLogo").addEventListener("change",e=>{if(e.target.files[0])handleLogo(e.target.files[0]);e.target.value="";});
   $("repLogoClear").addEventListener("click",()=>{settings.report.logo="";persist();$("logoPreview").innerHTML="";showToast("Logo verwijderd.","good");});
-  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevEmail","email"],["sevPhone","phone"],["sevSpaces","spaces"],["sevIbanspaces","ibanspaces"],["sevInitials","initials"],["sevJaarloonbt","jaarloonbt"],["sevHeader","header"]].forEach(([id,key])=>{
+  [["sevMissing","missing"],["sevRecommended","recommended"],["sevBsn","bsn"],["sevIban","iban"],["sevPostcode","postcode"],["sevDate","date"],["sevDuplicate","duplicate"],["sevDatelogic","datelogic"],["sevEmail","email"],["sevPhone","phone"],["sevSpaces","spaces"],["sevIbanspaces","ibanspaces"],["sevInitials","initials"],["sevJaarloonbt","jaarloonbt"],["sevDupfield","dupfield"],["sevOutlier","outlier"],["sevRarevalue","rarevalue"],["sevHeader","header"]].forEach(([id,key])=>{
     $(id).addEventListener("change",e=>{settings.severity[key]=e.target.value;persist();if(datasets.length)reanalyze();});});
   $("resetIgnoreBtn").addEventListener("click",()=>{settings.ignore=[...DEFAULT_IGNORE];syncSettingsUI();persist();reanalyze();showToast("Standaard negeerlijst hersteld.","good");});
   $("setHeaderRow").addEventListener("change",e=>{settings.headerRow=clamp(parseInt(e.target.value,10)||1,1,1000);$("headerRowInput").value=settings.headerRow;persist();reanalyze();});
