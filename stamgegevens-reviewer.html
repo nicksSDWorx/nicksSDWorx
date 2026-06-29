@@ -317,7 +317,6 @@
           <button class="btn primary" id="excelReportBtn">📊 Download Excel</button>
           <button class="btn" id="annotatedBtn" title="Je originele bestand(en) terug, met per rij een kolom 'Aandachtspunten' en een kleur op basis van de zwaarste melding">🗂️ Geannoteerd bestand</button>
           <button class="btn" id="copyReportBtn">📋 Kopieer tekst</button>
-          <button class="btn" id="downloadReportBtn">⬇ .txt</button>
         </div>
         <textarea id="reportText" class="report" readonly spellcheck="false" aria-label="Klantrapport"></textarea>
       </section>
@@ -1277,51 +1276,118 @@ function reportPreviewText(){if(!datasets.length)return"";return buildTextReport
 function reportMeta(){const r=settings.report||{};return {company:r.company||"",contactName:r.contactName||"",contactEmail:r.contactEmail||"",logo:r.logo||"",greeting:r.greeting||"",intro:r.intro||"",outro:r.outro||""};}
 function buildReportHtml(){
   const m=reportMeta(),esc=escapeHtml,today=new Date().toLocaleDateString("nl-NL");
-  const sevBadge=s=>`<span class="sev ${s}">${SEV[s].dot} ${SEV[s].label}</span>`;
+  const ds=datasets.filter(d=>d.result&&!d.result.error);
   let tc=0,tw=0,ti=0,recs=0,rows=0;
-  datasets.forEach(d=>{const R=d.result;tc+=R.sev.critical;tw+=R.sev.warning;ti+=R.sev.info;recs+=R.rowIssues.length;rows+=R.dataRowCount;});
-  let body=`<div class="totals"><div class="t"><b>${nl(datasets.length)}</b><span>tabblad(en)</span></div><div class="t"><b>${nl(rows)}</b><span>records</span></div><div class="t crit"><b>${nl(tc)}</b><span>kritiek</span></div><div class="t warn"><b>${nl(tw)}</b><span>waarschuwing</span></div><div class="t info"><b>${nl(ti)}</b><span>info</span></div></div>`;
-  datasets.forEach(d=>{const R=d.result;
-    body+=`<h2>${esc(d.fileName)}${d.isCsv?"":" › "+esc(d.sheetName)}</h2>`;
-    if(R.error){body+=`<p class="muted">${esc(R.error)}</p>`;return;}
+  ds.forEach(d=>{const R=d.result;tc+=R.sev.critical;tw+=R.sev.warning;ti+=R.sev.info;recs+=R.rowIssues.length;rows+=R.dataRowCount;});
+
+  // categorie-samenvatting (alleen kritiek + waarschuwing)
+  const catMap={};
+  ds.forEach(d=>{const R=d.result;
+    const bump=(type,sev)=>{if(sev==="info")return;const c=catMap[type]||(catMap[type]={label:CATLABEL[type]||type,severity:sev,count:0});c.count++;if(SEV[sev].rank<SEV[c.severity].rank)c.severity=sev;};
+    for(const it of R.rowIssues) for(const is of it.issues) bump(is.type,is.severity);
+    for(const h of R.headerIssues) bump(h.type,h.severity);});
+  const cats=Object.values(catMap).sort((a,b)=>SEV[a.severity].rank-SEV[b.severity].rank||b.count-a.count);
+
+  const concl = tc>0 ? "De onderstaande gegevens vragen uw aandacht. De <b>kritieke</b> punten moeten worden aangepast voordat wij de gegevens kunnen verwerken."
+    : tw>0 ? "We vragen u de onderstaande punten te controleren en waar nodig aan te passen."
+    : ti>0 ? "De verplichte gegevens zijn in orde. Hieronder vindt u enkele aanbevolen aanvullingen."
+    : "Alle gecontroleerde gegevens zijn in orde. Er is geen actie nodig.";
+
+  let head=`<div class="callout ${tc>0?'crit':tw>0?'warn':'ok'}">${concl}</div>`;
+  head+=`<div class="cards">`+
+    `<div class="c"><b>${nl(rows)}</b><span>records gecontroleerd</span></div>`+
+    `<div class="c"><b>${nl(recs)}</b><span>met aandachtspunten</span></div>`+
+    `<div class="c crit"><b>${nl(tc)}</b><span>kritiek — aanpassen</span></div>`+
+    `<div class="c warn"><b>${nl(tw)}</b><span>waarschuwing — controleren</span></div>`+
+    (ti?`<div class="c info"><b>${nl(ti)}</b><span>aanbevolen</span></div>`:"")+`</div>`;
+  head+=`<div class="legenda"><span><i class="dot crit"></i>Kritiek — moet worden aangepast</span><span><i class="dot warn"></i>Waarschuwing — controleren</span><span><i class="dot binfo"></i>Info — aanbevolen</span></div>`;
+  if(cats.length) head+=`<div class="catsum"><div class="ttl3">Samenvatting van de aandachtspunten</div><ul>`+cats.map(c=>`<li><i class="dot ${SEV[c.severity].cls}"></i>${esc(c.label)}<span class="cnt">${nl(c.count)}×</span></li>`).join("")+`</ul></div>`;
+
+  let body="";const multi=ds.length>1;
+  ds.forEach(d=>{const R=d.result;
+    if(multi) body+=`<h2>${esc(d.fileName)}${d.isCsv?"":" › "+esc(d.sheetName)}</h2>`;
+    if(R.lookup){const lines=tabIssueLines(d);
+      if(!lines.length){body+=`<p class="ok">✓ Alle codes hebben een bijbehorende naam.</p>`;return;}
+      body+=`<h3 class="sec">Aan te vullen</h3><table class="rep"><thead><tr><th>Regel</th><th>Aandachtspunt</th></tr></thead><tbody>`+
+        lines.map(ln=>`<tr><td>${ln.structuur?"—":ln.r}</td><td>${esc(ln.message)}</td></tr>`).join("")+`</tbody></table>`;return;}
     if(!R.rowIssues.length&&!R.headerIssues.length){body+=`<p class="ok">✓ Geen ontbrekende of foutieve velden. Alles is in orde.</p>`;return;}
-    body+=`<p class="summary">${esc(tabSummaryText(d))}</p>`;
-    const lk=!!R.lookup;
-    body+=`<table class="rep"><thead><tr><th>${lk?"Regel":"Rij"}</th>${lk?"":"<th>Naam</th>"}<th>Ernst</th><th>Aandachtspunt</th><th>Suggestie</th></tr></thead><tbody>`;
-    for(const ln of tabIssueLines(d)){
-      body+=`<tr><td>${ln.structuur?"—":ln.r}</td>${lk?"":`<td>${esc(ln.structuur?"structuur":(ln.id||"(geen naam)"))}</td>`}<td class="sev ${ln.severity}">${SEV[ln.severity].dot} ${SEV[ln.severity].label}</td><td>${esc(ln.message)}</td><td>${esc(ln.suggestion)}</td></tr>`;
+
+    // Actielijst per medewerker — kritiek + waarschuwing
+    const actionRows=R.rowIssues.map(it=>({it,must:it.issues.filter(is=>is.severity!=="info")})).filter(x=>x.must.length)
+      .sort((a,b)=>SEV[a.must[0].severity].rank-SEV[b.must[0].severity].rank||a.it.r-b.it.r);
+    if(actionRows.length){
+      body+=`<h3 class="sec">Aan te passen / te controleren <span class="secn">${nl(actionRows.length)} ${actionRows.length===1?'medewerker':'medewerkers'}</span></h3>`;
+      for(const {it,must} of actionRows){
+        body+=`<div class="rec"><div class="rec-h"><span class="rn">Rij ${it.r}</span><span class="nm">${esc(it.id||"(geen naam)")}</span></div><table class="rec-tbl"><tbody>`+
+          must.map(is=>`<tr><td class="bdg"><i class="dot ${SEV[is.severity].cls}"></i></td><td class="fld">${esc(is.col||"—")}</td><td class="msg">${esc(is.message)}</td><td class="todo">${esc(is.suggestion||"")}</td></tr>`).join("")+
+          `</tbody></table></div>`;
+      }
     }
-    body+=`</tbody></table>`;
+    // Structuur / kolommen (kritiek + waarschuwing)
+    const structMust=R.headerIssues.filter(h=>h.severity!=="info");
+    if(structMust.length) body+=`<h3 class="sec">Structuur / kolommen</h3><ul class="plain">`+structMust.map(h=>`<li><i class="dot ${SEV[h.severity].cls}"></i>${esc(h.message)}</li>`).join("")+`</ul>`;
+    // Aanbevolen aanvullingen (info) — apart, lichter
+    const infoRows=R.rowIssues.map(it=>({it,info:it.issues.filter(is=>is.severity==="info")})).filter(x=>x.info.length);
+    const infoHead=R.headerIssues.filter(h=>h.severity==="info");
+    if(infoRows.length||infoHead.length){
+      body+=`<div class="info-sec"><div class="ttl3 light">Aanbevolen aanvullingen <span class="opt">(niet verplicht)</span></div><ul class="info-list">`;
+      for(const {it,info} of infoRows) for(const is of info) body+=`<li><b>Rij ${it.r}</b> ${esc(it.id||"—")} — ${esc(is.message)}</li>`;
+      for(const h of infoHead) body+=`<li>${esc(h.message)}</li>`;
+      body+=`</ul></div>`;
+    }
   });
+
   const logo=m.logo?`<img class="logo" src="${m.logo}" alt="logo">`:"";
   const cMail=m.contactEmail?`<a href="mailto:${esc(m.contactEmail)}">${esc(m.contactEmail)}</a>`:"";
   const contact=[m.contactName?esc(m.contactName):"",cMail].filter(Boolean).join(" · ")||esc(m.company);
   const fileList=[...new Set(datasets.map(d=>d.fileName))].map(esc).join(", ");
   return `<!doctype html><html lang="nl"><head><meta charset="utf-8"><title>Controlerapport${m.company?" — "+esc(m.company):""}</title><style>
-*{box-sizing:border-box}body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#1b2230;margin:0;background:#fff;font-size:13px;line-height:1.5}
-.page{max-width:820px;margin:0 auto;padding:32px}
-.head{display:flex;align-items:center;gap:16px;border-bottom:3px solid #1a2e52;padding-bottom:16px}
-.head .logo{height:44px;width:auto}.head .ttl{font-size:22px;font-weight:800;color:#1a2e52}.head .co{font-size:13px;color:#6b7390}
-.meta{color:#6b7390;font-size:12px;margin:8px 0 18px}.greet{margin:14px 0}.intro,.outro{margin:12px 0;color:#2a3142}
-.totals{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
-.totals .t{flex:1;min-width:92px;border:1px solid #e6e8f0;border-radius:10px;padding:10px 12px;text-align:center}
-.totals .t b{display:block;font-size:20px}.totals .t span{font-size:11px;color:#6b7390}
-.totals .crit b{color:#e23b3b}.totals .warn b{color:#c98a00}.totals .info b{color:#2a7fc0}
-h2{font-size:16px;margin:22px 0 4px;border-top:1px solid #eef0f6;padding-top:14px}
-h3{font-size:12px;margin:14px 0 6px;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em}
-.muted{color:#6b7390}.ok{color:#1f9d57;font-weight:600}
-.summary{margin:6px 0 12px;color:#2a3142;line-height:1.55}
-.cat{margin:8px 0}.cat .cnt{color:#6b7390}.cat .tip{color:#6b7390;font-style:italic}.cat ul{margin:4px 0 0 18px;padding:0}.cat li{margin:2px 0}
-.sev{font-weight:700;font-size:12px}.sev.critical{color:#e23b3b}.sev.warning{color:#c98a00}.sev.info{color:#2a7fc0}
-table.rep{width:100%;border-collapse:collapse;margin:6px 0 4px;font-size:12px}
-table.rep th{background:#eef2f8;text-align:left;padding:7px 9px;border:1px solid #dbe2ee;color:#1a2e52}
-table.rep td{padding:6px 9px;border:1px solid #eef0f6;vertical-align:top}
-.foot{margin-top:26px;border-top:1px solid #eef0f6;padding-top:14px;color:#4a5168;font-size:12px}a{color:#2f6fb0}
-@media print{.page{padding:0}@page{margin:16mm}}
+*{box-sizing:border-box}body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#2b3340;margin:0;background:#fff;font-size:13px;line-height:1.55}
+.page{max-width:840px;margin:0 auto;padding:40px}
+.head{display:flex;align-items:center;gap:18px;border-bottom:2px solid #1a2e52;padding-bottom:18px}
+.head .logo{height:42px;width:auto}.head .ttl{font-size:23px;font-weight:800;color:#1a2e52;letter-spacing:-.2px}.head .co{font-size:13px;color:#6b7390;margin-top:2px}
+.meta{color:#6b7390;font-size:12px;margin:10px 0 20px}.greet{margin:16px 0 8px}.intro,.outro{margin:10px 0;color:#2a3142}
+.callout{border-radius:10px;padding:13px 16px;margin:16px 0;font-size:13.5px;border-left:4px solid #9aa3b2;background:#f5f7fa}
+.callout.crit{border-color:#e23b3b;background:#fdecec}.callout.warn{border-color:#e0a106;background:#fdf6e3}.callout.ok{border-color:#1f9d57;background:#eafaf933}
+.cards{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.cards .c{flex:1;min-width:104px;border:1px solid #e6e8f0;border-radius:10px;padding:12px;text-align:center}
+.cards .c b{display:block;font-size:22px;font-weight:800;color:#1a2e52}.cards .c span{font-size:10.5px;color:#6b7390;text-transform:uppercase;letter-spacing:.03em}
+.cards .crit b{color:#e23b3b}.cards .warn b{color:#c98a00}.cards .info b{color:#2a7fc0}
+.legenda{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:#6b7390;margin:4px 0 18px}.legenda span{display:inline-flex;align-items:center}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;flex:none}
+.dot.crit{background:#e23b3b}.dot.warn{background:#e0a106}.dot.binfo{background:#2a7fc0}
+.catsum{border:1px solid #e6e8f0;border-radius:10px;padding:12px 16px;margin:14px 0 22px;background:#fafbfd}
+.catsum .ttl3{font-size:11px;font-weight:700;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.catsum ul{list-style:none;margin:0;padding:0}.catsum li{display:flex;align-items:center;padding:3px 0;font-size:13px}
+.catsum .cnt{margin-left:auto;color:#6b7390;font-variant-numeric:tabular-nums;font-weight:600}
+h2{font-size:15px;color:#1a2e52;margin:26px 0 6px;border-top:1px solid #eef0f6;padding-top:16px}
+h3.sec{font-size:12px;color:#1a2e52;text-transform:uppercase;letter-spacing:.05em;margin:22px 0 10px;padding-bottom:5px;border-bottom:1px solid #e6e8f0;display:flex;align-items:baseline}
+h3.sec .secn{margin-left:auto;font-weight:500;color:#9aa3b2;text-transform:none;letter-spacing:0}
+h3.sec.light{color:#8a93a3;border-color:#eef0f6}
+.ok{color:#1f9d57;font-weight:600}
+.rec{border:1px solid #e3e7ee;border-radius:10px;margin:10px 0;padding:0;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
+.rec-h{display:flex;align-items:baseline;gap:10px;background:#f5f7fa;padding:8px 14px;border-bottom:1px solid #e9edf3}
+.rec-h .rn{font-weight:700;color:#1a2e52;font-variant-numeric:tabular-nums;font-size:12px}
+.rec-h .nm{font-weight:700;font-size:13.5px}
+.rec-tbl{width:100%;border-collapse:collapse}
+.rec-tbl td{padding:7px 10px;vertical-align:top;border-top:1px solid #f0f2f6;font-size:12.5px}
+.rec-tbl tr:first-child td{border-top:none}
+.rec-tbl .bdg{width:18px;padding-right:0}.rec-tbl .bdg .dot{margin:5px 0 0}
+.rec-tbl .fld{font-weight:700;color:#1a2e52;white-space:nowrap;width:1%}
+.rec-tbl .msg{color:#2b3340}
+.rec-tbl .todo{color:#6b7390;font-style:italic;font-size:11.5px}
+ul.plain{list-style:none;margin:6px 0;padding:0}ul.plain li{display:flex;align-items:flex-start;padding:3px 0;font-size:12.5px}ul.plain li .dot{margin-top:5px}
+.info-sec{background:#f7f9fc;border-radius:10px;padding:10px 16px 14px;margin:18px 0}
+.info-sec .ttl3{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;color:#7a8396}
+.info-sec .opt{font-weight:500;text-transform:none;letter-spacing:0}
+ul.info-list{margin:0;padding-left:18px;color:#5e6678;font-size:12px}ul.info-list li{margin:2px 0}
+.foot{margin-top:30px;border-top:1px solid #eef0f6;padding-top:14px;color:#4a5168;font-size:12px}a{color:#2f6fb0}
+@media print{.page{padding:0}@page{margin:16mm}.rec,.catsum{break-inside:avoid;page-break-inside:avoid}}
 </style></head><body><div class="page">
-<div class="head">${logo}<div><div class="ttl">Controlerapport loongegevens</div>${m.company?`<div class="co">${esc(m.company)}</div>`:""}</div></div>
-<div class="meta">Datum: ${today} · Bestand(en): ${fileList}</div>
+<div class="head">${logo}<div><div class="ttl">Controle aangeleverde gegevens</div>${m.company?`<div class="co">${esc(m.company)}</div>`:""}</div></div>
+<div class="meta">Datum: ${today} &nbsp;·&nbsp; Bestand(en): ${fileList}${m.contactName?` &nbsp;·&nbsp; Opgesteld door: ${esc(m.contactName)}`:""}</div>
 ${m.greeting?`<div class="greet">${esc(m.greeting)}</div>`:""}${m.intro?`<div class="intro">${esc(m.intro)}</div>`:""}
+${head}
 ${body}
 ${m.outro?`<div class="outro">${esc(m.outro)}</div>`:""}
 <div class="foot">Met vriendelijke groet,<br>${contact}</div>
@@ -1506,7 +1572,6 @@ function wire(){
   $("excelReportBtn").addEventListener("click",downloadReportExcel);
   $("annotatedBtn").addEventListener("click",downloadAnnotated);
   $("copyReportBtn").addEventListener("click",copyReport);
-  $("downloadReportBtn").addEventListener("click",downloadReport);
   $("resetBtn").addEventListener("click",openReset);
   $("themeBtn").addEventListener("click",()=>{settings.theme=settings.theme==="dark"?"light":"dark";applyTheme();persist();});
 
