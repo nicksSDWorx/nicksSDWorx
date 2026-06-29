@@ -640,6 +640,7 @@ function loadSettings(){
     s.headerRow=clamp(parseInt(rs.headerRow,10)||1,1,1000);
     s.trimWhitespace=rs.trimWhitespace!==false; s.caseInsensitive=rs.caseInsensitive!==false; s.looseHeaders=rs.looseHeaders!==false; s.theme=rs.theme==="light"?"light":"dark";
     const ver=Number(o&&o.version)||0;
+    try{
     if(ver<5){
       for(const c of ALWAYS_IGNORE){ if(!s.ignore.some(x=>x.toLowerCase()===c.toLowerCase())) s.ignore.push(c); s.optional=s.optional.filter(x=>x.toLowerCase()!==c.toLowerCase()); }
       if(s.nameCols.length<=1 && (s.nameCols[0]||"").toLowerCase()==="naam") s.nameCols=[...DEFAULT_NAMECOLS];
@@ -736,6 +737,7 @@ function loadSettings(){
       s.optional=s.optional.filter(x=>x.toLowerCase()!=="naampartner");
       log("Migratie v20: recommend/whenEmpty-vlaggen hersteld (NaamPartner aanbevolen; Stamsalaris tenzij UurLoon1).");
     }
+    }catch(me){errl("Migratie mislukt — opgeslagen instellingen deels toegepast:",me.message);}
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
@@ -1095,6 +1097,13 @@ function buildTextReport(){ // volledig tekstrapport (alle tabbladen) met aanhef
 }
 
 /* ---------- file handling ---------- */
+// Lees tekst robuust in: probeer UTF-8 (strikt); val terug op Windows-1252 zodat é/ë/ç uit oudere exports niet verminken.
+async function readTextSmart(file){
+  const buf=await file.arrayBuffer();
+  try{ return new TextDecoder("utf-8",{fatal:true}).decode(buf); }
+  catch(e){ try{ const t=new TextDecoder("windows-1252").decode(buf); log("CSV niet als UTF-8 leesbaar — gelezen als Windows-1252:",file.name); return t; }
+    catch(_){ return new TextDecoder("utf-8").decode(buf); } }
+}
 async function handleFiles(fileList){
   const files=Array.from(fileList||[]); if(!files.length) return;
   setBanner(""); showToast("Bezig met inlezen…");
@@ -1102,7 +1111,7 @@ async function handleFiles(fileList){
   for(const file of files){
     const ext=(file.name.split(".").pop()||"").toLowerCase();
     try{
-      if(ext==="csv"){ const data=parseCsv(await file.text()); next.push(mkDataset(file.name,"",true,data)); }
+      if(ext==="csv"){ const data=parseCsv(await readTextSmart(file)); next.push(mkDataset(file.name,"",true,data)); }
       else if(ext==="xlsx"||ext==="xlsm"){ const w=await parseWorkbook(await file.arrayBuffer());
         const skipSet=new Set((settings.skipSheets||[]).map(s=>ci(s).replace(/\s+/g,"")));
         for(const sh of w.sheets){
@@ -1123,7 +1132,11 @@ async function handleFiles(fileList){
   log("Geladen:",new Set(datasets.map(d=>d.fileName)).size,"bestand(en),",datasets.length,"tabblad(en).");
 }
 function mkDataset(fileName,sheetName,isCsv,data){return {id:fileName+"|"+sheetName+"|"+Math.random().toString(36).slice(2,6),fileName,sheetName,isCsv,data,result:null};}
-function analyzeAll(){for(const d of datasets) d.result=analyze(d.data,settings.headerRow,settings,d.sheetName);}
+function analyzeAll(){for(const d of datasets){
+  try{ d.result=analyze(d.data,settings.headerRow,settings,d.sheetName); }
+  catch(e){ errl("Analyse mislukt:",d.fileName,d.sheetName||"",e.message);
+    d.result={error:"Analyse van dit tabblad is mislukt ("+e.message+"). De overige tabbladen zijn wel verwerkt.",empty:true,dataRowCount:0,rowIssues:[],headerIssues:[],sev:{critical:0,warning:0,info:0},pct:100}; }
+}}
 function afterLoad(){
   $("emptyView").hidden=true; $("resultView").hidden=false; $("newFileBtn").hidden=false; $("viewControls").hidden=false;
   $("headerRowInput").value=settings.headerRow;
@@ -1329,6 +1342,8 @@ function buildReportHtml(){
   head+=`<div class="legenda"><span><i class="sq sv"></i>Verplicht — moet worden aangepast/gecontroleerd</span><span><i class="sq sa"></i>Aanbevolen — graag aanvullen (niet verplicht)</span><span><i class="sq si"></i>Info — ter kennisgeving</span></div>`;
   if(cats.length) head+=`<div class="catsum"><div class="ttl3">Samenvatting verplichte aandachtspunten</div><ul>`+cats.map(c=>`<li><i class="dot ${SEV[c.severity].cls}"></i>${esc(c.label)}<span class="cnt">${nl(c.count)}×</span></li>`).join("")+`</ul></div>`;
 
+  const CAP=200;
+  const moreNote=(n,what)=>n>0?`<div class="more-note">+ nog ${nl(n)} ${what} niet getoond — zie het geannoteerde bestand of de Excel-lijst voor de volledige lijst.</div>`:"";
   let body="";const multi=ds.length>1;
   ds.forEach(d=>{const R=d.result;
     if(multi) body+=`<h2>${esc(d.fileName)}${d.isCsv?"":" › "+esc(d.sheetName)}</h2>`;
@@ -1344,25 +1359,26 @@ function buildReportHtml(){
     const structMust=R.headerIssues.filter(h=>h.severity!=="info");
     if(verplRows.length||structMust.length){
       body+=`<h3 class="sec sv">Verplicht — aan te passen / te controleren${verplRows.length?` <span class="secn">${nl(verplRows.length)} ${verplRows.length===1?'medewerker':'medewerkers'}</span>`:""}</h3>`;
-      for(const {it,iss} of verplRows){
+      for(const {it,iss} of verplRows.slice(0,CAP)){
         body+=`<div class="rec"><div class="rec-h"><span class="rn">Rij ${it.r}</span><span class="nm">${esc(it.id||"(geen naam)")}</span></div><table class="rec-tbl"><tbody>`+
           iss.map(is=>`<tr><td class="bdg"><i class="dot ${SEV[is.severity].cls}"></i></td><td class="fld">${esc(is.col||"—")}</td><td class="msg">${esc(is.message)}</td><td class="todo">${esc(is.suggestion||"")}</td></tr>`).join("")+
           `</tbody></table></div>`;
       }
+      body+=moreNote(verplRows.length-CAP,"medewerkers");
       if(structMust.length) body+=`<ul class="plain">`+structMust.map(h=>`<li><i class="dot ${SEV[h.severity].cls}"></i>${esc(h.message)}</li>`).join("")+`</ul>`;
     }
 
     // 2) AANBEVOLEN — lege aanbevolen velden
     const aanb=[];R.rowIssues.forEach(it=>it.issues.forEach(is=>{if(is.type==="recommended")aanb.push({r:it.r,id:it.id,is});}));
     if(aanb.length) body+=`<h3 class="sec sa">Aanbevolen — graag aanvullen <span class="secn">niet verplicht</span></h3><ul class="alist">`+
-      aanb.map(x=>`<li><i class="sq sa"></i><span><b>Rij ${x.r}</b> ${esc(x.id||"—")} — <b class="fldn">${esc(x.is.col||"")}</b> ${esc(x.is.message)}</span></li>`).join("")+`</ul>`;
+      aanb.slice(0,CAP).map(x=>`<li><i class="sq sa"></i><span><b>Rij ${x.r}</b> ${esc(x.id||"—")} — <b class="fldn">${esc(x.is.col||"")}</b> ${esc(x.is.message)}</span></li>`).join("")+`</ul>`+moreNote(aanb.length-CAP,"aanbevolen punten");
 
     // 3) INFO — structureel / ter kennisgeving (severity info, niet 'recommended')
     const infoItems=[];R.rowIssues.forEach(it=>it.issues.forEach(is=>{if(is.severity==="info"&&is.type!=="recommended")infoItems.push({r:it.r,id:it.id,is});}));
     const infoHead=R.headerIssues.filter(h=>h.severity==="info");
     if(infoItems.length||infoHead.length) body+=`<h3 class="sec si">Info — ter kennisgeving</h3><ul class="alist info">`+
-      infoItems.map(x=>`<li><i class="sq si"></i><span><b>Rij ${x.r}</b> ${esc(x.id||"—")} — ${esc(x.is.message)}</span></li>`).join("")+
-      infoHead.map(h=>`<li><i class="sq si"></i><span>${esc(h.message)}</span></li>`).join("")+`</ul>`;
+      infoItems.slice(0,CAP).map(x=>`<li><i class="sq si"></i><span><b>Rij ${x.r}</b> ${esc(x.id||"—")} — ${esc(x.is.message)}</span></li>`).join("")+
+      infoHead.map(h=>`<li><i class="sq si"></i><span>${esc(h.message)}</span></li>`).join("")+`</ul>`+moreNote(infoItems.length-CAP,"info-punten");
   });
 
   const logo=m.logo?`<img class="logo" src="${m.logo}" alt="logo">`:"";
@@ -1400,6 +1416,7 @@ h3.sec.si::before{background:#9aa3b2}h3.sec.si{border-bottom-color:#d7dbe3}
 ul.alist{list-style:none;margin:8px 0 6px;padding:0}
 ul.alist li{display:flex;align-items:flex-start;padding:5px 2px;font-size:12.5px;border-bottom:1px solid #f1f3f7}
 ul.alist li .sq{margin-top:4px}ul.alist .fldn{color:#0e8c8c}ul.alist.info{color:#5e6678}
+.more-note{font-size:11.5px;color:#8a93a3;font-style:italic;margin:6px 0 4px}
 .ok{color:#1f9d57;font-weight:600}
 .rec{border:1px solid #e3e7ee;border-radius:10px;margin:10px 0;padding:0;overflow:hidden;break-inside:avoid;page-break-inside:avoid}
 .rec-h{display:flex;align-items:baseline;gap:10px;background:#f5f7fa;padding:8px 14px;border-bottom:1px solid #e9edf3}
