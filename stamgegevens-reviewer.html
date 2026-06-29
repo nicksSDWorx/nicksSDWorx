@@ -624,7 +624,7 @@ function loadSettings(){
     s.lookupSheets=sa(rs.lookupSheets,s.lookupSheets); s.skipSheets=sa(rs.skipSheets,s.skipSheets);
     s.autoDetect=rs.autoDetect!==false; s.autoSkipEmpty=rs.autoSkipEmpty!==false;
     if(Array.isArray(rs.conditional)) s.conditional=rs.conditional.filter(c=>c&&typeof c.column==="string"&&typeof c.whenColumn==="string")
-      .map(c=>({column:c.column,whenColumn:c.whenColumn,filled:c.filled===true,equals:Array.isArray(c.equals)?c.equals.map(String):(c.equals!=null?[String(c.equals)]:[])}));
+      .map(c=>({...c,column:c.column,whenColumn:c.whenColumn,filled:c.filled===true,whenEmpty:c.whenEmpty===true,recommend:c.recommend===true,equals:Array.isArray(c.equals)?c.equals.map(String):(c.equals!=null?[String(c.equals)]:[])}));
     if(rs.severity&&typeof rs.severity==="object") for(const k of Object.keys(DEFAULT_SEVERITY)) if(["critical","warning","info"].includes(rs.severity[k])) s.severity[k]=rs.severity[k];
     if(Array.isArray(rs.nameCols)) s.nameCols=rs.nameCols.filter(x=>typeof x==="string"&&x.trim());
     else if(typeof rs.nameCol==="string"&&rs.nameCol.trim()) s.nameCols=[rs.nameCol.trim()];
@@ -720,10 +720,19 @@ function loadSettings(){
       s.conditional.push({column:"Stamsalaris",whenColumn:"UurLoon1",whenEmpty:true,filled:false,equals:[]});
       log("Migratie v19: Stamsalaris verplicht tenzij UurLoon1 gevuld — opnieuw afgedwongen.");
     }
+    if(ver<20){
+      // Bugfix: recommend/whenEmpty-vlaggen werden bij het laden niet bewaard. Herstel de bedoelde regels eenmalig (worden nu wél bewaard).
+      s.conditional=s.conditional.filter(x=>!["naampartner","stamsalaris"].includes(x.column.toLowerCase()));
+      s.conditional.push({column:"NaamPartner",whenColumn:"BurgerlijkeStaat",filled:false,equals:["2","5"],recommend:true});
+      s.conditional.push({column:"Stamsalaris",whenColumn:"UurLoon1",whenEmpty:true,filled:false,equals:[]});
+      s.recommended=s.recommended.filter(x=>x.toLowerCase()!=="naampartner");
+      s.optional=s.optional.filter(x=>x.toLowerCase()!=="naampartner");
+      log("Migratie v20: recommend/whenEmpty-vlaggen hersteld (NaamPartner aanbevolen; Stamsalaris tenzij UurLoon1).");
+    }
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:19,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:20,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
   let m=line.match(/^(.+?)\s+(verplicht|aanbevolen)\s+tenzij\s+(.+?)\s+is\s+gevuld$/i);
