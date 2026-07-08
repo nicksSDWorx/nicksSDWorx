@@ -3,101 +3,78 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Customer Journey Generator — HR &amp; Payroll implementatie</title>
+<title>Customer Journey Generator — HR &amp; Payroll</title>
 <style>
   :root{
-    --brand:#4b2e83;          /* diep paars */
-    --brand-2:#7b4fc0;
-    --accent:#e6007e;         /* magenta accent */
-    --ink:#1d1b24;
-    --muted:#6a6676;
-    --line:#e4e1ec;
-    --bg:#f6f4fb;
-    --card:#ffffff;
-    --ok:#16915b;
-    --wij:#4b2e83;
-    --u:#e6007e;
-    --radius:16px;
-    --shadow:0 10px 30px rgba(40,20,80,.10);
+    --brand:#4b2e83; --brand-2:#7b4fc0; --accent:#e6007e;
+    --ink:#1d1b24; --muted:#6a6676; --line:#e4e1ec; --bg:#f6f4fb; --card:#fff;
+    --ok:#16915b; --wij:#4b2e83; --u:#e6007e;
+    --radius:16px; --shadow:0 10px 30px rgba(40,20,80,.10);
   }
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
-  body{
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    color:var(--ink);background:var(--bg);line-height:1.55;
-    -webkit-font-smoothing:antialiased;
-  }
-  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 80px}
-  header.top{
-    display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap;
-  }
-  .logo{
-    width:44px;height:44px;border-radius:12px;flex:0 0 auto;
-    background:linear-gradient(135deg,var(--brand),var(--accent));
-    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:20px;
-    box-shadow:var(--shadow);
-  }
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1060px;margin:0 auto;padding:26px 20px 80px}
+  header.top{display:flex;align-items:center;gap:14px;margin-bottom:8px;flex-wrap:wrap}
+  .logo{width:44px;height:44px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(135deg,var(--brand),var(--accent));display:flex;align-items:center;
+    justify-content:center;color:#fff;font-weight:800;font-size:20px;box-shadow:var(--shadow)}
   header.top h1{font-size:1.35rem;margin:0;letter-spacing:-.01em}
   header.top .sub{color:var(--muted);font-size:.9rem;margin-top:2px}
+  .lang{margin-left:auto;display:inline-flex;border:1.5px solid var(--line);border-radius:99px;overflow:hidden;background:#fff}
+  .lang button{border:none;background:none;padding:8px 16px;font-weight:700;color:var(--muted);cursor:pointer;font-size:.9rem}
+  .lang button.on{background:var(--brand);color:#fff}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
-
-  /* ---------- Intake / Q&A ---------- */
-  #intake{padding:26px 26px 8px;margin-top:18px}
-  .intro{color:var(--muted);margin:0 0 18px;max-width:70ch}
+  #intake{padding:26px 26px 8px;margin-top:16px}
+  .intro{color:var(--muted);margin:0 0 18px;max-width:74ch}
   .progressbar{height:8px;background:var(--line);border-radius:99px;overflow:hidden;margin-bottom:22px}
-  .progressbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .35s ease}
-
+  .progressbar > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--brand),var(--accent));transition:width .35s}
   .step{display:none;animation:fade .35s ease}
   .step.active{display:block}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
   .qnum{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:700}
   .qtitle{font-size:1.3rem;margin:4px 0 4px;letter-spacing:-.01em}
   .qhelp{color:var(--muted);margin:0 0 18px;font-size:.95rem}
-
   label.field{display:block;margin:0 0 14px}
   label.field > span{display:block;font-weight:600;margin-bottom:6px;font-size:.95rem}
-  input[type=text],input[type=number],input[type=date],input[type=email],select,textarea{
+  input[type=text],input[type=number],input[type=date],input[type=email],select{
     width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:1rem;
-    font-family:inherit;background:#fff;color:var(--ink);transition:border .15s,box-shadow .15s;
-  }
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 4px rgba(123,79,192,.15)}
-
+    font-family:inherit;background:#fff;color:var(--ink);transition:border .15s,box-shadow .15s}
+  input:focus,select:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 4px rgba(123,79,192,.15)}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
   .choices{display:grid;gap:10px}
-  .choice{
-    display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1.5px solid var(--line);
-    border-radius:12px;cursor:pointer;transition:.15s;background:#fff;
-  }
+  .choice{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1.5px solid var(--line);
+    border-radius:12px;cursor:pointer;transition:.15s;background:#fff}
   .choice:hover{border-color:var(--brand-2);background:#faf8ff}
-  .choice input{margin-top:3px;accent-color:var(--brand)}
-  .choice .c-title{font-weight:600}
+  .choice input{margin-top:3px;accent-color:var(--brand);width:17px;height:17px;flex:0 0 auto}
+  .choice .c-title{font-weight:600;display:block}
   .choice .c-desc{color:var(--muted);font-size:.88rem}
   .choice.selected{border-color:var(--brand);background:#f4efff}
-  .cond{margin-top:10px}
-
   .nav{display:flex;justify-content:space-between;gap:12px;padding:20px 0 6px}
-  button{font-family:inherit;font-size:1rem;font-weight:600;border-radius:12px;border:1.5px solid transparent;padding:12px 22px;cursor:pointer;transition:.15s}
+  button.act{font-family:inherit;font-size:1rem;font-weight:600;border-radius:12px;border:1.5px solid transparent;padding:12px 22px;cursor:pointer;transition:.15s}
   .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
   .btn-primary:hover{filter:brightness(1.07)}
   .btn-ghost{background:#fff;border-color:var(--line);color:var(--ink)}
   .btn-ghost:hover{border-color:var(--brand-2)}
-  button:disabled{opacity:.45;cursor:not-allowed}
+  button.act:disabled{opacity:.45;cursor:not-allowed}
 
-  /* ---------- Result ---------- */
-  #result{display:none;margin-top:18px}
+  #result{display:none;margin-top:16px}
   .result-hero{padding:28px 26px;background:linear-gradient(135deg,var(--brand),#3a2266);color:#fff;border-radius:var(--radius) var(--radius) 0 0}
   .result-hero h2{margin:0 0 4px;font-size:1.55rem;letter-spacing:-.01em}
   .result-hero p{margin:0;opacity:.9}
-  .hero-meta{display:flex;flex-wrap:wrap;gap:22px;margin-top:18px}
-  .hero-meta div{min-width:120px}
+  .hero-meta{display:flex;flex-wrap:wrap;gap:20px;margin-top:18px}
+  .hero-meta div{min-width:110px}
   .hero-meta .k{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;opacity:.75}
   .hero-meta .v{font-size:1.05rem;font-weight:700;margin-top:2px}
-
-  .result-body{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius) var(--radius);padding:8px 0 8px}
-
-  /* Timeline rail */
-  .rail{display:flex;overflow-x:auto;gap:0;padding:22px 26px 6px;scrollbar-width:thin}
-  .rail .node{flex:1 0 auto;min-width:130px;text-align:center;position:relative;padding-top:26px}
+  .result-body{background:var(--card);border:1px solid var(--line);border-top:none;border-radius:0 0 var(--radius) var(--radius)}
+  .legend{display:flex;gap:18px;padding:16px 26px 0;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
+  .legend b{display:inline-flex;align-items:center;gap:6px}
+  .legend .sw{width:12px;height:12px;border-radius:4px;display:inline-block}
+  .rail{display:flex;overflow-x:auto;gap:0;padding:20px 26px 6px}
+  .rail .node{flex:1 0 auto;min-width:132px;text-align:center;position:relative;padding-top:26px}
   .rail .node::before{content:"";position:absolute;top:14px;left:0;right:0;height:3px;background:var(--line)}
   .rail .node:first-child::before{left:50%}
   .rail .node:last-child::before{right:50%}
@@ -105,7 +82,6 @@
     background:linear-gradient(135deg,var(--brand),var(--accent));color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:800;z-index:1}
   .rail .node .n-name{font-weight:700;font-size:.92rem}
   .rail .node .n-date{color:var(--muted);font-size:.78rem}
-
   .phase{padding:22px 26px;border-top:1px solid var(--line)}
   .phase-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
   .phase-ico{width:46px;height:46px;border-radius:12px;background:#f4efff;display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto}
@@ -114,7 +90,6 @@
   .phase-head .p-when{margin-left:auto;text-align:right}
   .phase-head .p-when .k{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
   .phase-head .p-when .v{font-weight:700}
-
   .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
   @media(max-width:640px){.cols{grid-template-columns:1fr}.hero-meta div{min-width:100px}}
   .col{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:#fcfbff}
@@ -126,31 +101,23 @@
   .col.u .tag{background:var(--u)}
   ul.tasks{list-style:none;margin:0;padding:0}
   ul.tasks li{display:flex;gap:10px;align-items:flex-start;padding:6px 0;font-size:.93rem}
-  ul.tasks li::before{content:"✓";color:var(--ok);font-weight:800;flex:0 0 auto}
-  ul.tasks.client li{cursor:pointer}
+  ul.tasks li.t::before{content:"✓";color:var(--ok);font-weight:800;flex:0 0 auto}
   ul.tasks.client li input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:0 0 auto}
-  ul.tasks.client li::before{content:none}
   .none{color:var(--muted);font-style:italic;font-size:.9rem}
-
-  /* Action summary */
   .summary{margin:22px 26px;border:1px solid var(--line);border-radius:12px;padding:18px 20px;background:#fff}
   .summary h3{margin:0 0 4px;font-size:1.1rem}
   .summary p.s-sub{margin:0 0 12px;color:var(--muted);font-size:.9rem}
   .summary ol{margin:0;padding-left:20px}
   .summary ol li{padding:4px 0}
-  .summary .doclist{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .summary .doclist{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .summary .doclist span{background:#f4efff;color:var(--brand);border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:.82rem;font-weight:600}
-
   .toolbar{display:flex;gap:12px;flex-wrap:wrap;padding:6px 26px 24px}
-  .legend{display:flex;gap:18px;padding:4px 26px 0;flex-wrap:wrap;font-size:.85rem;color:var(--muted)}
-  .legend b{display:inline-flex;align-items:center;gap:6px}
-  .legend .sw{width:12px;height:12px;border-radius:4px;display:inline-block}
-  .foot{color:var(--muted);font-size:.82rem;text-align:center;margin-top:26px}
-
+  .foot{color:var(--muted);font-size:.82rem;text-align:center;margin-top:24px}
   @media print{
     body{background:#fff}
-    .toolbar,.progressbar,#intake{display:none!important}
+    .toolbar,.progressbar,#intake,.lang,header.top .sub{display:none!important}
     .card,.result-body,.result-hero{box-shadow:none;border-color:#ccc}
+    .result-hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .phase{break-inside:avoid}
   }
 </style>
@@ -160,92 +127,136 @@
   <header class="top">
     <div class="logo">SD</div>
     <div>
-      <h1>Customer Journey Generator</h1>
-      <div class="sub">HR &amp; Payroll implementatie — van kick-off tot en met nazorg</div>
+      <h1 data-i18n="appTitle"></h1>
+      <div class="sub" data-i18n="appSub"></div>
+    </div>
+    <div class="lang" role="group" aria-label="language">
+      <button id="lang-nl" class="on" onclick="setLang('nl')">NL</button>
+      <button id="lang-en" onclick="setLang('en')">EN</button>
     </div>
   </header>
 
-  <!-- ============ INTAKE / Q&A ============ -->
+  <!-- ============ INTAKE ============ -->
   <section id="intake" class="card">
-    <p class="intro">Beantwoord een paar korte vragen over de nieuwe klant. Op basis van uw antwoorden
-      genereren we een <strong>gepersonaliseerde customer journey</strong> met de zes implementatiefases,
-      afgestemde taken en een indicatieve planning.</p>
-
+    <p class="intro" data-i18n="intro"></p>
     <div class="progressbar"><i id="bar"></i></div>
     <form id="qform" novalidate>
 
-      <!-- Q1 -->
+      <!-- 0 Klant -->
       <div class="step active" data-step="0">
-        <div class="qnum">Vraag 1</div>
-        <h2 class="qtitle">Voor welke klant maken we de journey?</h2>
-        <p class="qhelp">Deze gegevens komen bovenaan de gepersonaliseerde journey te staan.</p>
-        <label class="field"><span>Bedrijfsnaam *</span>
-          <input type="text" id="company" placeholder="bv. Voorbeeld B.V." required></label>
-        <label class="field"><span>Contactpersoon</span>
-          <input type="text" id="contact" placeholder="Voor- en achternaam"></label>
-        <label class="field"><span>E-mailadres contactpersoon</span>
-          <input type="email" id="email" placeholder="naam@bedrijf.nl"></label>
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s0_title"></h2>
+        <p class="qhelp" data-i18n="s0_help"></p>
+        <label class="field"><span data-i18n="f_company"></span>
+          <input type="text" id="company" data-i18n-ph="ph_company"></label>
+        <div class="grid2">
+          <label class="field"><span data-i18n="f_contact"></span>
+            <input type="text" id="contact" data-i18n-ph="ph_contact"></label>
+          <label class="field"><span data-i18n="f_email"></span>
+            <input type="email" id="email" data-i18n-ph="ph_email"></label>
+        </div>
       </div>
 
-      <!-- Q2 -->
+      <!-- 1 Omvang -->
       <div class="step" data-step="1">
-        <div class="qnum">Vraag 2</div>
-        <h2 class="qtitle">Hoeveel werknemers gaan mee in de payroll?</h2>
-        <p class="qhelp">Het aantal werknemers bepaalt mede de doorlooptijd van de implementatie.</p>
-        <label class="field"><span>Aantal werknemers *</span>
-          <input type="number" id="employees" min="1" step="1" placeholder="bv. 45"></label>
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s1_title"></h2>
+        <p class="qhelp" data-i18n="s1_help"></p>
+        <div class="grid2">
+          <label class="field"><span data-i18n="f_employees"></span>
+            <input type="number" id="employees" min="1" step="1" data-i18n-ph="ph_employees"></label>
+          <label class="field"><span data-i18n="f_entities"></span>
+            <input type="number" id="entities" min="1" step="1" value="1"></label>
+        </div>
+        <label class="field"><span data-i18n="f_freq"></span>
+          <select id="frequency">
+            <option value="monthly" data-i18n="opt_monthly"></option>
+            <option value="fourweekly" data-i18n="opt_fourweekly"></option>
+          </select></label>
       </div>
 
-      <!-- Q3 -->
+      <!-- 2 Planning -->
       <div class="step" data-step="2">
-        <div class="qnum">Vraag 3</div>
-        <h2 class="qtitle">Wanneer wilt u live gaan?</h2>
-        <p class="qhelp">Dit is de streefdatum voor de <strong>eerste loonberekening</strong>. We rekenen de
-          overige fases hier vanaf terug. Laat leeg voor een indicatieve planning vanaf vandaag.</p>
-        <label class="field"><span>Gewenste go-live datum</span>
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s2_title"></h2>
+        <p class="qhelp" data-i18n="s2_help"></p>
+        <label class="field"><span data-i18n="f_golive"></span>
           <input type="date" id="golive"></label>
+        <div class="choices">
+          <label class="choice"><input type="checkbox" id="orc">
+            <span><span class="c-title" data-i18n="c_or_t"></span><span class="c-desc" data-i18n="c_or_d"></span></span></label>
+        </div>
       </div>
 
-      <!-- Q4 -->
+      <!-- 3 CAO -->
       <div class="step" data-step="3">
-        <div class="qnum">Vraag 4</div>
-        <h2 class="qtitle">Is er een cao van toepassing?</h2>
-        <p class="qhelp">Zo ja, dan nemen we het delen van de cao-informatie op in de Discovery-fase.</p>
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s3_title"></h2>
+        <p class="qhelp" data-i18n="s3_help"></p>
         <div class="choices" data-single="cao">
-          <label class="choice"><input type="radio" name="cao" value="ja"><span><span class="c-title">Ja, een cao is van toepassing</span><span class="c-desc">We stemmen loonregels af op de cao</span></span></label>
-          <label class="choice"><input type="radio" name="cao" value="nee"><span><span class="c-title">Nee, geen cao</span><span class="c-desc">Arbeidsvoorwaarden op maat</span></span></label>
+          <label class="choice"><input type="radio" name="cao" value="ja">
+            <span><span class="c-title" data-i18n="c_cao_ja_t"></span><span class="c-desc" data-i18n="c_cao_ja_d"></span></span></label>
+          <label class="choice"><input type="radio" name="cao" value="nee">
+            <span><span class="c-title" data-i18n="c_cao_nee_t"></span><span class="c-desc" data-i18n="c_cao_nee_d"></span></span></label>
         </div>
-        <label class="field cond" id="cao-name" style="display:none;margin-top:12px"><span>Welke cao?</span>
-          <input type="text" id="caoName" placeholder="bv. cao Metaal &amp; Techniek"></label>
+        <label class="field" id="cao-name" style="display:none;margin-top:12px"><span data-i18n="f_caoName"></span>
+          <input type="text" id="caoName" data-i18n-ph="ph_caoName"></label>
       </div>
 
-      <!-- Q5 -->
+      <!-- 4 Regelingen -->
       <div class="step" data-step="4">
-        <div class="qnum">Vraag 5</div>
-        <h2 class="qtitle">Welke regelingen zijn van toepassing?</h2>
-        <p class="qhelp">Selecteer alles wat van toepassing is. Deze bepalen welke documentatie we in de Discovery-fase opvragen.</p>
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s4_title"></h2>
+        <p class="qhelp" data-i18n="s4_help"></p>
         <div class="choices">
-          <label class="choice"><input type="checkbox" id="pensioen"><span><span class="c-title">Pensioenregeling</span><span class="c-desc">Info over pensioenfonds/-uitvoerder delen</span></span></label>
-          <label class="choice"><input type="checkbox" id="arbo"><span><span class="c-title">Arbodienst</span><span class="c-desc">Gegevens arbodienst delen</span></span></label>
-          <label class="choice"><input type="checkbox" id="loonheffing"><span><span class="c-title">Nieuw loonheffingennummer nodig</span><span class="c-desc">Wij verzorgen de aanvraag</span></span></label>
+          <label class="choice"><input type="checkbox" id="pensioen">
+            <span><span class="c-title" data-i18n="c_pens_t"></span><span class="c-desc" data-i18n="c_pens_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="arbo">
+            <span><span class="c-title" data-i18n="c_arbo_t"></span><span class="c-desc" data-i18n="c_arbo_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="loonheffing">
+            <span><span class="c-title" data-i18n="c_lh_t"></span><span class="c-desc" data-i18n="c_lh_d"></span></span></label>
         </div>
       </div>
 
-      <!-- Q6 -->
+      <!-- 5 Loonbestanddelen -->
       <div class="step" data-step="5">
-        <div class="qnum">Vraag 6</div>
-        <h2 class="qtitle">Output &amp; portalen bij Go Live</h2>
-        <p class="qhelp">Wat wilt u inrichten rond de eerste loonverwerking?</p>
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s5_title"></h2>
+        <p class="qhelp" data-i18n="s5_help"></p>
         <div class="choices">
-          <label class="choice"><input type="checkbox" id="edox" checked><span><span class="c-title">eDox-portaal</span><span class="c-desc">Beveiligde uitwisseling van documenten</span></span></label>
-          <label class="choice"><input type="checkbox" id="epayslip" checked><span><span class="c-title">Elektronische loonbrieven</span><span class="c-desc">Digitale loonstroken voor werknemers</span></span></label>
-          <label class="choice"><input type="checkbox" id="historie"><span><span class="c-title">Historische loongegevens importeren</span><span class="c-desc">Opbouw jaargegevens uit vorige software</span></span></label>
+          <label class="choice"><input type="checkbox" id="dertiende">
+            <span><span class="c-title" data-i18n="c_13_t"></span><span class="c-desc" data-i18n="c_13_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="variabel">
+            <span><span class="c-title" data-i18n="c_var_t"></span><span class="c-desc" data-i18n="c_var_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="lease">
+            <span><span class="c-title" data-i18n="c_lease_t"></span><span class="c-desc" data-i18n="c_lease_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="onkosten">
+            <span><span class="c-title" data-i18n="c_wkr_t"></span><span class="c-desc" data-i18n="c_wkr_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="expat">
+            <span><span class="c-title" data-i18n="c_expat_t"></span><span class="c-desc" data-i18n="c_expat_d"></span></span></label>
+        </div>
+      </div>
+
+      <!-- 6 Output & migratie -->
+      <div class="step" data-step="6">
+        <div class="qnum"></div>
+        <h2 class="qtitle" data-i18n="s6_title"></h2>
+        <p class="qhelp" data-i18n="s6_help"></p>
+        <div class="choices">
+          <label class="choice"><input type="checkbox" id="edox" checked>
+            <span><span class="c-title" data-i18n="c_edox_t"></span><span class="c-desc" data-i18n="c_edox_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="epayslip" checked>
+            <span><span class="c-title" data-i18n="c_eps_t"></span><span class="c-desc" data-i18n="c_eps_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="historie">
+            <span><span class="c-title" data-i18n="c_hist_t"></span><span class="c-desc" data-i18n="c_hist_d"></span></span></label>
+          <label class="choice"><input type="checkbox" id="migratie">
+            <span><span class="c-title" data-i18n="c_mig_t"></span><span class="c-desc" data-i18n="c_mig_d"></span></span></label>
         </div>
       </div>
 
       <div class="nav">
-        <button type="button" class="btn-ghost" id="prev" disabled>← Vorige</button>
-        <button type="button" class="btn-primary" id="next">Volgende →</button>
+        <button type="button" class="act btn-ghost" id="prev" disabled></button>
+        <button type="button" class="act btn-primary" id="next"></button>
       </div>
     </form>
   </section>
@@ -253,274 +264,409 @@
   <!-- ============ RESULT ============ -->
   <section id="result">
     <div class="result-hero">
-      <h2 id="r-title">Customer Journey</h2>
-      <p id="r-sub">HR &amp; Payroll implementatie</p>
+      <h2 id="r-title"></h2>
+      <p id="r-sub"></p>
       <div class="hero-meta" id="r-meta"></div>
     </div>
     <div class="result-body">
       <div class="legend">
-        <b><span class="sw" style="background:var(--wij)"></span> Taken implementatieteam</b>
-        <b><span class="sw" style="background:var(--u)"></span> Taken klant (afvinkbaar)</b>
+        <b><span class="sw" style="background:var(--wij)"></span> <span data-i18n="leg_wij"></span></b>
+        <b><span class="sw" style="background:var(--u)"></span> <span data-i18n="leg_u"></span></b>
       </div>
       <div class="rail" id="rail"></div>
       <div id="phases"></div>
       <div class="summary" id="summary"></div>
       <div class="toolbar">
-        <button class="btn-primary" onclick="window.print()">🖨️ Afdrukken / opslaan als PDF</button>
-        <button class="btn-ghost" id="restart">↺ Nieuwe journey</button>
+        <button class="act btn-primary" onclick="window.print()" data-i18n="btn_print"></button>
+        <button class="act btn-ghost" id="restart" data-i18n="btn_restart"></button>
       </div>
     </div>
-    <p class="foot">Gegenereerd op <span id="gendate"></span> · Indicatieve planning, afwijkingen mogelijk in overleg met het implementatieteam.</p>
+    <p class="foot" id="foot"></p>
   </section>
 </div>
 
 <script>
 "use strict";
 
-/* ---------- Phase blueprint from the SD Worx customer journey ---------- */
+/* ================= i18n dictionary ================= */
+const T = {
+  appTitle:{nl:"Customer Journey Generator",en:"Customer Journey Generator"},
+  appSub:{nl:"HR & Payroll implementatie — van kick-off tot en met nazorg",en:"HR & Payroll implementation — from kick-off through aftercare"},
+  intro:{nl:"Beantwoord een paar korte vragen over de nieuwe klant. Op basis van uw antwoorden genereren we een gepersonaliseerde customer journey met de zes implementatiefases, afgestemde taken en een indicatieve planning — klaar om als deliverable met de klant te delen.",
+         en:"Answer a few short questions about the new customer. Based on your answers we generate a personalized customer journey with the six implementation phases, tailored tasks and an indicative plan — ready to share with the customer as a deliverable."},
+  prev:{nl:"← Vorige",en:"← Previous"},
+  next:{nl:"Volgende →",en:"Next →"},
+  generate:{nl:"Genereer journey ✨",en:"Generate journey ✨"},
+  qword:{nl:"Vraag",en:"Question"},
+
+  s0_title:{nl:"Voor welke klant maken we de journey?",en:"Which customer is this journey for?"},
+  s0_help:{nl:"Deze gegevens komen bovenaan de gepersonaliseerde journey te staan.",en:"These details appear at the top of the personalized journey."},
+  f_company:{nl:"Bedrijfsnaam *",en:"Company name *"},
+  ph_company:{nl:"bv. Voorbeeld B.V.",en:"e.g. Example Ltd."},
+  f_contact:{nl:"Contactpersoon",en:"Contact person"},
+  ph_contact:{nl:"Voor- en achternaam",en:"First and last name"},
+  f_email:{nl:"E-mailadres contactpersoon",en:"Contact email"},
+  ph_email:{nl:"naam@bedrijf.nl",en:"name@company.com"},
+
+  s1_title:{nl:"Omvang van de payroll",en:"Payroll scope"},
+  s1_help:{nl:"Aantal werknemers en juridische entiteiten bepalen mede de doorlooptijd van de implementatie.",en:"Headcount and the number of legal entities influence the implementation timeline."},
+  f_employees:{nl:"Aantal werknemers *",en:"Number of employees *"},
+  ph_employees:{nl:"bv. 45",en:"e.g. 45"},
+  f_entities:{nl:"Aantal juridische entiteiten (loonheffingennummers)",en:"Legal entities (payroll tax numbers)"},
+  f_freq:{nl:"Loonfrequentie",en:"Payroll frequency"},
+  opt_monthly:{nl:"Maandelijks",en:"Monthly"},
+  opt_fourweekly:{nl:"Vierwekelijks",en:"Four-weekly"},
+
+  s2_title:{nl:"Wanneer wilt u live gaan?",en:"When do you want to go live?"},
+  s2_help:{nl:"Dit is de streefdatum voor de eerste loonberekening. We rekenen de overige fases hier vanaf terug. Laat leeg voor een planning vanaf vandaag.",en:"This is the target date for the first payroll run. We schedule the other phases back from it. Leave empty to plan from today."},
+  f_golive:{nl:"Gewenste go-live datum",en:"Desired go-live date"},
+  c_or_t:{nl:"Goedkeuring ondernemingsraad (OR) nodig",en:"Works council (OR) approval required"},
+  c_or_d:{nl:"We houden rekening met de OR-afstemming in de planning",en:"We account for works-council sign-off in the plan"},
+
+  s3_title:{nl:"Is er een cao van toepassing?",en:"Does a collective labour agreement (CAO) apply?"},
+  s3_help:{nl:"Zo ja, dan nemen we het delen van de cao-informatie op in de Discovery-fase.",en:"If so, we include sharing the CAO information in the Discovery phase."},
+  c_cao_ja_t:{nl:"Ja, een cao is van toepassing",en:"Yes, a CAO applies"},
+  c_cao_ja_d:{nl:"We stemmen de loonregels af op de cao",en:"We align the pay rules with the CAO"},
+  c_cao_nee_t:{nl:"Nee, geen cao",en:"No CAO"},
+  c_cao_nee_d:{nl:"Arbeidsvoorwaarden op maat",en:"Bespoke employment terms"},
+  f_caoName:{nl:"Welke cao?",en:"Which CAO?"},
+  ph_caoName:{nl:"bv. cao Metaal & Techniek",en:"e.g. Metal & Engineering CAO"},
+
+  s4_title:{nl:"Welke regelingen zijn van toepassing?",en:"Which arrangements apply?"},
+  s4_help:{nl:"Selecteer alles wat van toepassing is. Dit bepaalt welke documentatie we in de Discovery-fase opvragen.",en:"Select all that apply. This drives which documentation we request in the Discovery phase."},
+  c_pens_t:{nl:"Pensioenregeling",en:"Pension scheme"},
+  c_pens_d:{nl:"Info over pensioenfonds/-uitvoerder delen",en:"Share pension fund/provider details"},
+  c_arbo_t:{nl:"Arbodienst",en:"Occupational health service"},
+  c_arbo_d:{nl:"Gegevens arbodienst delen",en:"Share occupational-health provider details"},
+  c_lh_t:{nl:"Nieuw loonheffingennummer nodig",en:"New payroll tax number required"},
+  c_lh_d:{nl:"Wij verzorgen de aanvraag",en:"We handle the application"},
+
+  s5_title:{nl:"Bijzondere loonbestanddelen",en:"Special pay components"},
+  s5_help:{nl:"Selecteer alles wat van toepassing is; dit bepaalt de inrichting in de Setup-fase.",en:"Select all that apply; this drives the configuration in the Setup phase."},
+  c_13_t:{nl:"13e maand / eindejaarsuitkering",en:"13th month / year-end bonus"},
+  c_13_d:{nl:"Inrichten in de payroll software",en:"Configured in the payroll software"},
+  c_var_t:{nl:"Variabele beloning (bonus, overwerk)",en:"Variable pay (bonus, overtime)"},
+  c_var_d:{nl:"Variabele loonbestanddelen inrichten",en:"Configure variable pay components"},
+  c_lease_t:{nl:"Leaseauto's (bijtelling)",en:"Lease cars (benefit-in-kind)"},
+  c_lease_d:{nl:"Bijtelling inrichten",en:"Configure benefit-in-kind"},
+  c_wkr_t:{nl:"Onkostenvergoedingen (WKR)",en:"Expense allowances (WKR)"},
+  c_wkr_d:{nl:"Werkkostenregeling inrichten",en:"Configure the work-related costs scheme"},
+  c_expat_t:{nl:"Expats / 30%-regeling",en:"Expats / 30% ruling"},
+  c_expat_d:{nl:"Inrichten van de 30%-regeling",en:"Configure the 30% ruling"},
+
+  s6_title:{nl:"Output, portalen & migratie",en:"Output, portals & migration"},
+  s6_help:{nl:"Wat wilt u inrichten rond de eerste loonverwerking?",en:"What do you want to set up around the first payroll run?"},
+  c_edox_t:{nl:"eDox-portaal",en:"eDox portal"},
+  c_edox_d:{nl:"Beveiligde uitwisseling van documenten",en:"Secure document exchange"},
+  c_eps_t:{nl:"Elektronische loonbrieven",en:"Electronic payslips"},
+  c_eps_d:{nl:"Digitale loonstroken voor werknemers",en:"Digital payslips for employees"},
+  c_hist_t:{nl:"Historische loongegevens importeren",en:"Import historical payroll data"},
+  c_hist_d:{nl:"Opbouw jaargegevens uit vorige software",en:"Year-to-date build-up from previous software"},
+  c_mig_t:{nl:"Migratie van huidige payroll-leverancier",en:"Migration from current payroll provider"},
+  c_mig_d:{nl:"Overname vanuit bestaande software",en:"Takeover from existing software"},
+
+  leg_wij:{nl:"Taken implementatieteam",en:"Implementation team tasks"},
+  leg_u:{nl:"Taken klant (afvinkbaar)",en:"Customer tasks (checkable)"},
+  btn_print:{nl:"🖨️ Afdrukken / opslaan als PDF",en:"🖨️ Print / save as PDF"},
+  btn_restart:{nl:"↺ Nieuwe journey",en:"↺ New journey"},
+
+  r_title:{nl:"Customer Journey — ",en:"Customer Journey — "},
+  r_sub:{nl:"HR & Payroll implementatie",en:"HR & Payroll implementation"},
+  r_attn:{nl:" · t.a.v. ",en:" · attn. "},
+  m_employees:{nl:"Werknemers",en:"Employees"},
+  m_entities:{nl:"Entiteiten",en:"Entities"},
+  m_phases:{nl:"Fases",en:"Phases"},
+  m_duration:{nl:"Indicatieve doorlooptijd",en:"Indicative duration"},
+  m_weeks:{nl:"weken",en:"weeks"},
+  m_start:{nl:"Start",en:"Start"},
+  m_golive:{nl:"Go-live (1e loonberekening)",en:"Go-live (1st payroll run)"},
+  ph_of:{nl:"Fase %n van %t",en:"Phase %n of %t"},
+  p_indic:{nl:"Indicatief",en:"Indicative"},
+  h_wij:{nl:"Wat wij oppakken",en:"What we take care of"},
+  h_u:{nl:"Wat wij van u vragen",en:"What we ask from you"},
+  sum_h:{nl:"📋 Uw actiepunten in één overzicht",en:"📋 Your action items at a glance"},
+  sum_sub:{nl:"Dit zijn alle taken die wij gedurende de implementatie van %c bij u opvragen.",en:"These are all the tasks we will ask from you during the implementation of %c."},
+  sum_none:{nl:"Geen actiepunten",en:"No action items"},
+  sum_docs:{nl:"Aan te leveren documentatie",en:"Documentation to provide"},
+  foot:{nl:"Gegenereerd op %d · Indicatieve planning, afwijkingen mogelijk in overleg met het implementatieteam.",en:"Generated on %d · Indicative planning; deviations possible in consultation with the implementation team."},
+
+  none_launch:{nl:"Geen taken — u neemt alleen deel aan de kick-off",en:"No tasks — you only join the kick-off"},
+  none_setup:{nl:"Geen taken — wij gaan aan de slag met de inrichting",en:"No tasks — we handle the configuration"},
+  none_test:{nl:"Geen taken — wij voeren de kwaliteitscontrole uit",en:"No tasks — we run the quality check"},
+  none_generic:{nl:"Geen taken in deze fase",en:"No tasks in this phase"},
+};
+
+/* phase blueprint: name + bilingual subtitle + base weeks */
 const PHASES = [
-  { key:"launch",   icon:"🚀", name:"Launch",   sub:"SharePoint & kick-off meeting",        weeks:1 },
-  { key:"discovery",icon:"🔍", name:"Discovery",sub:"Uitwisselen documentatie voor start setup", weeks:2 },
-  { key:"setup",    icon:"⚙️", name:"Setup",    sub:"Inrichten data in payroll software",   weeks:2 },
-  { key:"test",     icon:"✅", name:"Test",     sub:"Testen van data in payroll software",  weeks:1 },
-  { key:"golive",   icon:"🎉", name:"Go Live",  sub:"Verwerken eerste loonberekening",      weeks:1 },
-  { key:"aftercare",icon:"🤝", name:"Aftercare",sub:"Nazorg, optimalisatie & overdracht",   weeks:2 },
+  {key:"launch",   icon:"🚀", name:"Launch",   sub:{nl:"SharePoint & kick-off meeting",en:"SharePoint & kick-off meeting"}, weeks:1},
+  {key:"discovery",icon:"🔍", name:"Discovery",sub:{nl:"Uitwisselen documentatie voor start setup",en:"Exchanging documentation to start setup"}, weeks:2},
+  {key:"setup",    icon:"⚙️", name:"Setup",    sub:{nl:"Inrichten data in payroll software",en:"Configuring data in the payroll software"}, weeks:2},
+  {key:"test",     icon:"✅", name:"Test",     sub:{nl:"Testen van data in payroll software",en:"Testing data in the payroll software"}, weeks:1},
+  {key:"golive",   icon:"🎉", name:"Go Live",  sub:{nl:"Verwerken eerste loonberekening",en:"Processing the first payroll run"}, weeks:1},
+  {key:"aftercare",icon:"🤝", name:"Aftercare",sub:{nl:"Nazorg, optimalisatie & overdracht",en:"Aftercare, optimization & handover"}, weeks:2},
 ];
+
+/* task text helper */
+const t = (nl,en)=>({nl,en});
+const NONE = key => ({none:true,nl:T[key].nl,en:T[key].en});
+
+let LANG = "nl";
+let ANSWERS = null;   // last generated answers, for re-render on language switch
 
 const $ = s => document.querySelector(s);
 const steps = [...document.querySelectorAll('.step')];
 let cur = 0;
 
-/* ----- wizard navigation ----- */
-function show(i){
-  steps.forEach(s=>s.classList.toggle('active', +s.dataset.step===i));
-  cur=i;
-  $('#bar').style.width = ((i)/(steps.length-1))*100 + '%';
-  $('#prev').disabled = i===0;
-  $('#next').textContent = i===steps.length-1 ? 'Genereer journey ✨' : 'Volgende →';
+/* ---------- i18n apply ---------- */
+function tr(k){ return (T[k]&&T[k][LANG])||k; }
+function applyI18n(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = tr(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el=>{ el.placeholder = tr(el.dataset.i18nPh); });
+  document.querySelectorAll('.qnum').forEach(el=>{
+    const idx = +el.closest('.step').dataset.step; el.textContent = tr('qword')+" "+(idx+1);
+  });
+  $('#prev').textContent = tr('prev');
+  $('#next').textContent = cur===steps.length-1 ? tr('generate') : tr('next');
+  document.documentElement.lang = LANG;
 }
-$('#next').addEventListener('click', ()=>{
-  if(!validate(cur)) return;
-  if(cur===steps.length-1){ generate(); }
-  else show(cur+1);
-});
-$('#prev').addEventListener('click', ()=> show(Math.max(0,cur-1)));
+function setLang(l){
+  LANG=l;
+  $('#lang-nl').classList.toggle('on',l==='nl');
+  $('#lang-en').classList.toggle('on',l==='en');
+  applyI18n();
+  if(ANSWERS && $('#result').style.display==='block') renderResult(ANSWERS);
+}
 
+/* ---------- wizard ---------- */
+function show(i){
+  steps.forEach(s=>s.classList.toggle('active',+s.dataset.step===i));
+  cur=i;
+  $('#bar').style.width = (i/(steps.length-1))*100+'%';
+  $('#prev').disabled = i===0;
+  $('#next').textContent = i===steps.length-1 ? tr('generate') : tr('next');
+}
+$('#next').addEventListener('click',()=>{
+  if(!validate(cur)) return;
+  if(cur===steps.length-1) doGenerate(); else show(cur+1);
+});
+$('#prev').addEventListener('click',()=>show(Math.max(0,cur-1)));
 function validate(i){
-  if(i===0){
-    if(!$('#company').value.trim()){ $('#company').focus(); flash($('#company')); return false; }
-  }
-  if(i===1){
-    const n=+$('#employees').value;
-    if(!n || n<1){ $('#employees').focus(); flash($('#employees')); return false; }
-  }
-  if(i===3){
-    if(!document.querySelector('input[name=cao]:checked')){ flash($('[data-single=cao]')); return false; }
-  }
+  if(i===0 && !$('#company').value.trim()){ $('#company').focus(); flash($('#company')); return false; }
+  if(i===1){ const n=+$('#employees').value; if(!n||n<1){ $('#employees').focus(); flash($('#employees')); return false; } }
+  if(i===3 && !document.querySelector('input[name=cao]:checked')){ flash($('[data-single=cao]')); return false; }
   return true;
 }
 function flash(el){ el.animate([{boxShadow:'0 0 0 4px rgba(230,0,126,.35)'},{boxShadow:'0 0 0 4px rgba(230,0,126,0)'}],{duration:600}); }
 
-/* radio card highlight + conditional cao name */
 document.querySelectorAll('.choice input').forEach(inp=>{
-  inp.addEventListener('change', ()=>{
+  inp.addEventListener('change',()=>{
     if(inp.type==='radio'){
       inp.closest('.choices').querySelectorAll('.choice').forEach(c=>c.classList.remove('selected'));
       inp.closest('.choice').classList.add('selected');
-    } else {
-      inp.closest('.choice').classList.toggle('selected', inp.checked);
-    }
-    if(inp.name==='cao'){ $('#cao-name').style.display = inp.value==='ja' ? 'block':'none'; }
+    } else inp.closest('.choice').classList.toggle('selected',inp.checked);
+    if(inp.name==='cao') $('#cao-name').style.display = inp.value==='ja'?'block':'none';
   });
 });
-// pre-mark default checked
 document.querySelectorAll('.choice input:checked').forEach(i=>i.closest('.choice').classList.add('selected'));
 
-/* ---------- date helpers ---------- */
+/* ---------- dates ---------- */
 function addWeeks(d,w){ const x=new Date(d); x.setDate(x.getDate()+w*7); return x; }
-function fmt(d){ return d.toLocaleDateString('nl-NL',{day:'numeric',month:'short',year:'numeric'}); }
+function fmt(d){ return d.toLocaleDateString(LANG==='nl'?'nl-NL':'en-GB',{day:'numeric',month:'short',year:'numeric'}); }
 
-/* ---------- generate ---------- */
+/* ---------- collect ---------- */
 function collect(){
   return {
-    company:$('#company').value.trim(),
-    contact:$('#contact').value.trim(),
-    email:$('#email').value.trim(),
-    employees:+$('#employees').value,
-    golive:$('#golive').value,
-    cao: document.querySelector('input[name=cao]:checked')?.value==='ja',
-    caoName:$('#caoName').value.trim(),
-    pensioen:$('#pensioen').checked,
-    arbo:$('#arbo').checked,
-    loonheffing:$('#loonheffing').checked,
-    edox:$('#edox').checked,
-    epayslip:$('#epayslip').checked,
-    historie:$('#historie').checked,
+    company:$('#company').value.trim(), contact:$('#contact').value.trim(), email:$('#email').value.trim(),
+    employees:+$('#employees').value, entities:Math.max(1,+$('#entities').value||1),
+    frequency:$('#frequency').value, golive:$('#golive').value,
+    or:$('#orc').checked,
+    cao:document.querySelector('input[name=cao]:checked')?.value==='ja', caoName:$('#caoName').value.trim(),
+    pensioen:$('#pensioen').checked, arbo:$('#arbo').checked, loonheffing:$('#loonheffing').checked,
+    dertiende:$('#dertiende').checked, variabel:$('#variabel').checked, lease:$('#lease').checked,
+    onkosten:$('#onkosten').checked, expat:$('#expat').checked,
+    edox:$('#edox').checked, epayslip:$('#epayslip').checked, historie:$('#historie').checked, migratie:$('#migratie').checked,
   };
 }
 
-/* Build the conditional task lists per phase */
-function buildPhase(p, a){
-  const wij=[], u=[];
-  switch(p.key){
+/* ---------- task builder (returns bilingual objects) ---------- */
+function buildPhase(key,a){
+  const wij=[],u=[];
+  const multi = a.entities>1;
+  const freqTxt = a.frequency==='fourweekly' ? t("vierwekelijks","four-weekly") : t("maandelijks","monthly");
+
+  switch(key){
     case "launch":
-      wij.push("Toegang tot de SharePoint-omgeving voorzien");
-      wij.push("De kick-off meeting organiseren");
-      u.push("__none:Geen taken — u neemt alleen deel aan de kick-off");
+      wij.push(t("Toegang tot de SharePoint-omgeving voorzien","Provide access to the SharePoint environment"));
+      wij.push(t("De kick-off meeting organiseren","Organize the kick-off meeting"));
+      if(a.or){
+        wij.push(t("Ondersteunen bij de afstemming met de ondernemingsraad (OR)","Support the alignment with the works council (OR)"));
+        u.push(t("Goedkeuring van de ondernemingsraad (OR) verkrijgen","Obtain works-council (OR) approval"));
+      } else u.push(NONE('none_launch'));
       break;
+
     case "discovery":
-      wij.push("Ondersteunen bij het samenstellen van de documentatie voor de setup");
-      if(a.loonheffing) wij.push("Aanvraag van het loonheffingennummer");
-      wij.push("Afstemmen van de benodigde brongegevens");
-      u.push("Aanleveren van de documentatie die nodig is voor de setup");
-      if(a.cao) u.push("Delen van informatie over de" + (a.caoName?(" "+a.caoName):" van toepassing zijnde cao"));
-      if(a.pensioen) u.push("Delen van informatie over de pensioenregeling");
-      if(a.arbo) u.push("Delen van gegevens van de arbodienst");
-      if(a.historie) u.push("Aanleveren van het importbestand met historische loongegevens");
-      if(u.length===0) u.push("__none:Geen taken in deze fase");
+      wij.push(t("Ondersteunen bij het samenstellen van de documentatie voor de setup","Support compiling the documentation for the setup"));
+      if(a.loonheffing) wij.push(multi
+        ? t("Aanvragen van de loonheffingennummers voor alle entiteiten","Applying for the payroll tax numbers for all entities")
+        : t("Aanvraag van het loonheffingennummer","Applying for the payroll tax number"));
+      wij.push(t("Afstemmen van de benodigde brongegevens","Aligning the required source data"));
+
+      u.push(multi
+        ? t("Aanleveren van de documentatie voor de setup, per entiteit","Providing the setup documentation, per entity")
+        : t("Aanleveren van de documentatie die nodig is voor de setup","Providing the documentation needed for the setup"));
+      if(a.cao) u.push(a.caoName
+        ? t("Delen van informatie over de "+a.caoName,"Sharing information about the "+a.caoName)
+        : t("Delen van informatie over de van toepassing zijnde cao","Sharing information about the applicable CAO"));
+      if(a.pensioen) u.push(t("Delen van informatie over de pensioenregeling","Sharing information about the pension scheme"));
+      if(a.arbo) u.push(t("Delen van de gegevens van de arbodienst","Sharing the occupational-health provider details"));
+      if(a.expat) u.push(t("Delen van informatie over expats en de 30%-regeling","Sharing information about expats and the 30% ruling"));
+      if(a.migratie) u.push(t("Aanleveren van de exportbestanden van de huidige payroll-leverancier","Providing the export files from the current payroll provider"));
+      if(a.historie) u.push(t("Aanleveren van het importbestand met historische loongegevens","Providing the import file with historical payroll data"));
+      if(!u.length) u.push(NONE('none_generic'));
       break;
+
     case "setup":
-      wij.push("Implementeren van de aangeleverde documentatie in de payroll software");
-      if(a.historie) wij.push("Inlezen en controleren van de historische loongegevens");
-      if(a.cao) wij.push("Inrichten van de cao-loonregels");
-      if(a.pensioen) wij.push("Inrichten van de pensioenregeling");
-      u.push("__none:Geen taken — wij gaan aan de slag met de inrichting");
+      wij.push(multi
+        ? t("Implementeren van de aangeleverde documentatie voor elke entiteit","Implementing the provided documentation for each entity")
+        : t("Implementeren van de aangeleverde documentatie in de payroll software","Implementing the provided documentation in the payroll software"));
+      if(a.migratie) wij.push(t("Overnemen van de gegevens uit de bestaande software","Migrating the data from the existing software"));
+      if(a.historie) wij.push(t("Inlezen en controleren van de historische loongegevens","Loading and checking the historical payroll data"));
+      if(a.cao) wij.push(t("Inrichten van de cao-loonregels","Configuring the CAO pay rules"));
+      if(a.pensioen) wij.push(t("Inrichten van de pensioenregeling","Configuring the pension scheme"));
+      if(a.dertiende) wij.push(t("Inrichten van de 13e maand / eindejaarsuitkering","Configuring the 13th month / year-end bonus"));
+      if(a.variabel) wij.push(t("Inrichten van de variabele loonbestanddelen","Configuring the variable pay components"));
+      if(a.lease) wij.push(t("Inrichten van de bijtelling voor leaseauto's","Configuring the benefit-in-kind for lease cars"));
+      if(a.onkosten) wij.push(t("Inrichten van de onkostenvergoedingen (WKR)","Configuring the expense allowances (WKR)"));
+      if(a.expat) wij.push(t("Inrichten van de 30%-regeling","Configuring the 30% ruling"));
+      u.push(NONE('none_setup'));
       break;
+
     case "test":
-      wij.push("Controleren van de ingerichte data in de payroll software");
-      wij.push("Kwaliteitscontrole op de loonregels");
-      u.push("__none:Geen taken — wij voeren de kwaliteitscontrole uit");
+      wij.push(multi
+        ? t("Controleren van de ingerichte data per entiteit","Checking the configured data per entity")
+        : t("Controleren van de ingerichte data in de payroll software","Checking the configured data in the payroll software"));
+      wij.push(t("Kwaliteitscontrole op de loonregels uitvoeren","Running a quality check on the pay rules"));
+      if(a.historie||a.migratie) wij.push(t("Aansluiting van de historische gegevens verifiëren","Verifying the reconciliation of the historical data"));
+      u.push(NONE('none_test'));
       break;
+
     case "golive":
-      wij.push("Verwerken van de payroll data in de payroll software");
-      wij.push("Delen van het resultaat van de eerste loonberekening");
-      if(a.edox) wij.push("Toegang tot het eDox-portaal voorzien");
-      if(a.epayslip) wij.push("Inrichten van elektronische loonbrieven voor werknemers");
-      u.push("Aanleveren van de input voor de eerste loonberekening");
-      u.push("Controleren van de verwerkte loonberekening");
-      u.push("Delen van informatie over de betalingen");
+      wij.push(t("Verwerken van de eerste "+freqTxt.nl+" loonberekening","Processing the first "+freqTxt.en+" payroll run"));
+      wij.push(t("Delen van het resultaat van de eerste loonberekening","Sharing the result of the first payroll run"));
+      if(a.edox) wij.push(t("Toegang tot het eDox-portaal voorzien","Providing access to the eDox portal"));
+      if(a.epayslip) wij.push(t("Inrichten van de elektronische loonbrieven voor werknemers","Setting up electronic payslips for employees"));
+      u.push(t("Aanleveren van de input voor de eerste loonberekening","Providing the input for the first payroll run"));
+      u.push(t("Controleren van de verwerkte loonberekening","Checking the processed payroll run"));
+      u.push(t("Delen van de informatie over de betalingen","Sharing the payment details"));
       break;
+
     case "aftercare":
-      wij.push("Ondersteuning bij de output-documenten");
-      wij.push("Mogelijke optimalisatie in kaart brengen");
-      wij.push("Overdracht naar het serviceteam verwerken");
-      u.push("Feedback over de (mogelijke) optimalisatie");
-      u.push("Feedback over het gehele implementatieproces");
+      wij.push(t("Ondersteuning bij de output-documenten","Supporting the output documents"));
+      wij.push(t("Mogelijke optimalisatie in kaart brengen","Mapping out possible optimizations"));
+      wij.push(t("Overdracht naar het serviceteam verwerken","Handing over to the service team"));
+      u.push(t("Feedback over de (mogelijke) optimalisatie","Feedback on the (possible) optimization"));
+      u.push(t("Feedback over het gehele implementatieproces","Feedback on the overall implementation process"));
       break;
   }
   return {wij,u};
 }
 
-function generate(){
-  const a = collect();
+/* ---------- generate + render ---------- */
+function doGenerate(){ ANSWERS = collect(); renderResult(ANSWERS); $('#intake').style.display='none'; $('#result').style.display='block'; window.scrollTo({top:0,behavior:'smooth'}); }
 
-  /* timeline: total weeks + complexity buffer by headcount */
-  let phases = PHASES.map(p=>({...p}));
-  const extra = a.employees>250?2 : a.employees>50?1 : 0;   // grotere populatie = langere doorloop
-  phases[2].weeks += extra;  // setup
+function computePhases(a){
+  const phases = PHASES.map(p=>({...p,weeks:p.weeks}));
+  const extra = a.employees>250?2 : a.employees>50?1 : 0;
+  phases[2].weeks += extra;                              // setup by headcount
+  phases[2].weeks += Math.min(a.entities-1,3);           // multi-entity
   if(a.historie) phases[2].weeks += 1;
+  if(a.migratie) phases[1].weeks += 1;                   // discovery for migration
 
-  const totalWeeks = phases.reduce((s,p)=>s+p.weeks,0);
+  const total = phases.reduce((s,p)=>s+p.weeks,0);
   let start;
   if(a.golive){
-    // work back: go-live phase should end on chosen date
-    const weeksBeforeGolive = phases.slice(0,4).reduce((s,p)=>s+p.weeks,0);
-    start = addWeeks(new Date(a.golive+"T00:00:00"), -weeksBeforeGolive);
-  } else {
-    start = new Date();
-  }
-
-  // assign start/end per phase
+    const before = phases.slice(0,4).reduce((s,p)=>s+p.weeks,0);
+    start = addWeeks(new Date(a.golive+"T00:00:00"), -before);
+  } else start = new Date();
   let cursor = new Date(start);
   phases.forEach(p=>{ p.start=new Date(cursor); cursor=addWeeks(cursor,p.weeks); p.end=new Date(cursor); });
+  return {phases,total};
+}
 
-  /* ---- header ---- */
-  $('#r-title').textContent = "Customer Journey — " + a.company;
-  $('#r-sub').textContent = "HR & Payroll implementatie" + (a.contact?(" · t.a.v. "+a.contact):"");
-  const goliveDate = phases[4].start;
+function renderResult(a){
+  const {phases,total} = computePhases(a);
+  const L = LANG;
+
+  $('#r-title').textContent = tr('r_title')+a.company;
+  $('#r-sub').textContent = tr('r_sub') + (a.contact ? tr('r_attn')+a.contact : "");
+
   const meta = [
-    ["Werknemers", a.employees],
-    ["Fases", phases.length],
-    ["Indicatieve doorlooptijd", totalWeeks+" weken"],
-    ["Start", fmt(phases[0].start)],
-    ["Go-live (1e loonberekening)", fmt(goliveDate)],
+    [tr('m_employees'), a.employees],
+    [tr('m_entities'), a.entities],
+    [tr('m_phases'), phases.length],
+    [tr('m_duration'), total+" "+tr('m_weeks')],
+    [tr('m_start'), fmt(phases[0].start)],
+    [tr('m_golive'), fmt(phases[4].start)],
   ];
-  $('#r-meta').innerHTML = meta.map(m=>`<div><div class="k">${m[0]}</div><div class="v">${m[1]}</div></div>`).join('');
+  $('#r-meta').innerHTML = meta.map(m=>`<div><div class="k">${esc(m[0])}</div><div class="v">${esc(m[1])}</div></div>`).join('');
 
-  /* ---- rail ---- */
   $('#rail').innerHTML = phases.map((p,i)=>`
     <div class="node"><div class="dot">${i+1}</div>
-      <div class="n-name">${p.icon} ${p.name}</div>
-      <div class="n-date">${fmt(p.start)}</div>
-    </div>`).join('');
+      <div class="n-name">${p.icon} ${esc(p.name)}</div>
+      <div class="n-date">${esc(fmt(p.start))}</div></div>`).join('');
 
-  /* ---- phases ---- */
-  const clientActions = [];
+  const clientActions=[];
   $('#phases').innerHTML = phases.map((p,i)=>{
-    const t = buildPhase(p, a);
-    const wijLi = t.wij.map(x=>`<li>${esc(x)}</li>`).join('');
-    const uLi = t.u.map(x=>{
-      if(x.startsWith('__none:')) return `<li class="none">${esc(x.slice(7))}</li>`;
-      clientActions.push({phase:p.name, task:x});
-      return `<li><input type="checkbox"> <span>${esc(x)}</span></li>`;
+    const b = buildPhase(p.key,a);
+    const wijLi = b.wij.map(x=>`<li class="t">${esc(x[L])}</li>`).join('');
+    const uLi = b.u.map(x=>{
+      if(x.none) return `<li class="none">${esc(x[L])}</li>`;
+      clientActions.push({phase:p.name,task:x[L]});
+      return `<li><input type="checkbox"> <span>${esc(x[L])}</span></li>`;
     }).join('');
-    return `
-    <div class="phase">
+    const phLabel = tr('ph_of').replace('%n',i+1).replace('%t',phases.length);
+    return `<div class="phase">
       <div class="phase-head">
         <div class="phase-ico">${p.icon}</div>
-        <div>
-          <h3>Fase ${i+1} van ${phases.length}: ${p.name}</h3>
-          <div class="p-sub">${esc(p.sub)}</div>
-        </div>
-        <div class="p-when">
-          <div class="k">Indicatief</div>
-          <div class="v">${fmt(p.start)} – ${fmt(p.end)}</div>
-        </div>
+        <div><h3>${esc(phLabel)}: ${esc(p.name)}</h3><div class="p-sub">${esc(p.sub[L])}</div></div>
+        <div class="p-when"><div class="k">${esc(tr('p_indic'))}</div><div class="v">${esc(fmt(p.start))} – ${esc(fmt(p.end))}</div></div>
       </div>
       <div class="cols">
-        <div class="col wij"><h4><span class="tag">WIJ</span> Wat wij oppakken</h4>
-          <ul class="tasks">${wijLi}</ul></div>
-        <div class="col u"><h4><span class="tag">U</span> Wat wij van u vragen</h4>
-          <ul class="tasks client">${uLi}</ul></div>
-      </div>
-    </div>`;
+        <div class="col wij"><h4><span class="tag">WIJ</span> ${esc(tr('h_wij'))}</h4><ul class="tasks">${wijLi}</ul></div>
+        <div class="col u"><h4><span class="tag">U</span> ${esc(tr('h_u'))}</h4><ul class="tasks client">${uLi}</ul></div>
+      </div></div>`;
   }).join('');
 
-  /* ---- action summary ---- */
-  const docs = ["Documentatie voor de setup"];
-  if(a.cao) docs.push(a.caoName? ("cao-info: "+a.caoName) : "cao-informatie");
-  if(a.pensioen) docs.push("Pensioenregeling");
-  if(a.arbo) docs.push("Gegevens arbodienst");
-  if(a.historie) docs.push("Importbestand historie");
-  const summaryList = clientActions.map(x=>`<li><strong>${esc(x.phase)}:</strong> ${esc(x.task)}</li>`).join('');
+  const docs=[];
+  docs.push(L==='nl'?"Documentatie voor de setup":"Setup documentation");
+  if(a.cao) docs.push(a.caoName || (L==='nl'?"cao-informatie":"CAO information"));
+  if(a.pensioen) docs.push(L==='nl'?"Pensioenregeling":"Pension scheme");
+  if(a.arbo) docs.push(L==='nl'?"Gegevens arbodienst":"Occupational-health details");
+  if(a.expat) docs.push(L==='nl'?"Expat / 30%-info":"Expat / 30% info");
+  if(a.migratie) docs.push(L==='nl'?"Exportbestanden huidige leverancier":"Export files current provider");
+  if(a.historie) docs.push(L==='nl'?"Importbestand historie":"History import file");
+
+  const list = clientActions.map(x=>`<li><strong>${esc(x.phase)}:</strong> ${esc(x.task)}</li>`).join('');
   $('#summary').innerHTML = `
-    <h3>📋 Uw actiepunten in één overzicht</h3>
-    <p class="s-sub">Dit zijn alle taken die wij gedurende de implementatie van ${esc(a.company)} bij u opvragen.</p>
-    <ol>${summaryList||'<li class="none">Geen actiepunten</li>'}</ol>
+    <h3>${esc(tr('sum_h'))}</h3>
+    <p class="s-sub">${esc(tr('sum_sub').replace('%c',a.company))}</p>
+    <ol>${list||`<li class="none">${esc(tr('sum_none'))}</li>`}</ol>
+    <div style="font-weight:600;margin-top:14px;font-size:.9rem">${esc(tr('sum_docs'))}</div>
     <div class="doclist">${docs.map(d=>`<span>${esc(d)}</span>`).join('')}</div>`;
 
-  $('#gendate').textContent = new Date().toLocaleDateString('nl-NL',{day:'numeric',month:'long',year:'numeric'});
+  $('#foot').textContent = tr('foot').replace('%d', new Date().toLocaleDateString(L==='nl'?'nl-NL':'en-GB',{day:'numeric',month:'long',year:'numeric'}));
 
-  /* checkbox strike-through */
   document.querySelectorAll('#phases .tasks.client li input').forEach(cb=>{
-    cb.addEventListener('change',()=>{ cb.nextElementSibling.style.textDecoration = cb.checked?'line-through':'none';
-      cb.nextElementSibling.style.opacity = cb.checked?'.5':'1'; });
+    cb.addEventListener('change',()=>{ const s=cb.nextElementSibling; s.style.textDecoration=cb.checked?'line-through':'none'; s.style.opacity=cb.checked?'.5':'1'; });
   });
-
-  $('#intake').style.display='none';
-  $('#result').style.display='block';
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
-$('#restart').addEventListener('click',()=>{
-  $('#result').style.display='none';
-  $('#intake').style.display='block';
-  show(0);
-  window.scrollTo({top:0,behavior:'smooth'});
-});
+$('#restart').addEventListener('click',()=>{ $('#result').style.display='none'; $('#intake').style.display='block'; show(0); window.scrollTo({top:0,behavior:'smooth'}); });
 
+/* init */
+applyI18n();
 show(0);
 </script>
 </body>
