@@ -216,10 +216,6 @@
         <p class="qhelp" data-i18n="s2_help"></p>
         <label class="field"><span data-i18n="f_golive"></span>
           <input type="date" id="golive"></label>
-        <div class="choices">
-          <label class="choice"><input type="checkbox" id="orc">
-            <span><span class="c-title" data-i18n="c_or_t"></span><span class="c-desc" data-i18n="c_or_d"></span></span></label>
-        </div>
       </div>
 
       <!-- 4 CAO -->
@@ -268,23 +264,6 @@
             <span><span class="c-title" data-i18n="c_wkr_t"></span><span class="c-desc" data-i18n="c_wkr_d"></span></span></label>
           <label class="choice"><input type="checkbox" id="expat">
             <span><span class="c-title" data-i18n="c_expat_t"></span><span class="c-desc" data-i18n="c_expat_d"></span></span></label>
-        </div>
-      </div>
-
-      <!-- 7 Output & migratie -->
-      <div class="step" data-step="7">
-        <div class="qnum"></div>
-        <h2 class="qtitle" data-i18n="s6_title"></h2>
-        <p class="qhelp" data-i18n="s6_help"></p>
-        <div class="choices">
-          <label class="choice"><input type="checkbox" id="edox" checked>
-            <span><span class="c-title" data-i18n="c_edox_t"></span><span class="c-desc" data-i18n="c_edox_d"></span></span></label>
-          <label class="choice"><input type="checkbox" id="epayslip" checked>
-            <span><span class="c-title" data-i18n="c_eps_t"></span><span class="c-desc" data-i18n="c_eps_d"></span></span></label>
-          <label class="choice"><input type="checkbox" id="historie">
-            <span><span class="c-title" data-i18n="c_hist_t"></span><span class="c-desc" data-i18n="c_hist_d"></span></span></label>
-          <label class="choice"><input type="checkbox" id="migratie">
-            <span><span class="c-title" data-i18n="c_mig_t"></span><span class="c-desc" data-i18n="c_mig_d"></span></span></label>
         </div>
       </div>
 
@@ -339,7 +318,7 @@
        - who:"wij" = taak implementatieteam · who:"u" = taak klant
        - when is optioneel; laat weg = taak altijd tonen.
          'a' bevat alle antwoorden (a.product, a.cao, a.pensioen, a.entities,
-         a.employees, a.historie, a.migratie, a.expat, ... zie collect()).
+         a.employees, a.dertiende, a.expat, ... zie collect()).
        - text mag ook een functie zijn: (a)=>({nl,en}) voor dynamische tekst.
    • Een product bepaalt via 'when'-condities welke taken verschijnen; optioneel
      kun je met product.phases bepaalde fases weglaten voor dat product.
@@ -379,8 +358,6 @@ const PHASES = [
     tasks:[
       {who:"wij", text:{nl:"Toegang tot de SharePoint-omgeving voorzien", en:"Provide access to the SharePoint environment"}},
       {who:"wij", text:{nl:"De kick-off meeting organiseren", en:"Organize the kick-off meeting"}},
-      {who:"wij", when:a=>a.or, text:{nl:"Ondersteunen bij de afstemming met de ondernemingsraad (OR)", en:"Support the alignment with the works council (OR)"}},
-      {who:"u",   when:a=>a.or, text:{nl:"Goedkeuring van de ondernemingsraad (OR) verkrijgen", en:"Obtain works-council (OR) approval"}},
     ]},
 
   { key:"discovery", icon:"🔍", name:"Discovery",
@@ -401,8 +378,6 @@ const PHASES = [
       {who:"u",   when:a=>a.pensioen, text:{nl:"Delen van informatie over de pensioenregeling", en:"Sharing information about the pension scheme"}},
       {who:"u",   when:a=>a.arbo, text:{nl:"Delen van de gegevens van de arbodienst", en:"Sharing the occupational-health provider details"}},
       {who:"u",   when:a=>a.expat, text:{nl:"Delen van informatie over expats en de 30%-regeling", en:"Sharing information about expats and the 30% ruling"}},
-      {who:"u",   when:a=>a.migratie, text:{nl:"Aanleveren van de exportbestanden van de huidige payroll-leverancier", en:"Providing the export files from the current payroll provider"}},
-      {who:"u",   when:a=>a.historie, text:{nl:"Aanleveren van het importbestand met historische loongegevens", en:"Providing the import file with historical payroll data"}},
     ]},
 
   { key:"setup", icon:"⚙️", name:"Setup",
@@ -413,8 +388,6 @@ const PHASES = [
       {who:"wij", text:a=>a.entities>1
         ? {nl:"Implementeren van de aangeleverde documentatie voor elke entiteit", en:"Implementing the provided documentation for each entity"}
         : {nl:"Implementeren van de aangeleverde documentatie in de payroll software", en:"Implementing the provided documentation in the payroll software"}},
-      {who:"wij", when:a=>a.migratie, text:{nl:"Overnemen van de gegevens uit de bestaande software", en:"Migrating the data from the existing software"}},
-      {who:"wij", when:a=>a.historie, text:{nl:"Inlezen en controleren van de historische loongegevens", en:"Loading and checking the historical payroll data"}},
       {who:"wij", when:a=>a.cao, text:{nl:"Inrichten van de cao-loonregels", en:"Configuring the CAO pay rules"}},
       {who:"wij", when:a=>a.pensioen, text:{nl:"Inrichten van de pensioenregeling", en:"Configuring the pension scheme"}},
       {who:"wij", when:a=>a.dertiende, text:{nl:"Inrichten van de 13e maand / eindejaarsuitkering", en:"Configuring the 13th month / year-end bonus"}},
@@ -433,7 +406,6 @@ const PHASES = [
         ? {nl:"Controleren van de ingerichte data per entiteit", en:"Checking the configured data per entity"}
         : {nl:"Controleren van de ingerichte data in de payroll software", en:"Checking the configured data in the payroll software"}},
       {who:"wij", text:{nl:"Kwaliteitscontrole op de loonregels uitvoeren", en:"Running a quality check on the pay rules"}},
-      {who:"wij", when:a=>a.historie||a.migratie, text:{nl:"Aansluiting van de historische gegevens verifiëren", en:"Verifying the reconciliation of the historical data"}},
     ]},
 
   { key:"golive", icon:"🎉", name:"Go Live",
@@ -444,8 +416,8 @@ const PHASES = [
         const f = a.frequency==="fourweekly" ? {nl:"vierwekelijkse",en:"four-weekly"} : {nl:"maandelijkse",en:"monthly"};
         return {nl:"Verwerken van de eerste "+f.nl+" loonberekening", en:"Processing the first "+f.en+" payroll run"}; }},
       {who:"wij", text:{nl:"Delen van het resultaat van de eerste loonberekening", en:"Sharing the result of the first payroll run"}},
-      {who:"wij", when:a=>a.edox, text:{nl:"Toegang tot het eDox-portaal voorzien", en:"Providing access to the eDox portal"}},
-      {who:"wij", when:a=>a.epayslip, text:{nl:"Inrichten van de elektronische loonbrieven voor werknemers", en:"Setting up electronic payslips for employees"}},
+      {who:"wij", text:{nl:"Toegang tot het eDox-portaal voorzien", en:"Providing access to the eDox portal"}},
+      {who:"wij", text:{nl:"Inrichten van de elektronische loonbrieven voor werknemers", en:"Setting up electronic payslips for employees"}},
       {who:"u",   text:{nl:"Aanleveren van de input voor de eerste loonberekening", en:"Providing the input for the first payroll run"}},
       {who:"u",   text:{nl:"Controleren van de verwerkte loonberekening", en:"Checking the processed payroll run"}},
       {who:"u",   text:{nl:"Delen van de informatie over de betalingen", en:"Sharing the payment details"}},
@@ -470,9 +442,7 @@ function phaseWeeks(phase, a){
   if(phase.key==="setup"){
     w += a.employees>250 ? 2 : a.employees>50 ? 1 : 0;   // grotere populatie
     w += Math.min(a.entities-1, 3);                       // extra entiteiten
-    if(a.historie) w += 1;
   }
-  if(phase.key==="discovery" && a.migratie) w += 1;        // migratie-overname
   return w;
 }
 
@@ -490,8 +460,8 @@ const T = {
   f_contact:{nl:"Contactpersoon",en:"Contact person"}, ph_contact:{nl:"Voor- en achternaam",en:"First and last name"},
   f_email:{nl:"E-mailadres contactpersoon",en:"Contact email"}, ph_email:{nl:"naam@bedrijf.nl",en:"name@company.com"},
   s_product_title:{nl:"Welk product neemt de klant af?",en:"Which product is the customer taking?"},
-  s_product_help:{nl:"Kies de scope; bij Lokaal kiest u ook het model en de tier. Dit verschijnt als label op de journey.",en:"Choose the scope; for Local, also pick the model and tier. This appears as a label on the journey."},
-  pg_scope:{nl:"Scope",en:"Scope"}, pg_model:{nl:"Model",en:"Model"}, pg_tier:{nl:"Tier",en:"Tier"},
+  s_product_help:{nl:"Kies de scope; bij Lokaal kiest u ook het model en de HRM licentie. Dit verschijnt als label op de journey.",en:"Choose the scope; for Local, also pick the model and HRM licence. This appears as a label on the journey."},
+  pg_scope:{nl:"Scope",en:"Scope"}, pg_model:{nl:"Model",en:"Model"}, pg_tier:{nl:"HRM licentie",en:"HRM licence"},
   s1_title:{nl:"Omvang van de payroll",en:"Payroll scope"},
   s1_help:{nl:"Aantal werknemers en juridische entiteiten bepalen mede de doorlooptijd van de implementatie.",en:"Headcount and the number of legal entities influence the implementation timeline."},
   f_employees:{nl:"Aantal werknemers *",en:"Number of employees *"}, ph_employees:{nl:"bv. 45",en:"e.g. 45"},
@@ -500,8 +470,6 @@ const T = {
   s2_title:{nl:"Wanneer wilt u live gaan?",en:"When do you want to go live?"},
   s2_help:{nl:"Dit is de streefdatum voor de eerste loonberekening. We rekenen de overige fases hier vanaf terug. Laat leeg voor een planning vanaf vandaag.",en:"This is the target date for the first payroll run. We schedule the other phases back from it. Leave empty to plan from today."},
   f_golive:{nl:"Gewenste go-live datum",en:"Desired go-live date"},
-  c_or_t:{nl:"Goedkeuring ondernemingsraad (OR) nodig",en:"Works council (OR) approval required"},
-  c_or_d:{nl:"We houden rekening met de OR-afstemming in de planning",en:"We account for works-council sign-off in the plan"},
   s3_title:{nl:"Is er een cao van toepassing?",en:"Does a collective labour agreement (CAO) apply?"},
   s3_help:{nl:"Zo ja, dan nemen we het delen van de cao-informatie op in de Discovery-fase.",en:"If so, we include sharing the CAO information in the Discovery phase."},
   c_cao_ja_t:{nl:"Ja, een cao is van toepassing",en:"Yes, a CAO applies"}, c_cao_ja_d:{nl:"We stemmen de loonregels af op de cao",en:"We align the pay rules with the CAO"},
@@ -519,11 +487,6 @@ const T = {
   c_lease_t:{nl:"Leaseauto's (bijtelling)",en:"Lease cars (benefit-in-kind)"}, c_lease_d:{nl:"Bijtelling inrichten",en:"Configure benefit-in-kind"},
   c_wkr_t:{nl:"Onkostenvergoedingen (WKR)",en:"Expense allowances (WKR)"}, c_wkr_d:{nl:"Werkkostenregeling inrichten",en:"Configure the work-related costs scheme"},
   c_expat_t:{nl:"Expats / 30%-regeling",en:"Expats / 30% ruling"}, c_expat_d:{nl:"Inrichten van de 30%-regeling",en:"Configure the 30% ruling"},
-  s6_title:{nl:"Output, portalen & migratie",en:"Output, portals & migration"}, s6_help:{nl:"Wat wilt u inrichten rond de eerste loonverwerking?",en:"What do you want to set up around the first payroll run?"},
-  c_edox_t:{nl:"eDox-portaal",en:"eDox portal"}, c_edox_d:{nl:"Beveiligde uitwisseling van documenten",en:"Secure document exchange"},
-  c_eps_t:{nl:"Elektronische loonbrieven",en:"Electronic payslips"}, c_eps_d:{nl:"Digitale loonstroken voor werknemers",en:"Digital payslips for employees"},
-  c_hist_t:{nl:"Historische loongegevens importeren",en:"Import historical payroll data"}, c_hist_d:{nl:"Opbouw jaargegevens uit vorige software",en:"Year-to-date build-up from previous software"},
-  c_mig_t:{nl:"Migratie van huidige payroll-leverancier",en:"Migration from current payroll provider"}, c_mig_d:{nl:"Overname vanuit bestaande software",en:"Takeover from existing software"},
   leg_wij:{nl:"Taken implementatieteam",en:"Implementation team tasks"}, leg_u:{nl:"Taken klant (afvinkbaar)",en:"Customer tasks (checkable)"},
   btn_print:{nl:"🖨️ Afdrukken / opslaan als PDF",en:"🖨️ Print / save as PDF"}, btn_restart:{nl:"↺ Nieuwe journey",en:"↺ New journey"},
   btn_load:{nl:"📁 Antwoorden laden (JSON)",en:"📁 Load answers (JSON)"},
@@ -649,12 +612,11 @@ function collect(){
     company:$('#company').value.trim(), contact:$('#contact').value.trim(), email:$('#email').value.trim(),
     product: currentProduct(),
     employees:+$('#employees').value, entities:Math.max(1,+$('#entities').value||1),
-    frequency:$('#frequency').value, golive:$('#golive').value, or:$('#orc').checked,
+    frequency:$('#frequency').value, golive:$('#golive').value,
     cao:document.querySelector('input[name=cao]:checked')?.value==='ja', caoName:$('#caoName').value.trim(),
     pensioen:$('#pensioen').checked, arbo:$('#arbo').checked, loonheffing:$('#loonheffing').checked,
     dertiende:$('#dertiende').checked, variabel:$('#variabel').checked, lease:$('#lease').checked,
     onkosten:$('#onkosten').checked, expat:$('#expat').checked,
-    edox:$('#edox').checked, epayslip:$('#epayslip').checked, historie:$('#historie').checked, migratie:$('#migratie').checked,
   };
 }
 
@@ -719,8 +681,6 @@ function renderResult(a){
   if(a.pensioen) docs.push(LANG==='nl'?"Pensioenregeling":"Pension scheme");
   if(a.arbo) docs.push(LANG==='nl'?"Gegevens arbodienst":"Occupational-health details");
   if(a.expat) docs.push(LANG==='nl'?"Expat / 30%-info":"Expat / 30% info");
-  if(a.migratie) docs.push(LANG==='nl'?"Exportbestanden huidige leverancier":"Export files current provider");
-  if(a.historie) docs.push(LANG==='nl'?"Importbestand historie":"History import file");
 
   const list = clientActions.map(x=>`<li><strong>${esc(x.phase)}:</strong> ${esc(x.task)}</li>`).join('');
   $('#summary').innerHTML = `<h3>${esc(tr('sum_h'))}</h3>
@@ -773,11 +733,10 @@ function applyAnswers(a){
   renderProductOptions();
   $('#employees').value=a.employees||''; $('#entities').value=a.entities||1;
   $('#frequency').value=a.frequency||'monthly'; $('#golive').value=a.golive||'';
-  setChk('orc',a.or);
   const caoR=document.querySelector('input[name=cao][value='+(a.cao?'ja':'nee')+']');
   if(caoR){ caoR.checked=true; caoR.dispatchEvent(new Event('change')); }
   $('#caoName').value=a.caoName||'';
-  ['pensioen','arbo','loonheffing','dertiende','variabel','lease','onkosten','expat','edox','epayslip','historie','migratie'].forEach(k=>setChk(k,a[k]));
+  ['pensioen','arbo','loonheffing','dertiende','variabel','lease','onkosten','expat'].forEach(k=>setChk(k,a[k]));
   document.querySelectorAll('.choice input[type=checkbox]').forEach(inp=>inp.closest('.choice').classList.toggle('selected',inp.checked));
   doGenerate();
 }
