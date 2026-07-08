@@ -51,6 +51,9 @@
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:560px){.grid2{grid-template-columns:1fr}}
   .choices{display:grid;gap:10px}
+  .choices.row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .pgroup{margin-top:18px}
+  .pgroup .plabel{font-weight:700;font-size:.82rem;letter-spacing:.04em;text-transform:uppercase;color:var(--brand);margin-bottom:8px}
   .choice{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border:1.5px solid var(--line);
     border-radius:12px;cursor:pointer;transition:.15s;background:#fff}
   .choice:hover{border-color:var(--brand-2);background:#faf8ff}
@@ -180,7 +183,12 @@
         <div class="qnum"></div>
         <h2 class="qtitle" data-i18n="s_product_title"></h2>
         <p class="qhelp" data-i18n="s_product_help"></p>
-        <div class="choices" id="productChoices"></div>
+        <div class="pgroup"><div class="plabel" data-i18n="pg_scope"></div>
+          <div class="choices" id="scopeChoices"></div></div>
+        <div class="pgroup" id="modelGroup"><div class="plabel" data-i18n="pg_model"></div>
+          <div class="choices row" id="modelChoices"></div></div>
+        <div class="pgroup" id="tierGroup"><div class="plabel" data-i18n="pg_tier"></div>
+          <div class="choices row" id="tierChoices"></div></div>
       </div>
 
       <!-- 2 Omvang -->
@@ -337,20 +345,30 @@
      kun je met product.phases bepaalde fases weglaten voor dat product.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ---- PRODUCTEN (pas namen/omschrijvingen gerust aan) ---- */
-const PRODUCTS = [
-  { id:"full",
-    name:{nl:"Volledige payroll (uitbesteed)", en:"Full payroll (outsourced)"},
-    desc:{nl:"SD Worx verwerkt de loonberekening voor u.", en:"SD Worx runs the payroll for you."} },
-  { id:"software",
-    name:{nl:"Payroll software (zelf verwerken)", en:"Payroll software (self-run)"},
-    desc:{nl:"Wij richten de software in; u verwerkt zelf het loon.", en:"We configure the software; you run payroll yourself."} },
-  { id:"hr",
-    name:{nl:"Payroll + HR", en:"Payroll + HR"},
-    desc:{nl:"Payroll inclusief HR self-service module.", en:"Payroll including the HR self-service module."} },
+/* ---- PRODUCTEN (SD Worx-portfolio) ----
+   Structuur uit de bijlage:
+     • Internationaal  → losstaand product (geen model/tier)
+     • Lokaal          → model (MPS | BPO) → tier (Premium | Professional | Enterprise)
+   Voorlopig alleen als LABEL op de deliverable; de taken per fase zijn (nog)
+   voor elk product gelijk. Wil je later taken per product laten verschillen,
+   voeg dan een when-conditie toe zoals: when:a=>a.product.model==="bpo"        */
+const PRODUCT_SCOPES = [
+  { id:"internationaal", hasSub:false,
+    name:{nl:"Internationaal", en:"International"},
+    desc:{nl:"Payroll in meerdere landen.", en:"Payroll across multiple countries."} },
+  { id:"lokaal", hasSub:true,
+    name:{nl:"Lokaal", en:"Local"},
+    desc:{nl:"Payroll in één land.", en:"Payroll in a single country."} },
 ];
-/* handige helper voor when-condities: geoutsourcede loonverwerking? */
-const outsourced = a => a.product !== "software";
+const PRODUCT_MODELS = [
+  { id:"mps", name:{nl:"MPS", en:"MPS"}, desc:{nl:"Managed Payroll Services", en:"Managed Payroll Services"} },
+  { id:"bpo", name:{nl:"BPO", en:"BPO"}, desc:{nl:"Business Process Outsourcing", en:"Business Process Outsourcing"} },
+];
+const PRODUCT_TIERS = [
+  { id:"premium",      name:{nl:"Premium", en:"Premium"} },
+  { id:"professional", name:{nl:"Professional", en:"Professional"} },
+  { id:"enterprise",   name:{nl:"Enterprise", en:"Enterprise"} },
+];
 
 /* ---- FASES + TAKEN ---- */
 const PHASES = [
@@ -383,7 +401,6 @@ const PHASES = [
       {who:"u",   when:a=>a.pensioen, text:{nl:"Delen van informatie over de pensioenregeling", en:"Sharing information about the pension scheme"}},
       {who:"u",   when:a=>a.arbo, text:{nl:"Delen van de gegevens van de arbodienst", en:"Sharing the occupational-health provider details"}},
       {who:"u",   when:a=>a.expat, text:{nl:"Delen van informatie over expats en de 30%-regeling", en:"Sharing information about expats and the 30% ruling"}},
-      {who:"u",   when:a=>a.product==="hr", text:{nl:"Aanleveren van de organisatiestructuur voor de HR-module", en:"Providing the organizational structure for the HR module"}},
       {who:"u",   when:a=>a.migratie, text:{nl:"Aanleveren van de exportbestanden van de huidige payroll-leverancier", en:"Providing the export files from the current payroll provider"}},
       {who:"u",   when:a=>a.historie, text:{nl:"Aanleveren van het importbestand met historische loongegevens", en:"Providing the import file with historical payroll data"}},
     ]},
@@ -396,7 +413,6 @@ const PHASES = [
       {who:"wij", text:a=>a.entities>1
         ? {nl:"Implementeren van de aangeleverde documentatie voor elke entiteit", en:"Implementing the provided documentation for each entity"}
         : {nl:"Implementeren van de aangeleverde documentatie in de payroll software", en:"Implementing the provided documentation in the payroll software"}},
-      {who:"wij", when:a=>a.product==="hr", text:{nl:"Inrichten van de HR self-service module", en:"Configuring the HR self-service module"}},
       {who:"wij", when:a=>a.migratie, text:{nl:"Overnemen van de gegevens uit de bestaande software", en:"Migrating the data from the existing software"}},
       {who:"wij", when:a=>a.historie, text:{nl:"Inlezen en controleren van de historische loongegevens", en:"Loading and checking the historical payroll data"}},
       {who:"wij", when:a=>a.cao, text:{nl:"Inrichten van de cao-loonregels", en:"Configuring the CAO pay rules"}},
@@ -418,24 +434,21 @@ const PHASES = [
         : {nl:"Controleren van de ingerichte data in de payroll software", en:"Checking the configured data in the payroll software"}},
       {who:"wij", text:{nl:"Kwaliteitscontrole op de loonregels uitvoeren", en:"Running a quality check on the pay rules"}},
       {who:"wij", when:a=>a.historie||a.migratie, text:{nl:"Aansluiting van de historische gegevens verifiëren", en:"Verifying the reconciliation of the historical data"}},
-      {who:"u",   when:a=>a.product==="software", text:{nl:"Meelopen in de testronde van de payroll software", en:"Join the test round of the payroll software"}},
     ]},
 
   { key:"golive", icon:"🎉", name:"Go Live",
     sub:{nl:"Verwerken eerste loonberekening", en:"Processing the first payroll run"},
     weeks:1,
     tasks:[
-      {who:"wij", when:a=>outsourced(a), text:a=>{
+      {who:"wij", text:a=>{
         const f = a.frequency==="fourweekly" ? {nl:"vierwekelijkse",en:"four-weekly"} : {nl:"maandelijkse",en:"monthly"};
         return {nl:"Verwerken van de eerste "+f.nl+" loonberekening", en:"Processing the first "+f.en+" payroll run"}; }},
-      {who:"wij", when:a=>a.product==="software", text:{nl:"Begeleiden bij de eerste zelf uitgevoerde loonberekening", en:"Guiding the first self-run payroll calculation"}},
-      {who:"wij", when:a=>outsourced(a), text:{nl:"Delen van het resultaat van de eerste loonberekening", en:"Sharing the result of the first payroll run"}},
+      {who:"wij", text:{nl:"Delen van het resultaat van de eerste loonberekening", en:"Sharing the result of the first payroll run"}},
       {who:"wij", when:a=>a.edox, text:{nl:"Toegang tot het eDox-portaal voorzien", en:"Providing access to the eDox portal"}},
       {who:"wij", when:a=>a.epayslip, text:{nl:"Inrichten van de elektronische loonbrieven voor werknemers", en:"Setting up electronic payslips for employees"}},
       {who:"u",   text:{nl:"Aanleveren van de input voor de eerste loonberekening", en:"Providing the input for the first payroll run"}},
-      {who:"u",   when:a=>a.product==="software", text:{nl:"Zelf verwerken van de eerste loonberekening", en:"Running the first payroll calculation yourself"}},
       {who:"u",   text:{nl:"Controleren van de verwerkte loonberekening", en:"Checking the processed payroll run"}},
-      {who:"u",   when:a=>outsourced(a), text:{nl:"Delen van de informatie over de betalingen", en:"Sharing the payment details"}},
+      {who:"u",   text:{nl:"Delen van de informatie over de betalingen", en:"Sharing the payment details"}},
     ]},
 
   { key:"aftercare", icon:"🤝", name:"Aftercare",
@@ -458,7 +471,6 @@ function phaseWeeks(phase, a){
     w += a.employees>250 ? 2 : a.employees>50 ? 1 : 0;   // grotere populatie
     w += Math.min(a.entities-1, 3);                       // extra entiteiten
     if(a.historie) w += 1;
-    if(a.product==="hr") w += 1;                           // HR-module inrichten
   }
   if(phase.key==="discovery" && a.migratie) w += 1;        // migratie-overname
   return w;
@@ -478,7 +490,8 @@ const T = {
   f_contact:{nl:"Contactpersoon",en:"Contact person"}, ph_contact:{nl:"Voor- en achternaam",en:"First and last name"},
   f_email:{nl:"E-mailadres contactpersoon",en:"Contact email"}, ph_email:{nl:"naam@bedrijf.nl",en:"name@company.com"},
   s_product_title:{nl:"Welk product neemt de klant af?",en:"Which product is the customer taking?"},
-  s_product_help:{nl:"Het gekozen product bepaalt welke taken in de journey verschijnen.",en:"The chosen product determines which tasks appear in the journey."},
+  s_product_help:{nl:"Kies de scope; bij Lokaal kiest u ook het model en de tier. Dit verschijnt als label op de journey.",en:"Choose the scope; for Local, also pick the model and tier. This appears as a label on the journey."},
+  pg_scope:{nl:"Scope",en:"Scope"}, pg_model:{nl:"Model",en:"Model"}, pg_tier:{nl:"Tier",en:"Tier"},
   s1_title:{nl:"Omvang van de payroll",en:"Payroll scope"},
   s1_help:{nl:"Aantal werknemers en juridische entiteiten bepalen mede de doorlooptijd van de implementatie.",en:"Headcount and the number of legal entities influence the implementation timeline."},
   f_employees:{nl:"Aantal werknemers *",en:"Number of employees *"}, ph_employees:{nl:"bv. 45",en:"e.g. 45"},
@@ -536,7 +549,7 @@ const T = {
    ═══════════════════════════════════════════════════════════════════════════ */
 let LANG = "nl";
 let ANSWERS = null;
-let selectedProduct = PRODUCTS[0].id;
+let selectedScope = "lokaal", selectedModel = "bpo", selectedTier = "professional";
 let dateMode = "weeks";   // "weeks" = klantvriendelijke weekranges · "dates" = exacte data
 
 const $ = s => document.querySelector(s);
@@ -546,8 +559,22 @@ let cur = 0;
 function tr(k){ return (T[k]&&T[k][LANG])||k; }
 function L(x){ return x ? (x[LANG]||x.nl||"") : ""; }               // pick language from {nl,en}
 function resolve(text,a){ return typeof text==="function" ? text(a) : text; }  // dynamic or static
-const productById = id => PRODUCTS.find(p=>p.id===id) || PRODUCTS[0];
-const phasesFor = a => PHASES.filter(p=>{ const pr=productById(a.product); return !pr.phases || pr.phases.includes(p.key); });
+const byId = (list,id) => list.find(x=>x.id===id) || list[0];
+const phasesFor = () => PHASES;              // alle producten volgen (voorlopig) dezelfde fases
+function currentProduct(){
+  return selectedScope==="lokaal"
+    ? {scope:"lokaal", model:selectedModel, tier:selectedTier}
+    : {scope:"internationaal", model:null, tier:null};
+}
+function productLabel(prod){
+  if(!prod) return "";
+  const parts = [L(byId(PRODUCT_SCOPES, prod.scope).name)];
+  if(prod.scope==="lokaal"){
+    parts.push(L(byId(PRODUCT_MODELS, prod.model).name));
+    parts.push(L(byId(PRODUCT_TIERS, prod.tier).name));
+  }
+  return parts.join(" · ");
+}
 
 function applyI18n(){
   document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent = tr(el.dataset.i18n));
@@ -558,18 +585,22 @@ function applyI18n(){
   renderProductOptions();
   document.documentElement.lang = LANG;
 }
+function radioHTML(name,items,sel){
+  return items.map(it=>`<label class="choice${it.id===sel?' selected':''}">
+      <input type="radio" name="${name}" value="${it.id}" ${it.id===sel?'checked':''}>
+      <span><span class="c-title">${esc(L(it.name))}</span>${it.desc?`<span class="c-desc">${esc(L(it.desc))}</span>`:''}</span></label>`).join('');
+}
+function markSel(inp){ inp.closest('.choices').querySelectorAll('.choice').forEach(c=>c.classList.remove('selected')); inp.closest('.choice').classList.add('selected'); }
 function renderProductOptions(){
-  const box = $('#productChoices');
-  box.innerHTML = PRODUCTS.map(p=>`
-    <label class="choice${p.id===selectedProduct?' selected':''}">
-      <input type="radio" name="product" value="${p.id}" ${p.id===selectedProduct?'checked':''}>
-      <span><span class="c-title">${esc(L(p.name))}</span><span class="c-desc">${esc(L(p.desc))}</span></span>
-    </label>`).join('');
-  box.querySelectorAll('input[name=product]').forEach(inp=>inp.addEventListener('change',()=>{
-    selectedProduct = inp.value;
-    box.querySelectorAll('.choice').forEach(c=>c.classList.remove('selected'));
-    inp.closest('.choice').classList.add('selected');
-  }));
+  $('#scopeChoices').innerHTML = radioHTML('scope', PRODUCT_SCOPES, selectedScope);
+  $('#modelChoices').innerHTML = radioHTML('model', PRODUCT_MODELS, selectedModel);
+  $('#tierChoices').innerHTML  = radioHTML('tier',  PRODUCT_TIERS,  selectedTier);
+  const lokaal = selectedScope==="lokaal";
+  $('#modelGroup').style.display = lokaal ? 'block' : 'none';
+  $('#tierGroup').style.display  = lokaal ? 'block' : 'none';
+  $('#scopeChoices').querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{ selectedScope=i.value; renderProductOptions(); }));
+  $('#modelChoices').querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{ selectedModel=i.value; markSel(i); }));
+  $('#tierChoices').querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{ selectedTier=i.value; markSel(i); }));
 }
 function setLang(l){
   LANG=l; $('#lang-nl').classList.toggle('on',l==='nl'); $('#lang-en').classList.toggle('on',l==='en');
@@ -616,7 +647,7 @@ function fmt(d){ return d.toLocaleDateString(LANG==='nl'?'nl-NL':'en-GB',{day:'n
 function collect(){
   return {
     company:$('#company').value.trim(), contact:$('#contact').value.trim(), email:$('#email').value.trim(),
-    product: document.querySelector('input[name=product]:checked')?.value || selectedProduct,
+    product: currentProduct(),
     employees:+$('#employees').value, entities:Math.max(1,+$('#entities').value||1),
     frequency:$('#frequency').value, golive:$('#golive').value, or:$('#orc').checked,
     cao:document.querySelector('input[name=cao]:checked')?.value==='ja', caoName:$('#caoName').value.trim(),
@@ -654,8 +685,7 @@ function renderResult(a){
     p._start=new Date(cursor); cursor=addWeeks(cursor,n); p._end=new Date(cursor); });
   const goliveP = phases.find(p=>p.key==='golive') || phases[phases.length-1];
 
-  const prod = productById(a.product);
-  $('#r-badge').textContent = L(prod.name);
+  $('#r-badge').textContent = productLabel(a.product);
   $('#r-title').textContent = tr('r_title')+a.company;
   $('#r-sub').textContent = tr('r_sub') + (a.contact ? tr('r_attn')+a.contact : "");
   const meta = [
@@ -688,7 +718,6 @@ function renderResult(a){
   if(a.cao) docs.push(a.caoName || (LANG==='nl'?"cao-informatie":"CAO information"));
   if(a.pensioen) docs.push(LANG==='nl'?"Pensioenregeling":"Pension scheme");
   if(a.arbo) docs.push(LANG==='nl'?"Gegevens arbodienst":"Occupational-health details");
-  if(a.product==="hr") docs.push(LANG==='nl'?"Organisatiestructuur (HR)":"Org structure (HR)");
   if(a.expat) docs.push(LANG==='nl'?"Expat / 30%-info":"Expat / 30% info");
   if(a.migratie) docs.push(LANG==='nl'?"Exportbestanden huidige leverancier":"Export files current provider");
   if(a.historie) docs.push(LANG==='nl'?"Importbestand historie":"History import file");
@@ -740,7 +769,8 @@ $('#loadFile').addEventListener('change',ev=>{
 function setChk(id,v){ const el=$('#'+id); if(el) el.checked=!!v; }
 function applyAnswers(a){
   $('#company').value=a.company||''; $('#contact').value=a.contact||''; $('#email').value=a.email||'';
-  selectedProduct=a.product||PRODUCTS[0].id; renderProductOptions();
+  const pr=a.product||{}; selectedScope=pr.scope||'lokaal'; selectedModel=pr.model||'bpo'; selectedTier=pr.tier||'professional';
+  renderProductOptions();
   $('#employees').value=a.employees||''; $('#entities').value=a.entities||1;
   $('#frequency').value=a.frequency||'monthly'; $('#golive').value=a.golive||'';
   setChk('orc',a.or);
