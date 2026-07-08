@@ -494,7 +494,7 @@ const T = {
   btn_load:{nl:"📁 Antwoorden laden (JSON)",en:"📁 Load answers (JSON)"},
   btn_savejson:{nl:"⬇️ JSON opslaan",en:"⬇️ Save JSON"}, btn_exporthtml:{nl:"🌐 HTML exporteren",en:"🌐 Export HTML"},
   mode_months:{nl:"Timing",en:"Timing"}, mode_dates:{nl:"Exacte data",en:"Exact dates"},
-  t_month:{nl:"Maand",en:"Month"},
+  t_month_1:{nl:"maand",en:"month"}, t_month_n:{nl:"maanden",en:"months"},
   exp_title:{nl:"Customer Journey",en:"Customer Journey"},
   r_title:{nl:"Customer Journey — ",en:"Customer Journey — "}, r_sub:{nl:"HR & Payroll implementatie",en:"HR & Payroll implementation"}, r_attn:{nl:" · t.a.v. ",en:" · attn. "},
   m_employees:{nl:"Werknemers",en:"Employees"}, m_entities:{nl:"Entiteiten",en:"Entities"}, m_phases:{nl:"Fases",en:"Phases"},
@@ -581,9 +581,9 @@ function whenLabel(p){
     const lastDay=new Date(p._end.getTime()-86400000);
     return esc(fmt(p._start))+' – '+esc(fmt(lastDay));
   }
-  const w=tr('t_month');   // relatieve timing: "Maand 1" / "Maand 3–4"
-  return p._months>1 ? esc(w+' '+p._mStart+'–'+p._mEnd) : esc(w+' '+p._mStart);
+  return esc(monthsLabel(p._months));   // duur, bv. "1 maand" / "2 maanden"
 }
+function monthsLabel(n){ return n+' '+(n===1?tr('t_month_1'):tr('t_month_n')); }
 
 function show(i){
   steps.forEach(s=>s.classList.toggle('active',+s.dataset.step===i));
@@ -664,7 +664,7 @@ function renderResult(a){
   $('#r-meta').innerHTML = meta.map(m=>`<div><div class="k">${esc(m[0])}</div><div class="v">${esc(m[1])}</div></div>`).join('');
   $('#rail').innerHTML = phases.map((p,i)=>`<div class="node"><div class="dot">${i+1}</div>
       <div class="n-name">${p.icon} ${esc(p.name)}</div>
-      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):esc(tr('t_month')+' '+p._mStart)}</div></div>`).join('');
+      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):esc(monthsLabel(p._months))}</div></div>`).join('');
 
   const clientActions=[];
   $('#phases').innerHTML = phases.map((p,i)=>{
