@@ -6,9 +6,14 @@
 <title>Customer Journey Generator — HR &amp; Payroll</title>
 <style>
   :root{
-    --brand:#4b2e83; --brand-2:#7b4fc0; --accent:#e6007e;
+    /* ── SD Worx merkkleuren — vervang door de exacte hex uit uw merkgids ──
+       Signatuurkleuren SD Worx: paars, koraalrood en geel.                 */
+    --brand:#4b2e83;      /* paars — structuur/hero            */
+    --brand-2:#7b4fc0;    /* lichter paars                     */
+    --accent:#ff4b4b;     /* koraalrood — accent/klanttaken    */
+    --highlight:#ffc629;  /* geel — subtiele highlight          */
     --ink:#1d1b24; --muted:#6a6676; --line:#e4e1ec; --bg:#f6f4fb; --card:#fff;
-    --ok:#16915b; --wij:#4b2e83; --u:#e6007e;
+    --ok:#16915b; --wij:#4b2e83; --u:#ff4b4b;
     --radius:16px; --shadow:0 10px 30px rgba(40,20,80,.10);
   }
   *{box-sizing:border-box}
@@ -113,7 +118,14 @@
   .summary ol li{padding:4px 0}
   .summary .doclist{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
   .summary .doclist span{background:#f4efff;color:var(--brand);border:1px solid var(--line);border-radius:99px;padding:4px 12px;font-size:.82rem;font-weight:600}
-  .toolbar{display:flex;gap:12px;flex-wrap:wrap;padding:6px 26px 24px}
+  .toolbar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:6px 26px 24px}
+  .btn-soft{background:#f4efff;border-color:var(--line);color:var(--brand)}
+  .btn-soft:hover{border-color:var(--brand-2)}
+  .modetoggle{display:inline-flex;border:1.5px solid var(--line);border-radius:99px;overflow:hidden;background:#fff;margin-left:auto}
+  .modetoggle button{border:none;background:none;padding:9px 16px;font-weight:600;color:var(--muted);cursor:pointer;font-size:.88rem}
+  .modetoggle button.on{background:var(--brand);color:#fff}
+  .loadbar{display:flex;justify-content:flex-end;margin:-6px 0 14px}
+  .linkbtn{background:none;border:none;color:var(--brand);font-weight:600;font-size:.88rem;cursor:pointer;padding:6px 4px;text-decoration:underline}
   .foot{color:var(--muted);font-size:.82rem;text-align:center;margin-top:24px}
   @media print{
     body{background:#fff}
@@ -141,6 +153,10 @@
   <!-- ============ INTAKE ============ -->
   <section id="intake" class="card">
     <p class="intro" data-i18n="intro"></p>
+    <div class="loadbar">
+      <button type="button" class="linkbtn" id="loadBtn" data-i18n="btn_load"></button>
+      <input type="file" id="loadFile" accept="application/json,.json" style="display:none">
+    </div>
     <div class="progressbar"><i id="bar"></i></div>
     <form id="qform" novalidate>
 
@@ -289,7 +305,13 @@
       <div class="summary" id="summary"></div>
       <div class="toolbar">
         <button class="act btn-primary" onclick="window.print()" data-i18n="btn_print"></button>
+        <button class="act btn-soft" id="exportHtml" data-i18n="btn_exporthtml"></button>
+        <button class="act btn-soft" id="saveJson" data-i18n="btn_savejson"></button>
         <button class="act btn-ghost" id="restart" data-i18n="btn_restart"></button>
+        <div class="modetoggle" role="group" aria-label="date mode">
+          <button id="mode-weeks" class="on" onclick="setDateMode('weeks')" data-i18n="mode_weeks"></button>
+          <button id="mode-dates" onclick="setDateMode('dates')" data-i18n="mode_dates"></button>
+        </div>
       </div>
     </div>
     <p class="foot" id="foot"></p>
@@ -491,6 +513,11 @@ const T = {
   c_mig_t:{nl:"Migratie van huidige payroll-leverancier",en:"Migration from current payroll provider"}, c_mig_d:{nl:"Overname vanuit bestaande software",en:"Takeover from existing software"},
   leg_wij:{nl:"Taken implementatieteam",en:"Implementation team tasks"}, leg_u:{nl:"Taken klant (afvinkbaar)",en:"Customer tasks (checkable)"},
   btn_print:{nl:"🖨️ Afdrukken / opslaan als PDF",en:"🖨️ Print / save as PDF"}, btn_restart:{nl:"↺ Nieuwe journey",en:"↺ New journey"},
+  btn_load:{nl:"📁 Antwoorden laden (JSON)",en:"📁 Load answers (JSON)"},
+  btn_savejson:{nl:"⬇️ JSON opslaan",en:"⬇️ Save JSON"}, btn_exporthtml:{nl:"🌐 HTML exporteren",en:"🌐 Export HTML"},
+  mode_weeks:{nl:"Weken",en:"Weeks"}, mode_dates:{nl:"Exacte data",en:"Exact dates"},
+  wk_label:{nl:"Week %a–%b · ca. %n wk",en:"Week %a–%b · approx. %n wk"}, wk_one:{nl:"Week %a · ca. %n wk",en:"Week %a · approx. %n wk"},
+  exp_title:{nl:"Customer Journey",en:"Customer Journey"},
   r_title:{nl:"Customer Journey — ",en:"Customer Journey — "}, r_sub:{nl:"HR & Payroll implementatie",en:"HR & Payroll implementation"}, r_attn:{nl:" · t.a.v. ",en:" · attn. "},
   m_employees:{nl:"Werknemers",en:"Employees"}, m_entities:{nl:"Entiteiten",en:"Entities"}, m_phases:{nl:"Fases",en:"Phases"},
   m_duration:{nl:"Indicatieve doorlooptijd",en:"Indicative duration"}, m_weeks:{nl:"weken",en:"weeks"},
@@ -510,6 +537,7 @@ const T = {
 let LANG = "nl";
 let ANSWERS = null;
 let selectedProduct = PRODUCTS[0].id;
+let dateMode = "weeks";   // "weeks" = klantvriendelijke weekranges · "dates" = exacte data
 
 const $ = s => document.querySelector(s);
 const steps = [...document.querySelectorAll('.step')];
@@ -547,6 +575,15 @@ function setLang(l){
   LANG=l; $('#lang-nl').classList.toggle('on',l==='nl'); $('#lang-en').classList.toggle('on',l==='en');
   applyI18n();
   if(ANSWERS && $('#result').style.display==='block') renderResult(ANSWERS);
+}
+function setDateMode(m){
+  dateMode=m; $('#mode-weeks').classList.toggle('on',m==='weeks'); $('#mode-dates').classList.toggle('on',m==='dates');
+  if(ANSWERS && $('#result').style.display==='block') renderResult(ANSWERS);
+}
+function whenLabel(p){
+  if(dateMode==='dates') return esc(fmt(p._start))+' – '+esc(fmt(p._end));
+  const key = p._weeks>1 ? 'wk_label' : 'wk_one';
+  return esc(tr(key).replace('%a',p._wkStart).replace('%b',p._wkEnd).replace('%n',p._weeks));
 }
 
 function show(i){
@@ -612,7 +649,9 @@ function renderResult(a){
                                .reduce((s,p)=>s+phaseWeeks(p,a),0);
     cursor = addWeeks(new Date(a.golive+"T00:00:00"), -beforeGolive);
   } else cursor = new Date();
-  phases.forEach(p=>{ p._start=new Date(cursor); cursor=addWeeks(cursor,phaseWeeks(p,a)); p._end=new Date(cursor); });
+  let wk=1;
+  phases.forEach(p=>{ const n=phaseWeeks(p,a); p._weeks=n; p._wkStart=wk; p._wkEnd=wk+n-1; wk+=n;
+    p._start=new Date(cursor); cursor=addWeeks(cursor,n); p._end=new Date(cursor); });
   const goliveP = phases.find(p=>p.key==='golive') || phases[phases.length-1];
 
   const prod = productById(a.product);
@@ -625,7 +664,8 @@ function renderResult(a){
   ];
   $('#r-meta').innerHTML = meta.map(m=>`<div><div class="k">${esc(m[0])}</div><div class="v">${esc(m[1])}</div></div>`).join('');
   $('#rail').innerHTML = phases.map((p,i)=>`<div class="node"><div class="dot">${i+1}</div>
-      <div class="n-name">${p.icon} ${esc(p.name)}</div><div class="n-date">${esc(fmt(p._start))}</div></div>`).join('');
+      <div class="n-name">${p.icon} ${esc(p.name)}</div>
+      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):('Week '+p._wkStart)}</div></div>`).join('');
 
   const clientActions=[];
   $('#phases').innerHTML = phases.map((p,i)=>{
@@ -637,7 +677,7 @@ function renderResult(a){
     const phLabel = tr('ph_of').replace('%n',i+1).replace('%t',phases.length);
     return `<div class="phase"><div class="phase-head"><div class="phase-ico">${p.icon}</div>
         <div><h3>${esc(phLabel)}: ${esc(p.name)}</h3><div class="p-sub">${esc(L(p.sub))}</div></div>
-        <div class="p-when"><div class="k">${esc(tr('p_indic'))}</div><div class="v">${esc(fmt(p._start))} – ${esc(fmt(p._end))}</div></div></div>
+        <div class="p-when"><div class="k">${esc(tr('p_indic'))}</div><div class="v">${whenLabel(p)}</div></div></div>
       <div class="cols">
         <div class="col wij"><h4><span class="tag">WIJ</span> ${esc(tr('h_wij'))}</h4><ul class="tasks">${wijLi}</ul></div>
         <div class="col u"><h4><span class="tag">U</span> ${esc(tr('h_u'))}</h4><ul class="tasks client">${uLi}</ul></div>
@@ -667,6 +707,50 @@ function renderResult(a){
 
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 $('#restart').addEventListener('click',()=>{ $('#result').style.display='none'; $('#intake').style.display='block'; show(0); window.scrollTo({top:0,behavior:'smooth'}); });
+
+/* ---- opslaan / laden / exporteren ---- */
+function slug(s){ return (String(s||'journey').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''))||'journey'; }
+function download(name,content,type){
+  const blob=new Blob([content],{type}); const url=URL.createObjectURL(blob);
+  const el=document.createElement('a'); el.href=url; el.download=name; document.body.appendChild(el); el.click(); el.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function saveJson(){ if(!ANSWERS) return; download('journey-'+slug(ANSWERS.company)+'.json', JSON.stringify(ANSWERS,null,2), 'application/json'); }
+function exportHtml(){
+  if(!ANSWERS) return;
+  const style=document.querySelector('style').innerHTML;
+  const clone=$('#result').cloneNode(true);
+  clone.querySelectorAll('.toolbar').forEach(e=>e.remove());   // interactieve knoppen weg
+  clone.style.display='block';
+  const doc='<!doctype html><html lang="'+LANG+'"><head><meta charset="utf-8">'+
+    '<meta name="viewport" content="width=device-width, initial-scale=1">'+
+    '<title>'+esc(tr('exp_title'))+' — '+esc(ANSWERS.company)+'</title><style>'+style+'</style></head>'+
+    '<body><div class="wrap">'+clone.outerHTML+'</div></body></html>';
+  download('journey-'+slug(ANSWERS.company)+'.html', doc, 'text/html');
+}
+$('#saveJson').addEventListener('click',saveJson);
+$('#exportHtml').addEventListener('click',exportHtml);
+$('#loadBtn').addEventListener('click',()=>$('#loadFile').click());
+$('#loadFile').addEventListener('change',ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ applyAnswers(JSON.parse(r.result)); }catch(e){ alert(LANG==='nl'?'Ongeldig JSON-bestand.':'Invalid JSON file.'); } };
+  r.readAsText(f); ev.target.value='';
+});
+function setChk(id,v){ const el=$('#'+id); if(el) el.checked=!!v; }
+function applyAnswers(a){
+  $('#company').value=a.company||''; $('#contact').value=a.contact||''; $('#email').value=a.email||'';
+  selectedProduct=a.product||PRODUCTS[0].id; renderProductOptions();
+  $('#employees').value=a.employees||''; $('#entities').value=a.entities||1;
+  $('#frequency').value=a.frequency||'monthly'; $('#golive').value=a.golive||'';
+  setChk('orc',a.or);
+  const caoR=document.querySelector('input[name=cao][value='+(a.cao?'ja':'nee')+']');
+  if(caoR){ caoR.checked=true; caoR.dispatchEvent(new Event('change')); }
+  $('#caoName').value=a.caoName||'';
+  ['pensioen','arbo','loonheffing','dertiende','variabel','lease','onkosten','expat','edox','epayslip','historie','migratie'].forEach(k=>setChk(k,a[k]));
+  document.querySelectorAll('.choice input[type=checkbox]').forEach(inp=>inp.closest('.choice').classList.toggle('selected',inp.checked));
+  doGenerate();
+}
 
 applyI18n();
 show(0);
