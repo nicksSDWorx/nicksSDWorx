@@ -493,7 +493,8 @@ const T = {
   btn_print:{nl:"🖨️ Afdrukken / opslaan als PDF",en:"🖨️ Print / save as PDF"}, btn_restart:{nl:"↺ Nieuwe journey",en:"↺ New journey"},
   btn_load:{nl:"📁 Antwoorden laden (JSON)",en:"📁 Load answers (JSON)"},
   btn_savejson:{nl:"⬇️ JSON opslaan",en:"⬇️ Save JSON"}, btn_exporthtml:{nl:"🌐 HTML exporteren",en:"🌐 Export HTML"},
-  mode_months:{nl:"Maanden",en:"Months"}, mode_dates:{nl:"Exacte data",en:"Exact dates"},
+  mode_months:{nl:"Timing",en:"Timing"}, mode_dates:{nl:"Exacte data",en:"Exact dates"},
+  t_month:{nl:"Maand",en:"Month"},
   exp_title:{nl:"Customer Journey",en:"Customer Journey"},
   r_title:{nl:"Customer Journey — ",en:"Customer Journey — "}, r_sub:{nl:"HR & Payroll implementatie",en:"HR & Payroll implementation"}, r_attn:{nl:" · t.a.v. ",en:" · attn. "},
   m_employees:{nl:"Werknemers",en:"Employees"}, m_entities:{nl:"Entiteiten",en:"Entities"}, m_phases:{nl:"Fases",en:"Phases"},
@@ -580,8 +581,8 @@ function whenLabel(p){
     const lastDay=new Date(p._end.getTime()-86400000);
     return esc(fmt(p._start))+' – '+esc(fmt(lastDay));
   }
-  const last = addMonths(p._start, p._months-1);
-  return p._months>1 ? esc(monthFmt(p._start))+' – '+esc(monthFmt(last)) : esc(monthFmt(p._start));
+  const w=tr('t_month');   // relatieve timing: "Maand 1" / "Maand 3–4"
+  return p._months>1 ? esc(w+' '+p._mStart+'–'+p._mEnd) : esc(w+' '+p._mStart);
 }
 
 function show(i){
@@ -648,22 +649,22 @@ function renderResult(a){
                                .reduce((s,p)=>s+phaseMonths(p,a),0);
     cursor = new Date(gd.getFullYear(), gd.getMonth()-beforeGolive, 1);   // 1e v/d startmaand
   } else { const n=new Date(); cursor = new Date(n.getFullYear(), n.getMonth(), 1); }
-  phases.forEach(p=>{ const n=phaseMonths(p,a); p._months=n;
+  let mi=1;
+  phases.forEach(p=>{ const n=phaseMonths(p,a); p._months=n; p._mStart=mi; p._mEnd=mi+n-1; mi+=n;
     p._start=new Date(cursor); cursor=addMonths(cursor,n); p._end=new Date(cursor); });
-  const goliveP = phases.find(p=>p.key==='golive') || phases[phases.length-1];
 
   $('#r-badge').textContent = productLabel(a.product);
   $('#r-title').textContent = tr('r_title')+a.company;
   $('#r-sub').textContent = tr('r_sub') + (a.contact ? tr('r_attn')+a.contact : "");
-  const goliveMeta = a.golive ? fmt(new Date(a.golive+"T00:00:00")) : monthFmt(goliveP._start);
   const meta = [
     [tr('m_employees'), a.employees], [tr('m_entities'), a.entities], [tr('m_phases'), phases.length],
-    [tr('m_duration'), totalMonths+" "+tr('m_months')], [tr('m_start'), monthFmt(phases[0]._start)], [tr('m_golive'), goliveMeta],
+    [tr('m_duration'), totalMonths+" "+tr('m_months')],
   ];
+  if(a.golive) meta.push([tr('m_golive'), fmt(new Date(a.golive+"T00:00:00"))]);   // streefdatum go-live
   $('#r-meta').innerHTML = meta.map(m=>`<div><div class="k">${esc(m[0])}</div><div class="v">${esc(m[1])}</div></div>`).join('');
   $('#rail').innerHTML = phases.map((p,i)=>`<div class="node"><div class="dot">${i+1}</div>
       <div class="n-name">${p.icon} ${esc(p.name)}</div>
-      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):esc(monthFmt(p._start))}</div></div>`).join('');
+      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):esc(tr('t_month')+' '+p._mStart)}</div></div>`).join('');
 
   const clientActions=[];
   $('#phases').innerHTML = phases.map((p,i)=>{
