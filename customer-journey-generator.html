@@ -296,7 +296,7 @@
         <button class="act btn-soft" id="saveJson" data-i18n="btn_savejson"></button>
         <button class="act btn-ghost" id="restart" data-i18n="btn_restart"></button>
         <div class="modetoggle" role="group" aria-label="date mode">
-          <button id="mode-weeks" class="on" onclick="setDateMode('weeks')" data-i18n="mode_weeks"></button>
+          <button id="mode-months" class="on" onclick="setDateMode('months')" data-i18n="mode_months"></button>
           <button id="mode-dates" onclick="setDateMode('dates')" data-i18n="mode_dates"></button>
         </div>
       </div>
@@ -353,7 +353,7 @@ const PRODUCT_TIERS = [
 const PHASES = [
   { key:"launch", icon:"🚀", name:"Launch",
     sub:{nl:"SharePoint & kick-off meeting", en:"SharePoint & kick-off meeting"},
-    weeks:1,
+    months:1,
     noneU:{nl:"Geen taken — u neemt alleen deel aan de kick-off", en:"No tasks — you only join the kick-off"},
     tasks:[
       {who:"wij", text:{nl:"Toegang tot de SharePoint-omgeving voorzien", en:"Provide access to the SharePoint environment"}},
@@ -362,7 +362,7 @@ const PHASES = [
 
   { key:"discovery", icon:"🔍", name:"Discovery",
     sub:{nl:"Uitwisselen documentatie voor start setup", en:"Exchanging documentation to start setup"},
-    weeks:2,
+    months:1,
     tasks:[
       {who:"wij", text:{nl:"Ondersteunen bij het samenstellen van de documentatie voor de setup", en:"Support compiling the documentation for the setup"}},
       {who:"wij", when:a=>a.loonheffing, text:a=>a.entities>1
@@ -382,7 +382,7 @@ const PHASES = [
 
   { key:"setup", icon:"⚙️", name:"Setup",
     sub:{nl:"Inrichten data in payroll software", en:"Configuring data in the payroll software"},
-    weeks:2,
+    months:2,
     noneU:{nl:"Geen taken — wij gaan aan de slag met de inrichting", en:"No tasks — we handle the configuration"},
     tasks:[
       {who:"wij", text:a=>a.entities>1
@@ -399,7 +399,7 @@ const PHASES = [
 
   { key:"test", icon:"✅", name:"Test",
     sub:{nl:"Testen van data in payroll software", en:"Testing data in the payroll software"},
-    weeks:1,
+    months:1,
     noneU:{nl:"Geen taken — wij voeren de kwaliteitscontrole uit", en:"No tasks — we run the quality check"},
     tasks:[
       {who:"wij", text:a=>a.entities>1
@@ -410,7 +410,7 @@ const PHASES = [
 
   { key:"golive", icon:"🎉", name:"Go Live",
     sub:{nl:"Verwerken eerste loonberekening", en:"Processing the first payroll run"},
-    weeks:1,
+    months:1,
     tasks:[
       {who:"wij", text:a=>{
         const f = a.frequency==="fourweekly" ? {nl:"vierwekelijkse",en:"four-weekly"} : {nl:"maandelijkse",en:"monthly"};
@@ -425,7 +425,7 @@ const PHASES = [
 
   { key:"aftercare", icon:"🤝", name:"Aftercare",
     sub:{nl:"Nazorg, optimalisatie & overdracht", en:"Aftercare, optimization & handover"},
-    weeks:2,
+    months:2,
     tasks:[
       {who:"wij", text:{nl:"Ondersteuning bij de output-documenten", en:"Supporting the output documents"}},
       {who:"wij", text:{nl:"Mogelijke optimalisatie in kaart brengen", en:"Mapping out possible optimizations"}},
@@ -435,15 +435,17 @@ const PHASES = [
     ]},
 ];
 
-/* ---- PLANNING-REGELS (indicatieve doorlooptijd per fase, in weken) ----
-   Pas de weken hierboven per fase aan, of de opslagfactoren hieronder.      */
-function phaseWeeks(phase, a){
-  let w = phase.weeks;
+/* ---- PLANNING-REGELS (streeftijd per fase, in MAANDEN) ----
+   Basis komt uit het Excel-implementatieplanning-template:
+     Launch 1 · Discovery 1 · Set-up 2 · Test 1 · Go Live 1 · Aftercare 2  (= 8 mnd)
+   Pas de 'months' per fase hierboven aan, of de opslagfactor hieronder.
+   Voor grote/complexe klanten krijgt de Set-up een extra maand.            */
+function phaseMonths(phase, a){
+  let m = phase.months;
   if(phase.key==="setup"){
-    w += a.employees>250 ? 2 : a.employees>50 ? 1 : 0;   // grotere populatie
-    w += Math.min(a.entities-1, 3);                       // extra entiteiten
+    if(a.employees>250 || a.entities>2) m += 1;           // grotere/complexere populatie
   }
-  return w;
+  return m;
 }
 
 /* ---- UI-TEKSTEN (labels, knoppen, kopjes) ---- */
@@ -491,12 +493,11 @@ const T = {
   btn_print:{nl:"🖨️ Afdrukken / opslaan als PDF",en:"🖨️ Print / save as PDF"}, btn_restart:{nl:"↺ Nieuwe journey",en:"↺ New journey"},
   btn_load:{nl:"📁 Antwoorden laden (JSON)",en:"📁 Load answers (JSON)"},
   btn_savejson:{nl:"⬇️ JSON opslaan",en:"⬇️ Save JSON"}, btn_exporthtml:{nl:"🌐 HTML exporteren",en:"🌐 Export HTML"},
-  mode_weeks:{nl:"Weken",en:"Weeks"}, mode_dates:{nl:"Exacte data",en:"Exact dates"},
-  wk_label:{nl:"Week %a–%b · ca. %n wk",en:"Week %a–%b · approx. %n wk"}, wk_one:{nl:"Week %a · ca. %n wk",en:"Week %a · approx. %n wk"},
+  mode_months:{nl:"Maanden",en:"Months"}, mode_dates:{nl:"Exacte data",en:"Exact dates"},
   exp_title:{nl:"Customer Journey",en:"Customer Journey"},
   r_title:{nl:"Customer Journey — ",en:"Customer Journey — "}, r_sub:{nl:"HR & Payroll implementatie",en:"HR & Payroll implementation"}, r_attn:{nl:" · t.a.v. ",en:" · attn. "},
   m_employees:{nl:"Werknemers",en:"Employees"}, m_entities:{nl:"Entiteiten",en:"Entities"}, m_phases:{nl:"Fases",en:"Phases"},
-  m_duration:{nl:"Indicatieve doorlooptijd",en:"Indicative duration"}, m_weeks:{nl:"weken",en:"weeks"},
+  m_duration:{nl:"Indicatieve doorlooptijd",en:"Indicative duration"}, m_months:{nl:"maanden",en:"months"},
   m_start:{nl:"Start",en:"Start"}, m_golive:{nl:"Go-live (1e loonberekening)",en:"Go-live (1st payroll run)"},
   ph_of:{nl:"Fase %n van %t",en:"Phase %n of %t"}, p_indic:{nl:"Indicatief",en:"Indicative"},
   h_wij:{nl:"Wat wij oppakken",en:"What we take care of"}, h_u:{nl:"Wat wij van u vragen",en:"What we ask from you"},
@@ -513,7 +514,7 @@ const T = {
 let LANG = "nl";
 let ANSWERS = null;
 let selectedScope = "lokaal", selectedModel = "bpo", selectedTier = "professional";
-let dateMode = "weeks";   // "weeks" = klantvriendelijke weekranges · "dates" = exacte data
+let dateMode = "months";  // "months" = streefmaanden per fase · "dates" = exacte data
 
 const $ = s => document.querySelector(s);
 const steps = [...document.querySelectorAll('.step')];
@@ -571,13 +572,16 @@ function setLang(l){
   if(ANSWERS && $('#result').style.display==='block') renderResult(ANSWERS);
 }
 function setDateMode(m){
-  dateMode=m; $('#mode-weeks').classList.toggle('on',m==='weeks'); $('#mode-dates').classList.toggle('on',m==='dates');
+  dateMode=m; $('#mode-months').classList.toggle('on',m==='months'); $('#mode-dates').classList.toggle('on',m==='dates');
   if(ANSWERS && $('#result').style.display==='block') renderResult(ANSWERS);
 }
 function whenLabel(p){
-  if(dateMode==='dates') return esc(fmt(p._start))+' – '+esc(fmt(p._end));
-  const key = p._weeks>1 ? 'wk_label' : 'wk_one';
-  return esc(tr(key).replace('%a',p._wkStart).replace('%b',p._wkEnd).replace('%n',p._weeks));
+  if(dateMode==='dates'){
+    const lastDay=new Date(p._end.getTime()-86400000);
+    return esc(fmt(p._start))+' – '+esc(fmt(lastDay));
+  }
+  const last = addMonths(p._start, p._months-1);
+  return p._months>1 ? esc(monthFmt(p._start))+' – '+esc(monthFmt(last)) : esc(monthFmt(p._start));
 }
 
 function show(i){
@@ -604,8 +608,9 @@ document.querySelectorAll('.choice input').forEach(inp=>{
 });
 document.querySelectorAll('.choice input:checked').forEach(i=>i.closest('.choice').classList.add('selected'));
 
-function addWeeks(d,w){ const x=new Date(d); x.setDate(x.getDate()+w*7); return x; }
+function addMonths(d,n){ return new Date(d.getFullYear(), d.getMonth()+n, 1); }   // altijd 1e v/d maand
 function fmt(d){ return d.toLocaleDateString(LANG==='nl'?'nl-NL':'en-GB',{day:'numeric',month:'short',year:'numeric'}); }
+function monthFmt(d){ return d.toLocaleDateString(LANG==='nl'?'nl-NL':'en-GB',{month:'short',year:'numeric'}); }
 
 function collect(){
   return {
@@ -636,28 +641,29 @@ function doGenerate(){ ANSWERS=collect(); renderResult(ANSWERS); $('#intake').st
 function renderResult(a){
   const phases = phasesFor(a).map(p=>({...p}));
   let cursor;
-  const totalWeeks = phases.reduce((s,p)=>s+phaseWeeks(p,a),0);
+  const totalMonths = phases.reduce((s,p)=>s+phaseMonths(p,a),0);
   if(a.golive){
+    const gd = new Date(a.golive+"T00:00:00");
     const beforeGolive = phases.slice(0, phases.findIndex(p=>p.key==='golive'))
-                               .reduce((s,p)=>s+phaseWeeks(p,a),0);
-    cursor = addWeeks(new Date(a.golive+"T00:00:00"), -beforeGolive);
-  } else cursor = new Date();
-  let wk=1;
-  phases.forEach(p=>{ const n=phaseWeeks(p,a); p._weeks=n; p._wkStart=wk; p._wkEnd=wk+n-1; wk+=n;
-    p._start=new Date(cursor); cursor=addWeeks(cursor,n); p._end=new Date(cursor); });
+                               .reduce((s,p)=>s+phaseMonths(p,a),0);
+    cursor = new Date(gd.getFullYear(), gd.getMonth()-beforeGolive, 1);   // 1e v/d startmaand
+  } else { const n=new Date(); cursor = new Date(n.getFullYear(), n.getMonth(), 1); }
+  phases.forEach(p=>{ const n=phaseMonths(p,a); p._months=n;
+    p._start=new Date(cursor); cursor=addMonths(cursor,n); p._end=new Date(cursor); });
   const goliveP = phases.find(p=>p.key==='golive') || phases[phases.length-1];
 
   $('#r-badge').textContent = productLabel(a.product);
   $('#r-title').textContent = tr('r_title')+a.company;
   $('#r-sub').textContent = tr('r_sub') + (a.contact ? tr('r_attn')+a.contact : "");
+  const goliveMeta = a.golive ? fmt(new Date(a.golive+"T00:00:00")) : monthFmt(goliveP._start);
   const meta = [
     [tr('m_employees'), a.employees], [tr('m_entities'), a.entities], [tr('m_phases'), phases.length],
-    [tr('m_duration'), totalWeeks+" "+tr('m_weeks')], [tr('m_start'), fmt(phases[0]._start)], [tr('m_golive'), fmt(goliveP._start)],
+    [tr('m_duration'), totalMonths+" "+tr('m_months')], [tr('m_start'), monthFmt(phases[0]._start)], [tr('m_golive'), goliveMeta],
   ];
   $('#r-meta').innerHTML = meta.map(m=>`<div><div class="k">${esc(m[0])}</div><div class="v">${esc(m[1])}</div></div>`).join('');
   $('#rail').innerHTML = phases.map((p,i)=>`<div class="node"><div class="dot">${i+1}</div>
       <div class="n-name">${p.icon} ${esc(p.name)}</div>
-      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):('Week '+p._wkStart)}</div></div>`).join('');
+      <div class="n-date">${dateMode==='dates'?esc(fmt(p._start)):esc(monthFmt(p._start))}</div></div>`).join('');
 
   const clientActions=[];
   $('#phases').innerHTML = phases.map((p,i)=>{
