@@ -475,7 +475,7 @@
           <div class="sev-row"><span>Ongeldig e-mailadres</span><select id="sevEmail"></select></div>
           <div class="sev-row"><span>Onwaarschijnlijk telefoonnummer</span><select id="sevPhone"></select></div>
           <div class="sev-row"><span>Spaties in IBAN (moet aaneengesloten)</span><select id="sevIbanspaces"></select></div>
-          <div class="sev-row"><span>Spaties in postcode</span><select id="sevSpaces"></select></div>
+          <div class="sev-row"><span>Onjuiste spatiëring in postcode</span><select id="sevSpaces"></select></div>
           <div class="sev-row"><span>Voorletters ≠ voornamen</span><select id="sevInitials"></select></div>
           <div class="sev-row"><span>Onwaarschijnlijk jaarloon BT</span><select id="sevJaarloonbt"></select></div>
           <div class="sev-row"><span>Zelfde waarde bij meerdere medewerkers</span><select id="sevDupfield"></select></div>
@@ -568,19 +568,19 @@ const DEFAULT_SEVERITY={missing:"critical",recommended:"info",bsn:"critical",iba
 const SEV={critical:{label:"Kritiek",dot:"🔴",cls:"crit",rank:0},warning:{label:"Waarschuwing",dot:"🟡",cls:"warn",rank:1},info:{label:"Info",dot:"🔵",cls:"binfo",rank:2}};
 const CATLABEL={missing:"Ontbrekende verplichte velden",recommended:"Aanbevolen velden (niet ingevuld)",bsn:"Ongeldige BSN-nummers (11-proef)",iban:"Ongeldige IBAN-nummers",
   postcode:"Ongeldige postcodes",date:"Datums niet in Europese notatie",duplicate:"Dubbele BSN-nummers",datelogic:"Onlogische datums",
-  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Spaties in postcode",ibanspaces:"Spaties in IBAN (moet aaneengesloten)",initials:"Voorletters komen niet overeen met voornamen",jaarloonbt:"Onwaarschijnlijk jaarloon BT",dupfield:"Zelfde waarde bij meerdere medewerkers",outlier:"Bedrag-uitschieters",rarevalue:"Zeldzame/afwijkende waarden (mogelijke typefout)",header:"Structuur / kolomnamen"};
+  email:"Ongeldige e-mailadressen",phone:"Onwaarschijnlijke telefoonnummers",spaces:"Onjuiste spatiëring in postcode",ibanspaces:"Spaties in IBAN (moet aaneengesloten)",initials:"Voorletters komen niet overeen met voornamen",jaarloonbt:"Onwaarschijnlijk jaarloon BT",dupfield:"Zelfde waarde bij meerdere medewerkers",outlier:"Bedrag-uitschieters",rarevalue:"Zeldzame/afwijkende waarden (mogelijke typefout)",header:"Structuur / kolomnamen"};
 function suggestionFor(type){return {
   missing:"Vul dit verplichte veld in.",
   recommended:"Vul dit veld in indien van toepassing.",
   bsn:"Controleer het BSN: 9 cijfers die voldoen aan de 11-proef.",
   iban:"Controleer het IBAN-formaat, bijv. NL91 ABNA 0417 1643 00.",
   date:"Gebruik de notatie dd-mm-jjjj, bijv. 31-12-2025.",
-  postcode:"Gebruik de notatie 1234AB (zonder spatie).",
+  postcode:"Gebruik de notatie 1234AB of 1234 AB.",
   duplicate:"Controleer of dit een dubbele werknemer is; elk BSN hoort uniek te zijn.",
   datelogic:"Controleer de datums: de einddatum mag niet vóór de begindatum liggen en de geboortedatum moet realistisch zijn.",
   email:"Controleer het e-mailadres, bijv. naam@bedrijf.nl.",
   phone:"Controleer het telefoonnummer (8–15 cijfers, alleen cijfers/spaties/+/-).",
-  spaces:"Noteer de postcode zonder spaties (bijv. 1234AB).",
+  spaces:"Noteer de postcode als 1234AB of 1234 AB (één spatie tussen cijfers en letters is toegestaan).",
   ibanspaces:"Noteer de IBAN aaneengesloten, zonder spaties (bijv. NL91ABNA0417164300).",
   initials:"Zorg dat de voorletters de beginletters van álle voornamen zijn (bijv. 'Johannes Adrianus' = JA).",
   jaarloonbt:"Controleer het jaarloon BT (meestal het jaarloon van vorig jaar); let op dat er geen foutief bedrag is ingevuld.",
@@ -608,7 +608,7 @@ function isEuropeanDate(v){const s=String(v).trim();const m=s.match(/^(\d{1,2})[
 function isValidPostcode(v){return /^[1-9]\d{3}\s?[A-Za-z]{2}$/.test(String(v).trim());}
 // Landafhankelijke postcodenotatie. Onbekend land -> niet controleren; leeg/geen Land-kolom -> Nederland.
 const PC_INFO={
-  NL:{label:"Nederland",hint:"1234AB",re:/^[1-9]\d{3}[A-Za-z]{2}$/},
+  NL:{label:"Nederland",hint:"1234AB of 1234 AB",re:/^[1-9]\d{3}\s?[A-Za-z]{2}$/},
   BE:{label:"België",hint:"4 cijfers, bijv. 1000",re:/^[1-9]\d{3}$/},
   DE:{label:"Duitsland",hint:"5 cijfers, bijv. 10115",re:/^\d{5}$/},
   LU:{label:"Luxemburg",hint:"4 cijfers, bijv. 1009",re:/^(L[-\s]?)?\d{4}$/i}};
@@ -1011,7 +1011,7 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
         if(c.isIban&&!isValidIBAN(sval)){add(p,"iban",c.name,sval,sevOf("iban"),"IBAN ✗","De IBAN '"+sval+"' is ongeldig.");c.invalid++;}
         if(c.isPostcode){const pcKind=postcodeKind(landIdx!==undefined?r.cells[landIdx]:"");
           if(pcKind&&!isValidPostcodeForKind(pcKind,sval)){const pi=PC_INFO[pcKind];
-            if(/\s/.test(sval)&&pi.re.test(sval.replace(/\s+/g,""))){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spaties","De postcode '"+sval+"' mag geen spaties bevatten — alles aaneengesloten (verwacht: "+pi.hint+").");c.invalid++;}
+            if(/\s/.test(sval)&&pi.re.test(sval.replace(/\s+/g,""))){add(p,"spaces",c.name,sval,sevOf("spaces"),c.name+" spatiëring","De postcode '"+sval+"' heeft een onjuiste spatiëring (verwacht: "+pi.hint+").");c.invalid++;}
             else{add(p,"postcode",c.name,sval,sevOf("postcode"),"Postcode ✗","De postcode '"+sval+"' is geen geldige notatie voor "+pi.label+" (verwacht: "+pi.hint+").");c.invalid++;}}}
         if(c.isDate&&!isEuropeanDate(sval)){add(p,"date",c.name,sval,sevOf("date"),c.name+" ✗ datum","De datum '"+sval+"' in '"+c.name+"' staat niet in de Europese notatie (dd-mm-jjjj).");c.invalid++;}
         if(c.isEmail&&!isValidEmail(sval)){add(p,"email",c.name,sval,sevOf("email"),"E-mail ✗","Het e-mailadres '"+sval+"' heeft geen geldige notatie.");c.invalid++;}
