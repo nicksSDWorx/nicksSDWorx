@@ -1045,16 +1045,20 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
       if(exp&&got&&exp!==got){add(p,"initials",vlName,String(vl).trim(),sevOf("initials"),"Voorletters ✗","De voorletters '"+String(vl).trim()+"' komen niet overeen met de voornamen '"+String(vn).trim()+"' (verwacht: "+exp+").");if(vlCol)vlCol.invalid++;}
     }
   }
-  // waarschijnlijkheid jaarloon BT: vergelijk met Stamsalaris × 12,96 (verwacht jaarbedrag); flag bij factor <0,8 of >2,0
+  // waarschijnlijkheid jaarloon BT: vergelijk met Stamsalaris × 12,96 × parttime-fractie (verwacht jaarbedrag); flag bij factor <0,8 of >2,0
   const jbIdx=headerIndex[hkey("JaarloonBT")], ssIdx=headerIndex[hkey("Stamsalaris")];
+  let partIdx; for(const nm of ["PartPerc","PTpercentage","PTperc","Parttimepercentage","Parttime","Deeltijdpercentage","Deeltijdperc","FTE"]){const ix=headerIndex[hkey(nm)]; if(ix!==undefined){partIdx=ix;break;}}
   if(jbIdx!==undefined && ssIdx!==undefined){
     const jbCol=cols.find(c=>c.index===jbIdx), jbName=jbCol?jbCol.name:(headers[jbIdx]||"JaarloonBT");
     const fmt=x=>"€ "+Math.round(x).toLocaleString("nl-NL");
+    // parttime-fractie: waarde >1,5 = percentage (80 → 0,8), anders factor (0,8 → 0,8); leeg/ontbrekend/≤0 = voltijd (1)
+    const fracOf=r=>{if(partIdx===undefined)return 1;const pv=parseAmount(r.cells[partIdx]);if(pv==null||pv<=0)return 1;return pv>1.5?pv/100:pv;};
     for(const p of perRow){ const jb=parseAmount(p.row.cells[jbIdx]), ss=parseAmount(p.row.cells[ssIdx]);
       if(jb==null||ss==null||jb<=0||ss<=0) continue;
-      const verwacht=ss*12.96;
+      const frac=fracOf(p.row), verwacht=ss*12.96*frac;
+      const ptTxt=frac!==1?(" × "+Math.round(frac*100)+"% parttime"):"";
       if(jb<0.8*verwacht||jb>2.0*verwacht){
-        add(p,"jaarloonbt",jbName,String(p.row.cells[jbIdx]).trim(),sevOf("jaarloonbt"),"Jaarloon BT ?","Het jaarloon BT ("+fmt(jb)+") is onwaarschijnlijk ten opzichte van het verwachte jaarbedrag (ongeveer "+fmt(verwacht)+", op basis van Stamsalaris "+fmt(ss)+" × 12,96). Controleer of er geen foutief bedrag is ingevuld.");
+        add(p,"jaarloonbt",jbName,String(p.row.cells[jbIdx]).trim(),sevOf("jaarloonbt"),"Jaarloon BT ?","Het jaarloon BT ("+fmt(jb)+") is onwaarschijnlijk ten opzichte van het verwachte jaarbedrag (ongeveer "+fmt(verwacht)+", op basis van Stamsalaris "+fmt(ss)+" × 12,96"+ptTxt+"). Controleer of er geen foutief bedrag is ingevuld.");
         if(jbCol)jbCol.invalid++;
       }
     }
