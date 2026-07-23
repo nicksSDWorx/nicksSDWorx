@@ -558,7 +558,7 @@ const DEFAULT_REPORT={company:"",contactName:"",contactEmail:"implementations.sm
   greeting:"Beste relatie,",
   intro:"Wij hebben het door u aangeleverde bestand gecontroleerd op volledigheid en juistheid. Hieronder vindt u de velden die nog ontbreken of aangepast moeten worden.",
   outro:"Wij verzoeken u vriendelijk deze gegevens aan te vullen of te corrigeren en het bestand opnieuw aan te leveren. Heeft u vragen, neem dan gerust contact met ons op."};
-const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]},{column:"Trede",whenColumn:"Schaal",filled:true},{column:"NaamPartner",whenColumn:"BurgerlijkeStaat",equals:["2","5"],recommend:true},{column:"NaamSamenstelling",whenColumn:"NaamPartner",filled:true},{column:"TelefoonType1",whenColumn:"Telefoon1",filled:true},{column:"Stamsalaris",whenColumn:"UurLoon1",whenEmpty:true}];
+const DEFAULT_COND=[{column:"DatumUitSalAdmin",whenColumn:"CdBepTd",equals:["B"]},{column:"Trede",whenColumn:"Schaal",filled:true},{column:"NaamPartner",whenColumn:"BurgerlijkeStaat",equals:["2","5"],recommend:true},{column:"NaamSamenstelling",whenColumn:"NaamPartner",filled:true},{column:"TelefoonType1",whenColumn:"Telefoon1",filled:true},{column:"Stamsalaris",whenColumn:"UurLoon1",whenEmpty:true},{column:"Roepnaam",whenColumn:"Voornamen",whenEmpty:true},{column:"Voornamen",whenColumn:"Roepnaam",whenEmpty:true}];
 const DEFAULT_BSN=["BSN"], DEFAULT_IBAN=["IBAN"], DEFAULT_POSTCODE=["Postcode"];
 const DEFAULT_EMAIL=["Email","E-mail","Emailadres","E-mailadres"], DEFAULT_PHONE=["Telefoon","Telefoon1","GSM","Mobiel"];
 const DEFAULT_DATE=["DatumUitSalAdmin","Geboortedatum","DatumInDienst","DatumUitDienst","Begin contract","Eind contract"];
@@ -780,11 +780,18 @@ function loadSettings(){
       s.optional=s.optional.filter(x=>x.toLowerCase()!=="naampartner");
       log("Migratie v20: recommend/whenEmpty-vlaggen hersteld (NaamPartner aanbevolen; Stamsalaris tenzij UurLoon1).");
     }
+    if(ver<21){
+      // Roepnaam en Voornamen wederzijds voorwaardelijk: elk verplicht TENZIJ de ander is gevuld (minstens één van beide).
+      s.conditional=s.conditional.filter(x=>!["roepnaam","voornamen"].includes(x.column.toLowerCase()));
+      s.conditional.push({column:"Roepnaam",whenColumn:"Voornamen",whenEmpty:true,filled:false,equals:[]});
+      s.conditional.push({column:"Voornamen",whenColumn:"Roepnaam",whenEmpty:true,filled:false,equals:[]});
+      log("Migratie v21: Roepnaam/Voornamen — minstens één van beide verplicht.");
+    }
     }catch(me){errl("Migratie mislukt — opgeslagen instellingen deels toegepast:",me.message);}
     log("Instellingen geladen."); return s;
   }catch(e){errl("Instellingen onleesbaar — standaard gebruikt.",e.message);return defaultSettings();}
 }
-const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:20,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
+const persist=debounce(()=>{try{localStorage.setItem(LS_KEY,JSON.stringify({version:21,settings}));log("Instellingen opgeslagen.");}catch(e){errl("Opslaan mislukt:",e.message);}},300);
 function parseList(t){return String(t).split(/[\n,;]+/).map(s=>s.trim()).filter(Boolean).filter((x,i,a)=>a.findIndex(y=>y.toLowerCase()===x.toLowerCase())===i);}
 function parseConditional(t){const out=[];String(t).split(/\n+/).map(l=>l.trim()).filter(Boolean).forEach(line=>{
   let m=line.match(/^(.+?)\s+(verplicht|aanbevolen)\s+tenzij\s+(.+?)\s+is\s+gevuld$/i);
@@ -1088,12 +1095,14 @@ function analyze(sheet,headerRowNumber,opt,sheetName){
   }
 
   // anomalie: zeldzame/afwijkende categoriewaarde die lijkt op een veelgebruikte (mogelijke typefout)
+  const NUMRE=/^[+-]?\d[\d.,]*%?$/; // zuiver numerieke waarde (evt. met %/scheidingstekens)
   for(const c of checkedCols){
     if(c.isBsn||c.isIban||c.isPostcode||c.isDate||c.isPhone||c.isEmail||AMT.test(c.name)) continue;
-    const counts={},rawOf={}; let total=0;
-    for(const p of perRow){const v=String(p.row.cells[c.index]??"").trim();if(!v)continue;const k=v.toLowerCase();counts[k]=(counts[k]||0)+1;if(!rawOf[k])rawOf[k]=v;total++;}
+    const counts={},rawOf={}; let total=0,numeric=0;
+    for(const p of perRow){const v=String(p.row.cells[c.index]??"").trim();if(!v)continue;const k=v.toLowerCase();counts[k]=(counts[k]||0)+1;if(!rawOf[k])rawOf[k]=v;total++;if(NUMRE.test(v.replace(/\s+/g,"")))numeric++;}
     const keys=Object.keys(counts);
     if(total<20||keys.length<2||keys.length>25||keys.length/total>0.6) continue; // categorisch, genoeg data
+    if(numeric/total>=0.8) continue; // numerieke kolom (uren, percentages, aantallen): afstand-gebaseerde typo-detectie is hier niet zinvol
     for(const k of keys){ if(counts[k]!==1) continue;
       let best=null; for(const o of keys){ if(o===k||counts[o]<5||Math.abs(o.length-k.length)>2) continue;
         const maxd=k.length>=5?2:1; const d=levenshtein(k,o); if(d<=maxd&&(!best||counts[o]>counts[best])) best=o; }
