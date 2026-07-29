@@ -48,6 +48,10 @@ De uploadvakken in stap 1 zijn duidelijk gelabeld (Bestand 1 · Systeem, Bestand
 
 De taal van de interface is schakelbaar (NL/EN, rechtsboven).
 
+## Instellingen — looncodes uit/aan
+
+Via de knop **⚙ Instellingen** (rechtsboven) kun je individuele looncodes uit- en weer aanzetten. Uitgeschakelde codes blijven volledig buiten de vergelijking, in alle drie de bestanden. De lijst toont alle looncodes uit de geladen bestanden (met omschrijving), is doorzoekbaar en heeft Alles aan/Alles uit; een code die (nog) niet in de bestanden zit, kun je handmatig uitschakelen. De keuze wordt in de browser onthouden voor volgende reviews (de teller op de knop laat zien hoeveel codes uit staan) en de uitgeschakelde codes worden in het CSV-rapport vermeld.
+
 ## Master loonmodel bijwerken
 
 De lijst met geldige looncodes (bron: [`Master_loonmodel_2026.csv`](Master_loonmodel_2026.csv)) is in het HTML-bestand ingebouwd in de regel die begint met `var MASTER_CODES_RAW = "1000 1001 …"`. Voor een nieuw loonmodeljaar: vervang die reeks door de nieuwe codes (spatiegescheiden).
