@@ -409,7 +409,10 @@ function aggregateRecords(records, useQty, useAmt) {
   return agg;
 }
 function round2(n) { return Math.round(n * 100) / 100; }
-/* core comparison; opts: {tolQty, tolAmt, cmpQty, cmpAmt, ignoreMissing} */
+/* core comparison; opts: {tolQty, tolAmt, cmpQty, cmpAmt, ignoreMissing, codeDim}
+   codeDim (optional): map code -> 'qty' | 'amt'. When present, each code is checked
+   on that one dimension only (file 1 wins over file 2); the other dimension is
+   neither compared nor shown for that code. */
 function compareData(sysAgg, custAgg, opts) {
   var tolQty = opts.tolQty, tolAmt = opts.tolAmt, cmpQty = opts.cmpQty, cmpAmt = opts.cmpAmt;
   var ignoreMissing = !!opts.ignoreMissing;
@@ -428,12 +431,15 @@ function compareData(sysAgg, custAgg, opts) {
       dQty: null, dAmt: null, status: "ok", issue: false,
       inMaster: !!MASTER_SET[base.code]
     };
+    var dim = opts.codeDim ? opts.codeDim[base.code] : undefined;
+    if (opts.codeDim && dim === "qty") { line.sysAmt = null; line.custAmt = null; }
+    else if (opts.codeDim && dim === "amt") { line.sysQty = null; line.custQty = null; }
     if (!s) line.status = "onlyCust";
     else if (!c) line.status = "onlySys";
     else {
       var bad = false;
-      if (cmpQty) { line.dQty = round2((c.qty || 0) - (s.qty || 0)); if (Math.abs(line.dQty) > tolQty + 1e-9) bad = true; }
-      if (cmpAmt) { line.dAmt = round2((c.amt || 0) - (s.amt || 0)); if (Math.abs(line.dAmt) > tolAmt + 1e-9) bad = true; }
+      if (cmpQty && (!opts.codeDim || dim === "qty")) { line.dQty = round2((c.qty || 0) - (s.qty || 0)); if (Math.abs(line.dQty) > tolQty + 1e-9) bad = true; }
+      if (cmpAmt && (!opts.codeDim || dim === "amt")) { line.dAmt = round2((c.amt || 0) - (s.amt || 0)); if (Math.abs(line.dAmt) > tolAmt + 1e-9) bad = true; }
       line.status = bad ? "diff" : "ok";
     }
     line.issue = line.status === "diff" || (!ignoreMissing && (line.status === "onlySys" || line.status === "onlyCust"));
@@ -443,14 +449,14 @@ function compareData(sysAgg, custAgg, opts) {
   var codeMap = {};
   lines.forEach(function(l) {
     var g = codeMap[l.code];
-    if (!g) g = codeMap[l.code] = { code: l.code, desc: "", inMaster: l.inMaster, lines: [], sysQty: 0, sysAmt: 0, custQty: 0, custAmt: 0, sysN: 0, custN: 0, issues: 0 };
+    if (!g) g = codeMap[l.code] = { code: l.code, desc: "", inMaster: l.inMaster, lines: [], sysQty: null, sysAmt: null, custQty: null, custAmt: null, sysN: 0, custN: 0, issues: 0 };
     if (!g.desc && l.desc) g.desc = l.desc;
     g.lines.push(l);
     if (l.issue) g.issues++;
-    if (l.sysQty !== null) g.sysQty += l.sysQty;
-    if (l.sysAmt !== null) g.sysAmt += l.sysAmt;
-    if (l.custQty !== null) g.custQty += l.custQty;
-    if (l.custAmt !== null) g.custAmt += l.custAmt;
+    if (l.sysQty !== null) g.sysQty = (g.sysQty || 0) + l.sysQty;
+    if (l.sysAmt !== null) g.sysAmt = (g.sysAmt || 0) + l.sysAmt;
+    if (l.custQty !== null) g.custQty = (g.custQty || 0) + l.custQty;
+    if (l.custAmt !== null) g.custAmt = (g.custAmt || 0) + l.custAmt;
     if (l.status !== "onlyCust") g.sysN++;
     if (l.status !== "onlySys") g.custN++;
   });
@@ -460,8 +466,8 @@ function compareData(sysAgg, custAgg, opts) {
     return a < b ? -1 : 1;
   }).map(function(cd) {
     var g = codeMap[cd];
-    g.dQty = cmpQty ? round2(g.custQty - g.sysQty) : null;
-    g.dAmt = cmpAmt ? round2(g.custAmt - g.sysAmt) : null;
+    g.dQty = cmpQty && g.sysQty !== null && g.custQty !== null ? round2(g.custQty - g.sysQty) : null;
+    g.dAmt = cmpAmt && g.sysAmt !== null && g.custAmt !== null ? round2(g.custAmt - g.sysAmt) : null;
     if (g.sysN === 0) g.status = "onlyCust";
     else if (g.custN === 0) g.status = "onlySys";
     else g.status = g.lines.some(function(l){ return l.status !== "ok"; }) ? "diff" : "ok";
@@ -511,6 +517,7 @@ var I18N = {
     s2Title: "Kolomtoewijzing",
     s2Hint: "Controleer per bestand welke kolom de werknemer, looncode en waarden bevat. De tool doet een voorstel op basis van de kolomkoppen.",
     qtyHint: "Kies de kolommen met aantallen, uren en dagen — per regel worden de waarden uit deze kolommen opgeteld tot één aantal.",
+    amtHint: "Bestand 1 gaat voor: looncodes die in bestand 1 voorkomen, worden alleen op aantallen gecontroleerd. Dit bestand telt alleen voor de overige looncodes (controle op bedrag).",
     sheet: "Werkblad", hasHeader: "Eerste rij is kolomkop",
     colEmp: "Werknemer", colCode: "Looncode", colQty: "Aantal (uren/dagen)", colAmt: "Bedrag (€)",
     colAantal: "Kolom: aantal", colUren: "Kolom: uren", colDagen: "Kolom: dagen",
@@ -565,6 +572,7 @@ var I18N = {
     s2Title: "Column mapping",
     s2Hint: "For each file, check which column holds the employee, wagecode and values. The tool suggests a mapping based on the column headers.",
     qtyHint: "Select the columns holding quantities, hours and days — per row, the values from these columns are added up into one quantity.",
+    amtHint: "File 1 takes priority: wagecodes present in file 1 are checked on quantities only. This file only counts for the remaining wagecodes (checked on amount).",
     sheet: "Worksheet", hasHeader: "First row is a header",
     colEmp: "Employee", colCode: "Wagecode", colQty: "Quantity (hours/days)", colAmt: "Amount (€)",
     colAantal: "Column: quantity", colUren: "Column: hours", colDagen: "Column: days",
@@ -607,7 +615,7 @@ var I18N = {
 var SIDES = {
   sysQty: { titleKey: "sysQtyFile", tagKey: "tagSys1", hintKey: "qtyHint", cardClass: "",
             roles: [["emp","colEmp",true],["code","colCode",false],["qtyA","colAantal",true],["qtyU","colUren",true],["qtyD","colDagen",true]] },
-  sysAmt: { titleKey: "sysAmtFile", tagKey: "tagSys2", hintKey: null, cardClass: "",
+  sysAmt: { titleKey: "sysAmtFile", tagKey: "tagSys2", hintKey: "amtHint", cardClass: "",
             roles: [["emp","colEmp",true],["code","colCode",false],["amt","colAmt",false]] },
   cust:   { titleKey: "custFile", tagKey: "tagCust", hintKey: null, cardClass: "custCard",
             roles: [["emp","colEmp",true],["code","colCode",false],["qty","colQty",true],["amt","colAmt",true]] }
@@ -812,10 +820,20 @@ function runCompare(noScroll) {
     ignoreMissing: document.getElementById("ignoreMissing").checked
   };
   var sysRecords = [];
-  if (opts.cmpQty) sysRecords = sysRecords.concat(extractRecords(
-    fq.sheets[fq.sheetIdx].rows, { emp: fq.map.emp, code: fq.map.code, qtyCols: qtyCols(fq), amtCols: [] }, fq.hasHeader));
-  if (opts.cmpAmt) sysRecords = sysRecords.concat(extractRecords(
-    fa.sheets[fa.sheetIdx].rows, { emp: fa.map.emp, code: fa.map.code, qtyCols: [], amtCols: [fa.map.amt] }, fa.hasHeader));
+  var qtyRecs = opts.cmpQty ? extractRecords(
+    fq.sheets[fq.sheetIdx].rows, { emp: fq.map.emp, code: fq.map.code, qtyCols: qtyCols(fq), amtCols: [] }, fq.hasHeader) : [];
+  var amtRecs = opts.cmpAmt ? extractRecords(
+    fa.sheets[fa.sheetIdx].rows, { emp: fa.map.emp, code: fa.map.code, qtyCols: [], amtCols: [fa.map.amt] }, fa.hasHeader) : [];
+  if (opts.cmpQty && opts.cmpAmt) {
+    // file 1 wins per wagecode: codes present there are checked on quantities only;
+    // file 2 only counts for the remaining codes
+    var codeDim = {};
+    qtyRecs.forEach(function(r){ codeDim[r.code] = "qty"; });
+    amtRecs = amtRecs.filter(function(r){ return codeDim[r.code] !== "qty"; });
+    amtRecs.forEach(function(r){ codeDim[r.code] = "amt"; });
+    opts.codeDim = codeDim;
+  }
+  sysRecords = qtyRecs.concat(amtRecs);
   var custRecords = extractRecords(fc.sheets[fc.sheetIdx].rows, {
     emp: fc.map.emp, code: fc.map.code,
     qtyCols: opts.cmpQty && fc.map.qty >= 0 ? [fc.map.qty] : [],
@@ -933,8 +951,8 @@ function renderResults() {
       html += "<td><span class='expander'>" + (exp ? "▾" : "▸") + "</span></td>";
       html += "<td><strong>" + esc(g.code) + "</strong>" + descSpan(g.desc) + "</td>";
       if (r.empCompared) html += "<td class='num'>" + g.lines.length + "</td>";
-      if (o.cmpQty) html += "<td class='num'>" + fmt(g.sysN ? g.sysQty : null) + "</td><td class='num'>" + fmt(g.custN ? g.custQty : null) + "</td>" + deltaCell(g.dQty, o.tolQty);
-      if (o.cmpAmt) html += "<td class='num'>" + fmt(g.sysN ? g.sysAmt : null) + "</td><td class='num'>" + fmt(g.custN ? g.custAmt : null) + "</td>" + deltaCell(g.dAmt, o.tolAmt);
+      if (o.cmpQty) html += "<td class='num'>" + fmt(g.sysQty) + "</td><td class='num'>" + fmt(g.custQty) + "</td>" + deltaCell(g.dQty, o.tolQty);
+      if (o.cmpAmt) html += "<td class='num'>" + fmt(g.sysAmt) + "</td><td class='num'>" + fmt(g.custAmt) + "</td>" + deltaCell(g.dAmt, o.tolAmt);
       html += "<td>" + statusBadge(g.status, g.inMaster, ignored) + "</td></tr>";
       if (exp) {
         g.lines.filter(function(l){ return !q || matchesSearch(l, q); }).forEach(function(l) {
@@ -1013,8 +1031,8 @@ function exportCSV() {
   L.push(head);
   r.codes.forEach(function(g) {
     var row = [t("rptLevelCode"), g.code, g.desc || "", ""];
-    if (o.cmpQty) row = row.concat([csvNum(g.sysN ? g.sysQty : null), csvNum(g.custN ? g.custQty : null), csvNum(g.dQty)]);
-    if (o.cmpAmt) row = row.concat([csvNum(g.sysN ? g.sysAmt : null), csvNum(g.custN ? g.custAmt : null), csvNum(g.dAmt)]);
+    if (o.cmpQty) row = row.concat([csvNum(g.sysQty), csvNum(g.custQty), csvNum(g.dQty)]);
+    if (o.cmpAmt) row = row.concat([csvNum(g.sysAmt), csvNum(g.custAmt), csvNum(g.dAmt)]);
     row.push(t("st" + g.status.charAt(0).toUpperCase() + g.status.slice(1)) +
       (o.ignoreMissing && (g.status === "onlySys" || g.status === "onlyCust") ? t("ignoredSuffix") : ""));
     row.push(g.inMaster ? "" : "X");

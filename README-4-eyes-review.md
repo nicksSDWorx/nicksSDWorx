@@ -16,6 +16,8 @@ De tool vergelijkt het overzicht uit het payrollsysteem met de input van de klan
 
 De uploadvakken in stap 1 zijn duidelijk gelabeld (Bestand 1 · Systeem, Bestand 2 · Systeem, Bestand 3 · Klant). Alle formaten: `.xlsx`, `.xls`, `.csv`, `.txt`. Je kunt ook met slechts één van de twee systeembestanden vergelijken (dan wordt alleen die dimensie vergeleken).
 
+**Bestand 1 gaat voor.** Per looncode geldt één controle: staat de looncode in bestand 1, dan wordt alleen het aantal gecontroleerd en telt bestand 2 voor die code niet mee. Staat de looncode niet in bestand 1, dan wordt het bedrag uit bestand 2 gecontroleerd. In het resultaat zie je per looncode dus óf de aantal-kolommen óf de bedrag-kolommen gevuld.
+
 ## Werkwijze
 
 1. **Dossier & bestanden** — vul klant en periode in, laad de bestanden. Toleranties zijn instelbaar (standaard: bedrag ± € 0,05, aantal ± 0,01) zodat afrondingsverschillen niet als fout worden gemeld.
