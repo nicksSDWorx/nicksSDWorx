@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overdracht — Payroll Serviceteam</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sdw-blue: #006dd8;
+    --sdw-white: #ffffff;
+    --sdw-black: #000000;
+    --sdw-yellow: #ffbe00;
+    --icy-blue: #d9f1ff;
+    --cool-sky: #9ed2ff;
+    --brilliant-azure: #38a1ff;
+    --deep-navy: #001c52;
+    --persian-blue: #000d3a;
+    --radius: 8px;
+    --radius-sm: 4px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    color: var(--sdw-black);
+    background: var(--sdw-white);
+  }
+  header {
+    background: linear-gradient(135deg, var(--sdw-blue) 0%, var(--deep-navy) 100%);
+    color: var(--sdw-white);
+    padding: 40px 32px;
+  }
+  .header-inner, main { max-width: 1120px; margin: 0 auto; }
+  header .wordmark {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  header h1 { font-size: 32px; font-weight: 700; line-height: 1.2; }
+  header p.sub { font-size: 16px; margin-top: 8px; max-width: 640px; }
+  main { padding: 32px; }
+
+  .card {
+    background: var(--sdw-white);
+    border: 1px solid var(--sdw-black);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .card h2 { font-size: 24px; font-weight: 700; color: var(--sdw-blue); margin-bottom: 16px; line-height: 1.2; }
+
+  /* Teambestand-balk */
+  #fileBar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  #fileStatus { font-size: 13px; }
+  #fileStatus strong { color: var(--sdw-blue); }
+
+  /* Formulier */
+  form .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--sdw-black);
+    background: var(--sdw-white);
+    border: 1px solid var(--sdw-black);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+  }
+  textarea { min-height: 72px; resize: vertical; }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--sdw-blue);
+    outline-offset: 1px;
+  }
+  .form-actions { display: flex; gap: 12px; align-items: center; }
+
+  button {
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: var(--radius);
+    padding: 10px 20px;
+    cursor: pointer;
+    border: 1px solid var(--sdw-black);
+    background: var(--sdw-white);
+    color: var(--sdw-black);
+  }
+  button.primary { background: var(--sdw-blue); border-color: var(--sdw-blue); color: var(--sdw-white); }
+  button.small { font-size: 13px; padding: 6px 12px; }
+  button:hover { opacity: 0.85; }
+
+  /* Filterchips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .chip {
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid var(--sdw-black);
+    border-radius: var(--radius-sm);
+    background: var(--sdw-white);
+    color: var(--sdw-black);
+    padding: 6px 12px;
+    cursor: pointer;
+  }
+  .chip.active { background: var(--sdw-blue); border-color: var(--sdw-blue); color: var(--sdw-white); }
+  #zoek { max-width: 320px; margin-bottom: 16px; }
+
+  /* Tabel */
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    color: var(--sdw-blue);
+    border-bottom: 1px solid var(--sdw-black);
+    padding: 8px 12px 8px 0;
+    white-space: nowrap;
+  }
+  td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--icy-blue); vertical-align: top; font-size: 16px; }
+  td.notitie { white-space: pre-wrap; min-width: 240px; }
+  td .rij-acties { display: flex; gap: 8px; }
+  tr:last-child td { border-bottom: none; }
+
+  .pill {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    padding: 2px 10px;
+    white-space: nowrap;
+  }
+  .pill.s-open       { background: var(--icy-blue); color: var(--sdw-black); }
+  .pill.s-overgedragen { background: var(--cool-sky); color: var(--sdw-black); }
+  .pill.s-actie      { background: var(--sdw-yellow); color: var(--sdw-black); }
+  .pill.s-wachten    { background: var(--brilliant-azure); color: var(--sdw-black); }
+  .pill.s-voltooid   { background: var(--deep-navy); color: var(--sdw-white); }
+
+  td select.status-select { font-size: 13px; padding: 4px 8px; width: auto; margin-top: 4px; }
+
+  .leeg { padding: 24px 0; color: var(--sdw-black); }
+  .leeg strong { color: var(--sdw-blue); }
+
+  footer { max-width: 1120px; margin: 0 auto; padding: 0 32px 32px; font-size: 13px; }
+  @media (max-width: 720px) {
+    header, main { padding: 24px 16px; }
+    table, thead, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr { border-bottom: 1px solid var(--sdw-black); padding: 12px 0; }
+    td { border: none; padding: 4px 0; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="wordmark">SD Worx · Payroll Serviceteam</div>
+    <h1>Overdrachtstool</h1>
+    <p class="sub">Eén gedeelde lijst voor lopende cases, zodat elke dienst weet wat er speelt. Aanvulling op het casesysteem — geen vervanging.</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="card" id="fileCard">
+    <h2>Teambestand</h2>
+    <div id="fileBar">
+      <button class="primary small" id="btnKoppel">Teambestand koppelen</button>
+      <button class="small" id="btnNieuw">Nieuw teambestand maken</button>
+      <button class="small" id="btnVernieuw" hidden>Vernieuwen</button>
+      <button class="small" id="btnExport">Exporteren (JSON)</button>
+      <button class="small" id="btnImport">Importeren (JSON)</button>
+      <input type="file" id="importInput" accept=".json,application/json" hidden>
+      <span id="fileStatus">Niet gekoppeld — wijzigingen worden alleen lokaal in deze browser bewaard.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="formTitel">Nieuwe overdracht</h2>
+    <form id="caseForm">
+      <input type="hidden" id="editId">
+      <div class="grid">
+        <div>
+          <label for="datum">Datum</label>
+          <input type="date" id="datum" required>
+        </div>
+        <div>
+          <label for="casenummer">Casenummer</label>
+          <input type="text" id="casenummer" required placeholder="bijv. C-2026-0142">
+        </div>
+        <div>
+          <label for="behandelaar">Naam behandelaar</label>
+          <input type="text" id="behandelaar" required placeholder="bijv. Nick Schepel">
+        </div>
+        <div>
+          <label for="status">Status</label>
+          <select id="status"></select>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label for="notitie">Notitie</label>
+        <textarea id="notitie" placeholder="Wat is de stand van zaken? Wat moet de volgende collega weten of doen?"></textarea>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="primary" id="btnOpslaan">Toevoegen</button>
+        <button type="button" id="btnAnnuleer" hidden>Annuleren</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Openstaande overdrachten</h2>
+    <div class="chips" id="chips"></div>
+    <input type="search" id="zoek" placeholder="Zoek op casenummer, behandelaar of notitie">
+    <div id="lijst"></div>
+  </div>
+
+</main>
+
+<footer>
+  Zet het teambestand op de gedeelde teamschijf of in de Teams-map en koppel het bij het openen van deze tool. Klik op <strong style="color:var(--sdw-blue)">Vernieuwen</strong> voordat je gaat bewerken, zodat je de laatste versie van je collega ziet.
+</footer>
+
+<script>
+const STATUSSEN = [
+  { key: 'open',         label: 'Staat open' },
+  { key: 'overgedragen', label: 'Overgedragen' },
+  { key: 'actie',        label: 'Actie ondernemen' },
+  { key: 'wachten',      label: 'Wachten op reactie van de klant' },
+  { key: 'voltooid',     label: 'Voltooid' },
+];
+const LS_KEY = 'sdworx-overdracht-v1';
+const BESTANDSNAAM = 'overdracht-teambestand.json';
+
+let entries = [];      // {id, datum, casenummer, behandelaar, notitie, status, updatedAt, deletedAt?}
+let fileHandle = null;
+let filter = 'alles';
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------- opslag: localStorage als lokale kopie ---------- */
+function loadLocal() {
+  try { entries = JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { entries = []; }
+}
+function saveLocal() {
+  localStorage.setItem(LS_KEY, JSON.stringify(entries));
+}
+
+/* ---------- opslag: gedeeld teambestand ---------- */
+const heeftFSApi = 'showOpenFilePicker' in window;
+
+// Twee collega's kunnen elkaar kruisen; daarom wordt het bestand vóór elke
+// schrijfactie opnieuw gelezen en per case samengevoegd op updatedAt.
+function merge(remote) {
+  const map = new Map(remote.map(e => [e.id, e]));
+  for (const e of entries) {
+    const r = map.get(e.id);
+    if (!r || (e.updatedAt || '') > (r.updatedAt || '')) map.set(e.id, e);
+  }
+  entries = [...map.values()];
+}
+
+async function leesBestand() {
+  if (!fileHandle) return;
+  const file = await fileHandle.getFile();
+  const text = await file.text();
+  let remote = [];
+  if (text.trim()) {
+    const parsed = JSON.parse(text);
+    remote = Array.isArray(parsed) ? parsed : (parsed.entries || []);
+  }
+  merge(remote);
+  saveLocal();
+}
+
+async function schrijfBestand() {
+  if (!fileHandle) return;
+  try { await leesBestand(); } catch { /* leeg of nieuw bestand */ }
+  const writable = await fileHandle.createWritable();
+  await writable.write(JSON.stringify({ versie: 1, bijgewerkt: new Date().toISOString(), entries }, null, 2));
+  await writable.close();
+  toonBestandStatus('Opgeslagen om ' + new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }));
+}
+
+function toonBestandStatus(extra) {
+  const el = $('fileStatus');
+  if (fileHandle) {
+    el.innerHTML = 'Gekoppeld aan <strong>' + fileHandle.name + '</strong>' + (extra ? ' · ' + extra : '');
+    $('btnVernieuw').hidden = false;
+  } else {
+    el.textContent = 'Niet gekoppeld — wijzigingen worden alleen lokaal in deze browser bewaard.';
+    $('btnVernieuw').hidden = true;
+  }
+}
+
+/* Bestandskoppeling onthouden tussen sessies (IndexedDB) */
+function idb() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('sdworx-overdracht', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function bewaarHandle(h) {
+  const db = await idb();
+  db.transaction('handles', 'readwrite').objectStore('handles').put(h, 'teambestand');
+}
+async function laadHandle() {
+  try {
+    const db = await idb();
+    return await new Promise((res) => {
+      const req = db.transaction('handles').objectStore('handles').get('teambestand');
+      req.onsuccess = () => res(req.result || null);
+      req.onerror = () => res(null);
+    });
+  } catch { return null; }
+}
+
+async function koppel(handle) {
+  const perm = await handle.requestPermission({ mode: 'readwrite' });
+  if (perm !== 'granted') return;
+  fileHandle = handle;
+  await bewaarHandle(handle);
+  try { await leesBestand(); } catch (e) { alert('Kon het bestand niet lezen: ' + e.message); }
+  toonBestandStatus();
+  render();
+}
+
+let pendingHandle = null; // eerder gekoppeld bestand dat opnieuw toestemming nodig heeft
+
+$('btnKoppel').addEventListener('click', async () => {
+  if (!heeftFSApi) {
+    alert('Deze browser ondersteunt geen directe bestandskoppeling. Gebruik Exporteren/Importeren, of open de tool in Edge of Chrome.');
+    return;
+  }
+  if (pendingHandle) {
+    const h = pendingHandle;
+    pendingHandle = null;
+    try { await koppel(h); return; } catch { /* val terug op kiezer */ }
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'Teambestand', accept: { 'application/json': ['.json'] } }],
+    });
+    await koppel(handle);
+  } catch { /* geannuleerd */ }
+});
+
+$('btnNieuw').addEventListener('click', async () => {
+  if (!heeftFSApi) {
+    alert('Deze browser ondersteunt geen directe bestandskoppeling. Gebruik Exporteren/Importeren, of open de tool in Edge of Chrome.');
+    return;
+  }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: BESTANDSNAAM,
+      types: [{ description: 'Teambestand', accept: { 'application/json': ['.json'] } }],
+    });
+    fileHandle = handle;
+    await bewaarHandle(handle);
+    await schrijfBestand();
+    toonBestandStatus();
+  } catch { /* geannuleerd */ }
+});
+
+$('btnVernieuw').addEventListener('click', async () => {
+  try {
+    await leesBestand();
+    toonBestandStatus('Vernieuwd om ' + new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }));
+    render();
+  } catch (e) { alert('Vernieuwen mislukt: ' + e.message); }
+});
+
+/* Fallback: exporteren en importeren */
+$('btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify({ versie: 1, bijgewerkt: new Date().toISOString(), entries }, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = BESTANDSNAAM;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+$('btnImport').addEventListener('click', () => $('importInput').click());
+$('importInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    merge(Array.isArray(parsed) ? parsed : (parsed.entries || []));
+    saveLocal();
+    render();
+  } catch (err) { alert('Importeren mislukt: ' + err.message); }
+  e.target.value = '';
+});
+
+/* ---------- formulier ---------- */
+function vulStatusSelect(sel, waarde) {
+  sel.innerHTML = STATUSSEN.map(s => '<option value="' + s.key + '"' + (s.key === waarde ? ' selected' : '') + '>' + s.label + '</option>').join('');
+}
+vulStatusSelect($('status'), 'open');
+$('datum').value = new Date().toISOString().slice(0, 10);
+
+async function bewaarEnRender() {
+  saveLocal();
+  render();
+  if (fileHandle) {
+    try { await schrijfBestand(); render(); }
+    catch (e) { toonBestandStatus('Opslaan in teambestand mislukt — gebruik Exporteren'); }
+  }
+}
+
+$('caseForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = $('editId').value;
+  const data = {
+    datum: $('datum').value,
+    casenummer: $('casenummer').value.trim(),
+    behandelaar: $('behandelaar').value.trim(),
+    notitie: $('notitie').value.trim(),
+    status: $('status').value,
+    updatedAt: new Date().toISOString(),
+  };
+  if (id) {
+    const entry = entries.find(x => x.id === id);
+    if (entry) Object.assign(entry, data);
+  } else {
+    entries.push({ id: crypto.randomUUID(), ...data });
+  }
+  resetForm();
+  await bewaarEnRender();
+});
+
+function resetForm() {
+  $('caseForm').reset();
+  $('editId').value = '';
+  $('datum').value = new Date().toISOString().slice(0, 10);
+  vulStatusSelect($('status'), 'open');
+  $('formTitel').textContent = 'Nieuwe overdracht';
+  $('btnOpslaan').textContent = 'Toevoegen';
+  $('btnAnnuleer').hidden = true;
+}
+$('btnAnnuleer').addEventListener('click', resetForm);
+
+function bewerk(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  $('editId').value = e.id;
+  $('datum').value = e.datum;
+  $('casenummer').value = e.casenummer;
+  $('behandelaar').value = e.behandelaar;
+  $('notitie').value = e.notitie;
+  vulStatusSelect($('status'), e.status);
+  $('formTitel').textContent = 'Overdracht bewerken — ' + e.casenummer;
+  $('btnOpslaan').textContent = 'Opslaan';
+  $('btnAnnuleer').hidden = false;
+  $('caseForm').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function verwijder(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  if (!confirm('Overdracht voor case ' + e.casenummer + ' verwijderen?')) return;
+  e.deletedAt = new Date().toISOString();
+  e.updatedAt = e.deletedAt;
+  await bewaarEnRender();
+}
+
+async function wijzigStatus(id, status) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  e.status = status;
+  e.updatedAt = new Date().toISOString();
+  await bewaarEnRender();
+}
+
+/* ---------- lijst ---------- */
+$('zoek').addEventListener('input', render);
+
+function render() {
+  const zichtbaar = entries.filter(e => !e.deletedAt);
+  const chips = [{ key: 'alles', label: 'Alles' }, ...STATUSSEN];
+  $('chips').innerHTML = chips.map(c => {
+    const n = c.key === 'alles' ? zichtbaar.length : zichtbaar.filter(e => e.status === c.key).length;
+    return '<button type="button" class="chip' + (filter === c.key ? ' active' : '') + '" data-f="' + c.key + '">' + c.label + ' (' + n + ')</button>';
+  }).join('');
+  $('chips').querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { filter = b.dataset.f; render(); }));
+
+  const q = $('zoek').value.trim().toLowerCase();
+  let lijst = zichtbaar
+    .filter(e => filter === 'alles' || e.status === filter)
+    .filter(e => !q || [e.casenummer, e.behandelaar, e.notitie].join(' ').toLowerCase().includes(q))
+    .sort((a, b) => (b.datum + b.updatedAt).localeCompare(a.datum + a.updatedAt));
+
+  if (!lijst.length) {
+    $('lijst').innerHTML = '<p class="leeg">Geen overdrachten' + (q || filter !== 'alles' ? ' binnen dit filter' : '') +
+      '. Voeg er een toe via <strong>Nieuwe overdracht</strong>.</p>';
+    return;
+  }
+
+  $('lijst').innerHTML =
+    '<table><thead><tr><th>Datum</th><th>Casenummer</th><th>Behandelaar</th><th>Notitie</th><th>Status</th><th></th></tr></thead><tbody>' +
+    lijst.map(e => {
+      const s = STATUSSEN.find(x => x.key === e.status) || STATUSSEN[0];
+      return '<tr>' +
+        '<td>' + formatDatum(e.datum) + '</td>' +
+        '<td><strong>' + esc(e.casenummer) + '</strong></td>' +
+        '<td>' + esc(e.behandelaar) + '</td>' +
+        '<td class="notitie">' + esc(e.notitie) + '</td>' +
+        '<td><span class="pill s-' + s.key + '">' + s.label + '</span><br>' +
+        '<select class="status-select" data-id="' + e.id + '">' +
+        STATUSSEN.map(x => '<option value="' + x.key + '"' + (x.key === e.status ? ' selected' : '') + '>' + x.label + '</option>').join('') +
+        '</select></td>' +
+        '<td><div class="rij-acties">' +
+        '<button type="button" class="small" data-bewerk="' + e.id + '">Bewerk</button>' +
+        '<button type="button" class="small" data-verwijder="' + e.id + '">Verwijder</button>' +
+        '</div></td></tr>';
+    }).join('') + '</tbody></table>';
+
+  $('lijst').querySelectorAll('.status-select').forEach(sel =>
+    sel.addEventListener('change', () => wijzigStatus(sel.dataset.id, sel.value)));
+  $('lijst').querySelectorAll('[data-bewerk]').forEach(b =>
+    b.addEventListener('click', () => bewerk(b.dataset.bewerk)));
+  $('lijst').querySelectorAll('[data-verwijder]').forEach(b =>
+    b.addEventListener('click', () => verwijder(b.dataset.verwijder)));
+}
+
+function formatDatum(iso) {
+  if (!iso) return '';
+  const [j, m, d] = iso.split('-');
+  return d + '-' + m + '-' + j;
+}
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------- start ---------- */
+(async function init() {
+  loadLocal();
+  render();
+  const handle = await laadHandle();
+  if (handle) {
+    // Browser vraagt pas om toestemming na een klik; toon dat de koppeling klaarstaat.
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      fileHandle = handle;
+      try { await leesBestand(); } catch { }
+      toonBestandStatus();
+      render();
+    } else {
+      pendingHandle = handle;
+      $('fileStatus').innerHTML = 'Eerder gekoppeld aan <strong>' + handle.name + '</strong> — klik op <strong>Teambestand koppelen</strong> om opnieuw te verbinden.';
+    }
+  }
+})();
+</script>
+</body>
+</html>
