@@ -247,12 +247,21 @@ var MASTER_CODES_RAW = "1000 1001 1002 1003 1004 1005 1006 1007 1009 1010 1012 1
 var MASTER_SET = (function(){ var s = {}; MASTER_CODES_RAW.split(" ").forEach(function(c){ if(c) s[c] = true; }); return s; })();
 
 /* ================= pure helpers (no DOM) ================= */
-function normCode(v) {
-  if (v === null || v === undefined) return "";
+/* split a code cell into the numeric code and an optional description,
+   e.g. "1000 Salaris", "1000 - Salaris" -> {code:"1000", desc:"Salaris"} */
+function splitCode(v) {
+  if (v === null || v === undefined) return { code: "", desc: "" };
   var s = String(v).trim();
-  if (/^\d+([.,]0+)?$/.test(s)) s = s.replace(/[.,]0+$/, "").replace(/^0+(?=\d)/, "");
-  return s;
+  if (/^\d+([.,]0+)?$/.test(s))
+    return { code: s.replace(/[.,]0+$/, "").replace(/^0+(?=\d)/, ""), desc: "" };
+  var m = s.match(/^0*(\d+)\b/);
+  if (m) {
+    var rest = s.slice(m[0].length).replace(/^[\s\-–—:;.,_]+/, "").trim();
+    if (/[A-Za-zÀ-ÿ]/.test(rest)) return { code: m[1], desc: rest };
+  }
+  return { code: s, desc: "" };
 }
+function normCode(v) { return splitCode(v).code; }
 function normEmp(v) {
   if (v === null || v === undefined) return "";
   return String(v).replace(/\s+/g, " ").trim();
@@ -375,13 +384,13 @@ function extractRecords(rows, spec, hasHeader) {
   var qtyCols = spec.qtyCols || [], amtCols = spec.amtCols || [];
   for (var i = start; i < rows.length; i++) {
     var r = rows[i];
-    var code = normCode(spec.code >= 0 ? r[spec.code] : "");
-    if (!code) continue;
+    var sc = splitCode(spec.code >= 0 ? r[spec.code] : "");
+    if (!sc.code) continue;
     var emp = normEmp(spec.emp >= 0 ? r[spec.emp] : "");
     var qty = null, amt = null;
     if (qtyCols.length) { qty = 0; qtyCols.forEach(function(c){ qty += (parseNum(r[c]) || 0); }); }
     if (amtCols.length) { amt = 0; amtCols.forEach(function(c){ amt += (parseNum(r[c]) || 0); }); }
-    out.push({ emp: emp, code: code, qty: qty, amt: amt });
+    out.push({ emp: emp, code: sc.code, desc: sc.desc, qty: qty, amt: amt });
   }
   return out;
 }
@@ -391,7 +400,8 @@ function aggregateRecords(records, useQty, useAmt) {
   records.forEach(function(rec) {
     var key = rec.emp.toLowerCase() + "" + rec.code;
     var a = agg[key];
-    if (!a) a = agg[key] = { emp: rec.emp, code: rec.code, qty: useQty ? 0 : null, amt: useAmt ? 0 : null, count: 0 };
+    if (!a) a = agg[key] = { emp: rec.emp, code: rec.code, desc: "", qty: useQty ? 0 : null, amt: useAmt ? 0 : null, count: 0 };
+    if (!a.desc && rec.desc) a.desc = rec.desc;
     if (useQty) a.qty += (rec.qty || 0);
     if (useAmt) a.amt += (rec.amt || 0);
     a.count++;
@@ -412,6 +422,7 @@ function compareData(sysAgg, custAgg, opts) {
     var base = s || c;
     var line = {
       emp: base.emp, code: base.code,
+      desc: (s && s.desc) || (c && c.desc) || "",
       sysQty: s ? s.qty : null, sysAmt: s ? s.amt : null,
       custQty: c ? c.qty : null, custAmt: c ? c.amt : null,
       dQty: null, dAmt: null, status: "ok", issue: false,
@@ -432,7 +443,8 @@ function compareData(sysAgg, custAgg, opts) {
   var codeMap = {};
   lines.forEach(function(l) {
     var g = codeMap[l.code];
-    if (!g) g = codeMap[l.code] = { code: l.code, inMaster: l.inMaster, lines: [], sysQty: 0, sysAmt: 0, custQty: 0, custAmt: 0, sysN: 0, custN: 0, issues: 0 };
+    if (!g) g = codeMap[l.code] = { code: l.code, desc: "", inMaster: l.inMaster, lines: [], sysQty: 0, sysAmt: 0, custQty: 0, custAmt: 0, sysN: 0, custN: 0, issues: 0 };
+    if (!g.desc && l.desc) g.desc = l.desc;
     g.lines.push(l);
     if (l.issue) g.issues++;
     if (l.sysQty !== null) g.sysQty += l.sysQty;
@@ -473,7 +485,7 @@ function compareData(sysAgg, custAgg, opts) {
 }
 /* expose for tests */
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { normCode: normCode, normEmp: normEmp, parseNum: parseNum, parseCSVText: parseCSVText,
+  module.exports = { normCode: normCode, splitCode: splitCode, normEmp: normEmp, parseNum: parseNum, parseCSVText: parseCSVText,
     detectDelimiter: detectDelimiter, detectHeader: detectHeader, guessMapping: guessMapping,
     extractRecords: extractRecords, aggregateRecords: aggregateRecords, compareData: compareData, MASTER_SET: MASTER_SET };
 }
@@ -518,7 +530,7 @@ var I18N = {
     tCodes: "Looncodes", tEmployees: "Werknemers", tOk: "Akkoord", tDiff: "Verschillen",
     tOnlySys: "Alleen in systeem", tOnlyCust: "Alleen in klantinput", tUnknown: "Niet in loonmodel 2026",
     ignoredSuffix: " (genegeerd)",
-    thCode: "Looncode", thEmp: "Werknemer", thStatus: "Status", thEmpN: "Wns",
+    thCode: "Looncode", thDesc: "Omschrijving", thEmp: "Werknemer", thStatus: "Status", thEmpN: "Wns",
     thSysQty: "Aantal syst.", thCustQty: "Aantal klant", thDQty: "Δ aantal",
     thSysAmt: "Bedrag syst.", thCustAmt: "Bedrag klant", thDAmt: "Δ bedrag",
     stOk: "OK", stDiff: "Verschil", stOnlySys: "Alleen systeem", stOnlyCust: "Alleen klant", stUnknown: "Onbekende code",
@@ -572,7 +584,7 @@ var I18N = {
     tCodes: "Wagecodes", tEmployees: "Employees", tOk: "OK", tDiff: "Differences",
     tOnlySys: "Only in system", tOnlyCust: "Only in customer input", tUnknown: "Not in wage model 2026",
     ignoredSuffix: " (ignored)",
-    thCode: "Wagecode", thEmp: "Employee", thStatus: "Status", thEmpN: "Emps",
+    thCode: "Wagecode", thDesc: "Description", thEmp: "Employee", thStatus: "Status", thEmpN: "Emps",
     thSysQty: "Qty system", thCustQty: "Qty customer", thDQty: "Δ qty",
     thSysAmt: "Amt system", thCustAmt: "Amt customer", thDAmt: "Δ amount",
     stOk: "OK", stDiff: "Difference", stOnlySys: "Only system", stOnlyCust: "Only customer", stUnknown: "Unknown code",
@@ -886,7 +898,12 @@ function deltaCell(d, tol) {
 }
 function matchesSearch(l, q) {
   if (!q) return true;
-  return l.code.toLowerCase().indexOf(q) >= 0 || (l.emp && l.emp.toLowerCase().indexOf(q) >= 0);
+  return l.code.toLowerCase().indexOf(q) >= 0 || (l.emp && l.emp.toLowerCase().indexOf(q) >= 0) ||
+    (l.desc && l.desc.toLowerCase().indexOf(q) >= 0);
+}
+function descSpan(desc) {
+  if (!desc) return "";
+  return " <span class='muted'>" + esc(desc.length > 36 ? desc.slice(0, 35) + "…" : desc) + "</span>";
 }
 function rowClass(status, ignored) {
   if (ignored && (status === "onlySys" || status === "onlyCust")) return "stIgnored";
@@ -902,7 +919,7 @@ function renderResults() {
   if (state.view === "code") {
     var rows = r.codes.filter(function(g) {
       if (onlyIssues && !g.issue && g.inMaster) return false;
-      if (q && !(g.code.toLowerCase().indexOf(q) >= 0 || g.lines.some(function(l){ return matchesSearch(l, q); }))) return false;
+      if (q && !(g.code.toLowerCase().indexOf(q) >= 0 || (g.desc && g.desc.toLowerCase().indexOf(q) >= 0) || g.lines.some(function(l){ return matchesSearch(l, q); }))) return false;
       return true;
     });
     html += "<table class='res'><thead><tr><th></th><th>" + esc(t("thCode")) + "</th>";
@@ -914,7 +931,7 @@ function renderResults() {
       var exp = !!expanded[g.code];
       html += "<tr class='codeRow " + rowClass(g.status, ignored) + "' onclick='toggleExpand(" + JSON.stringify(g.code) + ")'>";
       html += "<td><span class='expander'>" + (exp ? "▾" : "▸") + "</span></td>";
-      html += "<td><strong>" + esc(g.code) + "</strong></td>";
+      html += "<td><strong>" + esc(g.code) + "</strong>" + descSpan(g.desc) + "</td>";
       if (r.empCompared) html += "<td class='num'>" + g.lines.length + "</td>";
       if (o.cmpQty) html += "<td class='num'>" + fmt(g.sysN ? g.sysQty : null) + "</td><td class='num'>" + fmt(g.custN ? g.custQty : null) + "</td>" + deltaCell(g.dQty, o.tolQty);
       if (o.cmpAmt) html += "<td class='num'>" + fmt(g.sysN ? g.sysAmt : null) + "</td><td class='num'>" + fmt(g.custN ? g.custAmt : null) + "</td>" + deltaCell(g.dAmt, o.tolAmt);
@@ -945,7 +962,7 @@ function renderResults() {
     if (o.cmpAmt) html += "<th class='num'>" + esc(t("thSysAmt")) + "</th><th class='num'>" + esc(t("thCustAmt")) + "</th><th class='num'>" + esc(t("thDAmt")) + "</th>";
     html += "<th>" + esc(t("thStatus")) + "</th></tr></thead><tbody>";
     lines.forEach(function(l) {
-      html += "<tr class='" + rowClass(l.status, ignored) + "'><td>" + esc(l.emp || "(–)") + "</td><td><strong>" + esc(l.code) + "</strong></td>";
+      html += "<tr class='" + rowClass(l.status, ignored) + "'><td>" + esc(l.emp || "(–)") + "</td><td><strong>" + esc(l.code) + "</strong>" + descSpan(l.desc) + "</td>";
       if (o.cmpQty) html += "<td class='num'>" + fmt(l.sysQty) + "</td><td class='num'>" + fmt(l.custQty) + "</td>" + deltaCell(l.dQty, o.tolQty);
       if (o.cmpAmt) html += "<td class='num'>" + fmt(l.sysAmt) + "</td><td class='num'>" + fmt(l.custAmt) + "</td>" + deltaCell(l.dAmt, o.tolAmt);
       html += "<td>" + statusBadge(l.status, l.inMaster ? undefined : false, ignored) + "</td></tr>";
@@ -988,14 +1005,14 @@ function exportCSV() {
   L.push([t("rptIgnore"), t(o.ignoreMissing ? "yes" : "no")]);
   L.push([t("tCodes"), s.codes, t("tOk"), s.ok, t("tDiff"), s.diff, t("tOnlySys"), s.onlySys, t("tOnlyCust"), s.onlyCust, t("tUnknown"), s.unknownCodes]);
   L.push([]);
-  var head = [t("rptLevel"), t("thCode"), t("thEmp")];
+  var head = [t("rptLevel"), t("thCode"), t("thDesc"), t("thEmp")];
   if (o.cmpQty) head = head.concat([t("thSysQty"), t("thCustQty"), t("thDQty")]);
   if (o.cmpAmt) head = head.concat([t("thSysAmt"), t("thCustAmt"), t("thDAmt")]);
   head.push(t("thStatus"));
   head.push(t("tUnknown"));
   L.push(head);
   r.codes.forEach(function(g) {
-    var row = [t("rptLevelCode"), g.code, ""];
+    var row = [t("rptLevelCode"), g.code, g.desc || "", ""];
     if (o.cmpQty) row = row.concat([csvNum(g.sysN ? g.sysQty : null), csvNum(g.custN ? g.custQty : null), csvNum(g.dQty)]);
     if (o.cmpAmt) row = row.concat([csvNum(g.sysN ? g.sysAmt : null), csvNum(g.custN ? g.custAmt : null), csvNum(g.dAmt)]);
     row.push(t("st" + g.status.charAt(0).toUpperCase() + g.status.slice(1)) +
@@ -1003,7 +1020,7 @@ function exportCSV() {
     row.push(g.inMaster ? "" : "X");
     L.push(row);
     g.lines.forEach(function(l) {
-      var lr = [t("rptLevelEmp"), l.code, l.emp];
+      var lr = [t("rptLevelEmp"), l.code, l.desc || "", l.emp];
       if (o.cmpQty) lr = lr.concat([csvNum(l.sysQty), csvNum(l.custQty), csvNum(l.dQty)]);
       if (o.cmpAmt) lr = lr.concat([csvNum(l.sysAmt), csvNum(l.custAmt), csvNum(l.dAmt)]);
       lr.push(t("st" + l.status.charAt(0).toUpperCase() + l.status.slice(1)) +

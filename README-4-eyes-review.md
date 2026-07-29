@@ -19,7 +19,7 @@ De uploadvakken in stap 1 zijn duidelijk gelabeld (Bestand 1 · Systeem, Bestand
 ## Werkwijze
 
 1. **Dossier & bestanden** — vul klant en periode in, laad de bestanden. Toleranties zijn instelbaar (standaard: bedrag ± € 0,05, aantal ± 0,01) zodat afrondingsverschillen niet als fout worden gemeld.
-2. **Kolomtoewijzing** — per bestand (onder elkaar) toont de tool een voorbeeld en een voorstel voor de kolomtoewijzing op basis van de kolomkoppen (NL en EN). Voor het aantallenbestand kies je **drie waardekolommen** (aantal, uren, dagen) — per regel worden die opgeteld tot één aantal. Meerdere regels per werknemer+looncode worden gesommeerd; bestanden zonder werknemerkolom (totalen per looncode) werken ook.
+2. **Kolomtoewijzing** — per bestand (onder elkaar) toont de tool een voorbeeld en een voorstel voor de kolomtoewijzing op basis van de kolomkoppen (NL en EN). Looncodes met tekst erachter (bijv. "1000 Salaris") worden op het nummer gematcht; de omschrijving wordt in het resultaat en het rapport getoond. Voor het aantallenbestand kies je **drie waardekolommen** (aantal, uren, dagen) — per regel worden die opgeteld tot één aantal. Meerdere regels per werknemer+looncode worden gesommeerd; bestanden zonder werknemerkolom (totalen per looncode) werken ook.
 3. **Resultaat** — samenvatting + twee weergaven:
    - **Per looncode**: totalen per code, klik op een regel voor detail per werknemer;
    - **Per werknemer**: alle afwijkende regels per werknemer.
