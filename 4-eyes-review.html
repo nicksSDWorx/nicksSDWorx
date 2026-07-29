@@ -13,6 +13,7 @@
     --diff: #b45309; --diff-bg: #fef3c7;
     --miss: #b91c1c; --miss-bg: #fee2e2;
     --unknown: #6b21a8; --unknown-bg: #f3e8ff;
+    --cust: #0e6e5c; --cust-bg: #e2f4f0;
     --gray: #6b7280;
     --border: #e5e7eb;
     --bg: #f8f9fb;
@@ -30,23 +31,32 @@
   .card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; margin-bottom: 18px; box-shadow: 0 1px 2px rgba(16,24,40,.04); }
   .card h2 { margin: 0 0 12px; font-size: 15px; color: var(--brand); display: flex; align-items: center; gap: 8px; }
   .stepNum { background: var(--brand); color: #fff; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; flex: none; }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 1000px) { .grid3 { grid-template-columns: 1fr; } }
   .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
   .field label { font-size: 12px; color: #4b5563; font-weight: 600; }
   .field input, .field select { padding: 7px 9px; border: 1px solid #cbd2dc; border-radius: 6px; font-size: 13.5px; background: #fff; }
   .field input:focus, .field select:focus { outline: 2px solid var(--brand-light); outline-offset: 0; border-color: var(--brand-light); }
   .fieldRow { display: flex; gap: 14px; flex-wrap: wrap; }
   .fieldRow .field { flex: 1; min-width: 140px; }
-  .dropzone { border: 2px dashed #c4b5d6; border-radius: 10px; padding: 22px 16px; text-align: center; cursor: pointer; background: var(--brand-bg); transition: background .15s, border-color .15s; }
+  .dropzone { border: 2px dashed #c4b5d6; border-radius: 10px; padding: 16px 14px 18px; text-align: center; cursor: pointer; background: var(--brand-bg); transition: background .15s, border-color .15s; height: 100%; }
   .dropzone:hover, .dropzone.drag { background: #ece2f7; border-color: var(--brand-light); }
-  .dropzone .dzTitle { font-weight: 600; color: var(--brand); margin-bottom: 4px; }
-  .dropzone .dzHint { font-size: 12px; color: #6b7280; }
+  .dropzone .dzTag { display: inline-block; border-radius: 999px; padding: 2px 12px; font-size: 11px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px; background: var(--brand); color: #fff; }
+  .dropzone.custZone { border-color: #9ed4c9; background: var(--cust-bg); }
+  .dropzone.custZone:hover, .dropzone.custZone.drag { background: #d2ece6; border-color: var(--cust); }
+  .dropzone.custZone .dzTag { background: var(--cust); }
+  .dropzone .dzTitle { font-weight: 600; color: var(--brand); margin-bottom: 3px; }
+  .dropzone.custZone .dzTitle { color: var(--cust); }
+  .dropzone .dzSub { font-size: 12px; color: #4b5563; margin-bottom: 5px; }
+  .dropzone .dzHint { font-size: 11.5px; color: #6b7280; }
   .dropzone.loaded { border-style: solid; border-color: var(--ok); background: var(--ok-bg); }
   .dropzone.loaded .dzTitle { color: var(--ok); }
   .fileMeta { font-size: 12px; color: #374151; margin-top: 6px; word-break: break-all; }
-  .mapCard { border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
-  .mapCard h3 { margin: 0 0 10px; font-size: 13.5px; color: #111827; }
+  .mapCard { border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 14px; }
+  .mapCard h3 { margin: 0 0 10px; font-size: 13.5px; color: #111827; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mapCard h3 .dzTag { display: inline-block; border-radius: 999px; padding: 2px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; background: var(--brand); color: #fff; }
+  .mapCard.custCard h3 .dzTag { background: var(--cust); }
+  .mapHint { font-size: 12px; color: #6b7280; margin: -4px 0 8px; }
   .previewWrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; margin-top: 10px; max-height: 200px; overflow-y: auto; }
   table.preview { border-collapse: collapse; font-size: 12px; width: 100%; }
   table.preview th, table.preview td { border: 1px solid #eef0f3; padding: 3px 8px; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
@@ -57,9 +67,9 @@
   .btn:disabled { background: #c6c9d2; cursor: not-allowed; }
   .btn.secondary { background: #fff; color: var(--brand); border: 1px solid var(--brand); font-weight: 500; }
   .btn.secondary:hover { background: var(--brand-bg); }
-  .btn.small { padding: 6px 14px; font-size: 12.5px; }
   .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .warnMsg { color: var(--miss); font-size: 12.5px; }
+  .infoMsg { color: var(--diff); font-size: 12.5px; }
   /* summary tiles */
   .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .tile { background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--gray); border-radius: 8px; padding: 10px 14px; }
@@ -70,8 +80,9 @@
   .tile.miss { border-left-color: var(--miss); } .tile.miss .num { color: var(--miss); }
   .tile.unknown { border-left-color: var(--unknown); } .tile.unknown .num { color: var(--unknown); }
   .tile.brand { border-left-color: var(--brand); } .tile.brand .num { color: var(--brand); }
+  .tile.ignored { border-left-color: #c6c9d2; } .tile.ignored .num { color: #9ca3af; }
   /* results table */
-  .resToolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .resToolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
   .viewToggle { display: flex; border: 1px solid var(--brand); border-radius: 7px; overflow: hidden; }
   .viewToggle button { border: 0; background: #fff; color: var(--brand); padding: 7px 14px; cursor: pointer; font-size: 13px; }
   .viewToggle button.active { background: var(--brand); color: #fff; font-weight: 600; }
@@ -86,9 +97,11 @@
   table.res tr.codeRow:hover td { background: #f8f6fc; }
   table.res tr.st-diff > td { background: #fffbeb; }
   table.res tr.st-onlySys > td, table.res tr.st-onlyCust > td { background: #fef5f5; }
+  table.res tr.stIgnored > td { background: #fafafa; }
   table.res tr.detailRow > td { background: #fafafa; font-size: 12.5px; color: #374151; }
   table.res tr.detailRow.st-diff > td { background: #fff8e6; }
   table.res tr.detailRow.st-onlySys > td, table.res tr.detailRow.st-onlyCust > td { background: #fdeeee; }
+  table.res tr.detailRow.stIgnored > td { background: #fafafa; }
   table.res td.delta { font-weight: 600; }
   td.deltaBad { color: var(--diff); }
   .badge { display: inline-block; border-radius: 999px; padding: 2px 9px; font-size: 11px; font-weight: 600; white-space: nowrap; }
@@ -96,6 +109,7 @@
   .badge.diff { background: var(--diff-bg); color: var(--diff); }
   .badge.onlySys, .badge.onlyCust { background: var(--miss-bg); color: var(--miss); }
   .badge.unknown { background: var(--unknown-bg); color: var(--unknown); }
+  .badge.ignoredBadge { background: #f0f1f4; color: #6b7280; }
   .expander { display: inline-block; width: 16px; color: var(--brand); font-weight: 700; }
   .muted { color: #9ca3af; }
   .toleranceNote { font-size: 12px; color: #6b7280; margin-left: auto; }
@@ -130,19 +144,33 @@
       <div class="field"><label data-i18n="tolAmt">Tolerantie bedrag (€)</label><input id="tolAmt" type="number" step="0.01" min="0" value="0.05"></div>
       <div class="field"><label data-i18n="tolQty">Tolerantie aantal</label><input id="tolQty" type="number" step="0.01" min="0" value="0.01"></div>
     </div>
-    <div class="grid2">
+    <div class="grid3">
       <div>
-        <div class="dropzone" id="dzSys" tabindex="0">
-          <div class="dzTitle" data-i18n="sysFile">Export payrollsysteem</div>
+        <div class="dropzone" id="dzSysQty" tabindex="0">
+          <div class="dzTag" data-i18n="tagSys1">Bestand 1 · Systeem</div>
+          <div class="dzTitle" data-i18n="sysQtyFile">Aantallen / uren / dagen</div>
+          <div class="dzSub" data-i18n="sysQtySub">Export payrollsysteem met de aantallen, uren en dagen per looncode</div>
           <div class="dzHint" data-i18n="dzHint">Sleep hierheen of klik — .xlsx, .xls, .csv, .txt</div>
-          <div class="fileMeta" id="metaSys"></div>
+          <div class="fileMeta" id="metaSysQty"></div>
         </div>
-        <input type="file" id="fileSys" class="hidden" accept=".xlsx,.xls,.csv,.txt">
+        <input type="file" id="fileSysQty" class="hidden" accept=".xlsx,.xls,.csv,.txt">
       </div>
       <div>
-        <div class="dropzone" id="dzCust" tabindex="0">
+        <div class="dropzone" id="dzSysAmt" tabindex="0">
+          <div class="dzTag" data-i18n="tagSys2">Bestand 2 · Systeem</div>
+          <div class="dzTitle" data-i18n="sysAmtFile">Bedragen (€)</div>
+          <div class="dzSub" data-i18n="sysAmtSub">Export payrollsysteem met de bedragen per looncode</div>
+          <div class="dzHint" data-i18n="dzHint">Sleep hierheen of klik — .xlsx, .xls, .csv, .txt</div>
+          <div class="fileMeta" id="metaSysAmt"></div>
+        </div>
+        <input type="file" id="fileSysAmt" class="hidden" accept=".xlsx,.xls,.csv,.txt">
+      </div>
+      <div>
+        <div class="dropzone custZone" id="dzCust" tabindex="0">
+          <div class="dzTag" data-i18n="tagCust">Bestand 3 · Klant</div>
           <div class="dzTitle" data-i18n="custFile">Input klant</div>
-          <div class="dzHint" data-i18n="dzHint2">Sleep hierheen of klik — .xlsx, .xls, .csv, .txt</div>
+          <div class="dzSub" data-i18n="custSub">Het aangeleverde bestand van de klant (aantallen en/of bedragen)</div>
+          <div class="dzHint" data-i18n="dzHint">Sleep hierheen of klik — .xlsx, .xls, .csv, .txt</div>
           <div class="fileMeta" id="metaCust"></div>
         </div>
         <input type="file" id="fileCust" class="hidden" accept=".xlsx,.xls,.csv,.txt">
@@ -150,17 +178,17 @@
     </div>
   </section>
 
-  <!-- STEP 2: mapping -->
+  <!-- STEP 2: mapping (stacked, one card per file) -->
   <section class="card hidden" id="step2">
     <h2><span class="stepNum">2</span> <span data-i18n="s2Title">Kolomtoewijzing</span></h2>
-    <p class="dzHint" data-i18n="s2Hint" style="margin-top:-6px">Controleer per bestand welke kolom de werknemer, looncode, het aantal en het bedrag bevat. De tool doet een voorstel op basis van de kolomkoppen.</p>
-    <div class="grid2">
-      <div class="mapCard" id="mapSys"></div>
-      <div class="mapCard" id="mapCust"></div>
-    </div>
-    <div class="actions" style="margin-top:14px">
+    <p class="mapHint" data-i18n="s2Hint">Controleer per bestand welke kolom de werknemer, looncode en waarden bevat. De tool doet een voorstel op basis van de kolomkoppen.</p>
+    <div class="mapCard hidden" id="mapSysQty"></div>
+    <div class="mapCard hidden" id="mapSysAmt"></div>
+    <div class="mapCard custCard hidden" id="mapCust"></div>
+    <div class="actions" style="margin-top:4px">
       <button class="btn" id="btnCompare" onclick="runCompare()" data-i18n="btnCompare">Vergelijk</button>
       <span class="warnMsg" id="mapWarn"></span>
+      <span class="infoMsg" id="mapInfo"></span>
     </div>
   </section>
 
@@ -175,6 +203,7 @@
         <button id="vwEmp" onclick="setView('emp')" data-i18n="vwEmp">Per werknemer</button>
       </div>
       <label class="chk"><input type="checkbox" id="onlyIssues" checked onchange="renderResults()"> <span data-i18n="onlyIssues">Alleen afwijkingen</span></label>
+      <label class="chk"><input type="checkbox" id="ignoreMissing" onchange="runCompare(true)"> <span data-i18n="ignoreMissing">Negeer ontbrekende looncodes</span></label>
       <input type="search" id="searchBox" oninput="renderResults()" data-i18n-ph="searchPh" placeholder="Zoek looncode of werknemer…">
       <span class="toleranceNote" id="tolNote"></span>
     </div>
@@ -237,7 +266,7 @@ function parseNum(v) {
   if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
   if (/-$/.test(s)) { neg = true; s = s.slice(0, -1); }
   if (/^-/.test(s)) { neg = true; s = s.slice(1); }
-  s = s.replace(/[€$\s ]/g, "").replace(/[A-Za-z]+$/, "").replace(/^[A-Za-z]+/, "");
+  s = s.replace(/[€$\s ]/g, "").replace(/[A-Za-z]+$/, "").replace(/^[A-Za-z]+/, "");
   if (!s) return null;
   var hasDot = s.indexOf(".") >= 0, hasCom = s.indexOf(",") >= 0;
   if (hasDot && hasCom) {
@@ -316,12 +345,20 @@ var GUESS_PATTERNS = {
   emp:  [/werknemer/i, /medewerker/i, /personeels?n/i, /persnr/i, /employee/i, /empl/i, /\bnaam\b/i, /\bname\b/i, /\bwn\b/i],
   code: [/master\s*looncode/i, /looncode/i, /loonmodel/i, /wagecode/i, /wage\s*code/i, /loon\s*component/i, /component/i, /\bcode\b/i],
   qty:  [/aantal/i, /\buren\b/i, /\buur\b/i, /hours/i, /dagen/i, /days/i, /\bqty\b/i, /quantity/i, /eenhe/i, /units/i],
-  amt:  [/bedrag/i, /amount/i, /waarde/i, /value/i, /totaal/i, /total/i, /salaris/i, /salary/i, /\beur\b/i, /€/]
+  amt:  [/bedrag/i, /amount/i, /waarde/i, /value/i, /totaal/i, /total/i, /salaris/i, /salary/i, /\beur\b/i, /€/],
+  qtyA: [/aantal/i, /\bqty\b/i, /quantity/i, /eenhe/i, /units/i, /stuks/i],
+  qtyU: [/\buren\b/i, /\buur\b/i, /hours/i],
+  qtyD: [/dagen/i, /days/i]
 };
-function guessMapping(headerCells) {
-  var map = { emp: -1, code: -1, qty: -1, amt: -1 }, used = {};
-  ["code", "emp", "qty", "amt"].forEach(function(role) {
-    var pats = GUESS_PATTERNS[role];
+/* guess column index per role; roles = list of role keys, code+emp matched first */
+function guessMapping(headerCells, roles) {
+  roles = roles || ["code", "emp", "qty", "amt"];
+  var order = ["code", "emp"].filter(function(r){ return roles.indexOf(r) >= 0; })
+    .concat(roles.filter(function(r){ return r !== "code" && r !== "emp"; }));
+  var map = {}, used = {};
+  roles.forEach(function(r){ map[r] = -1; });
+  order.forEach(function(role) {
+    var pats = GUESS_PATTERNS[role] || [];
     for (var p = 0; p < pats.length && map[role] < 0; p++) {
       for (var i = 0; i < headerCells.length; i++) {
         if (used[i]) continue;
@@ -331,16 +368,19 @@ function guessMapping(headerCells) {
   });
   return map;
 }
-/* extract rows -> records using mapping; skips rows without a code */
-function extractRecords(rows, map, hasHeader) {
+/* extract rows -> records using a spec {emp, code, qtyCols:[], amtCols:[]}; skips rows without a code.
+   Values from multiple qty/amt columns are summed per row (empty cells count as 0). */
+function extractRecords(rows, spec, hasHeader) {
   var out = [], start = hasHeader ? 1 : 0;
+  var qtyCols = spec.qtyCols || [], amtCols = spec.amtCols || [];
   for (var i = start; i < rows.length; i++) {
     var r = rows[i];
-    var code = normCode(map.code >= 0 ? r[map.code] : "");
+    var code = normCode(spec.code >= 0 ? r[spec.code] : "");
     if (!code) continue;
-    var emp = normEmp(map.emp >= 0 ? r[map.emp] : "");
-    var qty = map.qty >= 0 ? parseNum(r[map.qty]) : null;
-    var amt = map.amt >= 0 ? parseNum(r[map.amt]) : null;
+    var emp = normEmp(spec.emp >= 0 ? r[spec.emp] : "");
+    var qty = null, amt = null;
+    if (qtyCols.length) { qty = 0; qtyCols.forEach(function(c){ qty += (parseNum(r[c]) || 0); }); }
+    if (amtCols.length) { amt = 0; amtCols.forEach(function(c){ amt += (parseNum(r[c]) || 0); }); }
     out.push({ emp: emp, code: code, qty: qty, amt: amt });
   }
   return out;
@@ -349,7 +389,7 @@ function extractRecords(rows, map, hasHeader) {
 function aggregateRecords(records, useQty, useAmt) {
   var agg = {};
   records.forEach(function(rec) {
-    var key = rec.emp.toLowerCase() + "" + rec.code;
+    var key = rec.emp.toLowerCase() + "" + rec.code;
     var a = agg[key];
     if (!a) a = agg[key] = { emp: rec.emp, code: rec.code, qty: useQty ? 0 : null, amt: useAmt ? 0 : null, count: 0 };
     if (useQty) a.qty += (rec.qty || 0);
@@ -359,9 +399,10 @@ function aggregateRecords(records, useQty, useAmt) {
   return agg;
 }
 function round2(n) { return Math.round(n * 100) / 100; }
-/* core comparison */
+/* core comparison; opts: {tolQty, tolAmt, cmpQty, cmpAmt, ignoreMissing} */
 function compareData(sysAgg, custAgg, opts) {
   var tolQty = opts.tolQty, tolAmt = opts.tolAmt, cmpQty = opts.cmpQty, cmpAmt = opts.cmpAmt;
+  var ignoreMissing = !!opts.ignoreMissing;
   var keys = {};
   Object.keys(sysAgg).forEach(function(k){ keys[k] = true; });
   Object.keys(custAgg).forEach(function(k){ keys[k] = true; });
@@ -373,7 +414,7 @@ function compareData(sysAgg, custAgg, opts) {
       emp: base.emp, code: base.code,
       sysQty: s ? s.qty : null, sysAmt: s ? s.amt : null,
       custQty: c ? c.qty : null, custAmt: c ? c.amt : null,
-      dQty: null, dAmt: null, status: "ok",
+      dQty: null, dAmt: null, status: "ok", issue: false,
       inMaster: !!MASTER_SET[base.code]
     };
     if (!s) line.status = "onlyCust";
@@ -384,6 +425,7 @@ function compareData(sysAgg, custAgg, opts) {
       if (cmpAmt) { line.dAmt = round2((c.amt || 0) - (s.amt || 0)); if (Math.abs(line.dAmt) > tolAmt + 1e-9) bad = true; }
       line.status = bad ? "diff" : "ok";
     }
+    line.issue = line.status === "diff" || (!ignoreMissing && (line.status === "onlySys" || line.status === "onlyCust"));
     lines.push(line);
   });
   /* group per code */
@@ -392,7 +434,7 @@ function compareData(sysAgg, custAgg, opts) {
     var g = codeMap[l.code];
     if (!g) g = codeMap[l.code] = { code: l.code, inMaster: l.inMaster, lines: [], sysQty: 0, sysAmt: 0, custQty: 0, custAmt: 0, sysN: 0, custN: 0, issues: 0 };
     g.lines.push(l);
-    if (l.status !== "ok") g.issues++;
+    if (l.issue) g.issues++;
     if (l.sysQty !== null) g.sysQty += l.sysQty;
     if (l.sysAmt !== null) g.sysAmt += l.sysAmt;
     if (l.custQty !== null) g.custQty += l.custQty;
@@ -410,9 +452,11 @@ function compareData(sysAgg, custAgg, opts) {
     g.dAmt = cmpAmt ? round2(g.custAmt - g.sysAmt) : null;
     if (g.sysN === 0) g.status = "onlyCust";
     else if (g.custN === 0) g.status = "onlySys";
-    else g.status = g.issues > 0 ? "diff" : "ok";
+    else g.status = g.lines.some(function(l){ return l.status !== "ok"; }) ? "diff" : "ok";
+    g.issue = g.issues > 0;
     return g;
   });
+  var issueLines = lines.filter(function(l){ return l.issue; }).length;
   var summary = {
     codes: codes.length,
     employees: (function(){ var e = {}; lines.forEach(function(l){ if (l.emp) e[l.emp.toLowerCase()] = 1; }); return Object.keys(e).length; })(),
@@ -422,7 +466,8 @@ function compareData(sysAgg, custAgg, opts) {
     onlySys: lines.filter(function(l){ return l.status === "onlySys"; }).length,
     onlyCust: lines.filter(function(l){ return l.status === "onlyCust"; }).length,
     unknownCodes: codes.filter(function(g){ return !g.inMaster; }).length,
-    codesWithIssues: codes.filter(function(g){ return g.status !== "ok" || !g.inMaster; }).length
+    issues: issueLines,
+    codesWithIssues: codes.filter(function(g){ return g.issue || !g.inMaster; }).length
   };
   return { lines: lines, codes: codes, summary: summary };
 }
@@ -443,20 +488,36 @@ var I18N = {
     s1Title: "Dossier & bestanden",
     client: "Klant", period: "Periode",
     tolAmt: "Tolerantie bedrag (€)", tolQty: "Tolerantie aantal",
-    sysFile: "Export payrollsysteem", custFile: "Input klant",
-    dzHint: "Sleep hierheen of klik — .xlsx, .xls, .csv, .txt", dzHint2: "Sleep hierheen of klik — .xlsx, .xls, .csv, .txt",
+    tagSys1: "Bestand 1 · Systeem", tagSys2: "Bestand 2 · Systeem", tagCust: "Bestand 3 · Klant",
+    sysQtyFile: "Aantallen / uren / dagen",
+    sysQtySub: "Export payrollsysteem met de aantallen, uren en dagen per looncode",
+    sysAmtFile: "Bedragen (€)",
+    sysAmtSub: "Export payrollsysteem met de bedragen per looncode",
+    custFile: "Input klant",
+    custSub: "Het aangeleverde bestand van de klant (aantallen en/of bedragen)",
+    dzHint: "Sleep hierheen of klik — .xlsx, .xls, .csv, .txt",
     s2Title: "Kolomtoewijzing",
-    s2Hint: "Controleer per bestand welke kolom de werknemer, looncode, het aantal en het bedrag bevat. De tool doet een voorstel op basis van de kolomkoppen.",
+    s2Hint: "Controleer per bestand welke kolom de werknemer, looncode en waarden bevat. De tool doet een voorstel op basis van de kolomkoppen.",
+    qtyHint: "Kies de kolommen met aantallen, uren en dagen — per regel worden de waarden uit deze kolommen opgeteld tot één aantal.",
     sheet: "Werkblad", hasHeader: "Eerste rij is kolomkop",
     colEmp: "Werknemer", colCode: "Looncode", colQty: "Aantal (uren/dagen)", colAmt: "Bedrag (€)",
+    colAantal: "Kolom: aantal", colUren: "Kolom: uren", colDagen: "Kolom: dagen",
     colNone: "— niet aanwezig —", colChoose: "— kies kolom —",
     btnCompare: "Vergelijk", s3Title: "Resultaat",
-    needCode: "Wijs in beide bestanden de kolom 'Looncode' toe.",
-    needVal: "Wijs in beide bestanden minimaal 'Aantal' of 'Bedrag' toe (in beide hetzelfde type).",
+    needCode: "Wijs in elk geladen bestand de kolom 'Looncode' toe.",
+    needSys: "Laad minstens één systeembestand (bestand 1 en/of 2).",
+    needCust: "Laad het klantbestand (bestand 3).",
+    needQtyCols: "Kies in het aantallenbestand minstens één waardekolom (aantal, uren of dagen).",
+    needAmtCol: "Wijs in het bedragenbestand de kolom 'Bedrag' toe.",
+    needDim: "Er valt niets te vergelijken: wijs in het klantbestand 'Aantal' en/of 'Bedrag' toe, passend bij de geladen systeembestanden.",
+    infoQtySkipped: "Let op: aantallen worden niet vergeleken — wijs 'Aantal' toe in het klantbestand.",
+    infoAmtSkipped: "Let op: bedragen worden niet vergeleken — wijs 'Bedrag' toe in het klantbestand.",
     vwCode: "Per looncode", vwEmp: "Per werknemer",
-    onlyIssues: "Alleen afwijkingen", searchPh: "Zoek looncode of werknemer…",
+    onlyIssues: "Alleen afwijkingen", ignoreMissing: "Negeer ontbrekende looncodes",
+    searchPh: "Zoek looncode of werknemer…",
     tCodes: "Looncodes", tEmployees: "Werknemers", tOk: "Akkoord", tDiff: "Verschillen",
     tOnlySys: "Alleen in systeem", tOnlyCust: "Alleen in klantinput", tUnknown: "Niet in loonmodel 2026",
+    ignoredSuffix: " (genegeerd)",
     thCode: "Looncode", thEmp: "Werknemer", thStatus: "Status", thEmpN: "Wns",
     thSysQty: "Aantal syst.", thCustQty: "Aantal klant", thDQty: "Δ aantal",
     thSysAmt: "Bedrag syst.", thCustAmt: "Bedrag klant", thDAmt: "Δ bedrag",
@@ -468,7 +529,9 @@ var I18N = {
     footNote: "Alle verwerking gebeurt lokaal in de browser — er worden geen gegevens verstuurd.",
     confirmNew: "Huidige review wissen en starten met een volgende klant?",
     rptTitle: "4-ogen loonreview — rapport", rptClient: "Klant", rptPeriod: "Periode", rptDate: "Datum/tijd",
-    rptSys: "Bestand systeem", rptCust: "Bestand klant", rptTol: "Tolerantie",
+    rptSysQty: "Bestand systeem — aantallen", rptSysAmt: "Bestand systeem — bedragen", rptCust: "Bestand klant",
+    rptTol: "Tolerantie", rptIgnore: "Ontbrekende looncodes genegeerd",
+    yes: "ja", no: "nee",
     rptLevel: "Niveau", rptLevelCode: "looncode", rptLevelEmp: "werknemer",
     fileLoaded: "{n} rijen ingelezen",
     printedFor: "Klant: {c} · Periode: {p} · {d}"
@@ -479,20 +542,36 @@ var I18N = {
     s1Title: "Client & files",
     client: "Client", period: "Period",
     tolAmt: "Tolerance amount (€)", tolQty: "Tolerance quantity",
-    sysFile: "Payroll system export", custFile: "Customer input",
-    dzHint: "Drag & drop or click — .xlsx, .xls, .csv, .txt", dzHint2: "Drag & drop or click — .xlsx, .xls, .csv, .txt",
+    tagSys1: "File 1 · System", tagSys2: "File 2 · System", tagCust: "File 3 · Customer",
+    sysQtyFile: "Quantities / hours / days",
+    sysQtySub: "Payroll system export with the quantities, hours and days per wagecode",
+    sysAmtFile: "Amounts (€)",
+    sysAmtSub: "Payroll system export with the amounts per wagecode",
+    custFile: "Customer input",
+    custSub: "The file supplied by the customer (quantities and/or amounts)",
+    dzHint: "Drag & drop or click — .xlsx, .xls, .csv, .txt",
     s2Title: "Column mapping",
-    s2Hint: "For each file, check which column holds the employee, wagecode, quantity and amount. The tool suggests a mapping based on the column headers.",
+    s2Hint: "For each file, check which column holds the employee, wagecode and values. The tool suggests a mapping based on the column headers.",
+    qtyHint: "Select the columns holding quantities, hours and days — per row, the values from these columns are added up into one quantity.",
     sheet: "Worksheet", hasHeader: "First row is a header",
     colEmp: "Employee", colCode: "Wagecode", colQty: "Quantity (hours/days)", colAmt: "Amount (€)",
+    colAantal: "Column: quantity", colUren: "Column: hours", colDagen: "Column: days",
     colNone: "— not present —", colChoose: "— choose column —",
     btnCompare: "Compare", s3Title: "Result",
-    needCode: "Assign the 'Wagecode' column in both files.",
-    needVal: "Assign at least 'Quantity' or 'Amount' in both files (same type in both).",
+    needCode: "Assign the 'Wagecode' column in every loaded file.",
+    needSys: "Load at least one system file (file 1 and/or 2).",
+    needCust: "Load the customer file (file 3).",
+    needQtyCols: "Select at least one value column (quantity, hours or days) in the quantities file.",
+    needAmtCol: "Assign the 'Amount' column in the amounts file.",
+    needDim: "Nothing to compare: assign 'Quantity' and/or 'Amount' in the customer file, matching the loaded system files.",
+    infoQtySkipped: "Note: quantities are not compared — assign 'Quantity' in the customer file.",
+    infoAmtSkipped: "Note: amounts are not compared — assign 'Amount' in the customer file.",
     vwCode: "Per wagecode", vwEmp: "Per employee",
-    onlyIssues: "Only differences", searchPh: "Search wagecode or employee…",
+    onlyIssues: "Only differences", ignoreMissing: "Ignore missing wagecodes",
+    searchPh: "Search wagecode or employee…",
     tCodes: "Wagecodes", tEmployees: "Employees", tOk: "OK", tDiff: "Differences",
     tOnlySys: "Only in system", tOnlyCust: "Only in customer input", tUnknown: "Not in wage model 2026",
+    ignoredSuffix: " (ignored)",
     thCode: "Wagecode", thEmp: "Employee", thStatus: "Status", thEmpN: "Emps",
     thSysQty: "Qty system", thCustQty: "Qty customer", thDQty: "Δ qty",
     thSysAmt: "Amt system", thCustAmt: "Amt customer", thDAmt: "Δ amount",
@@ -504,16 +583,27 @@ var I18N = {
     footNote: "All processing happens locally in your browser — no data is sent anywhere.",
     confirmNew: "Clear the current review and start the next client?",
     rptTitle: "4-eyes payroll review — report", rptClient: "Client", rptPeriod: "Period", rptDate: "Date/time",
-    rptSys: "System file", rptCust: "Customer file", rptTol: "Tolerance",
+    rptSysQty: "System file — quantities", rptSysAmt: "System file — amounts", rptCust: "Customer file",
+    rptTol: "Tolerance", rptIgnore: "Missing wagecodes ignored",
+    yes: "yes", no: "no",
     rptLevel: "Level", rptLevelCode: "wagecode", rptLevelEmp: "employee",
     fileLoaded: "{n} rows read",
     printedFor: "Client: {c} · Period: {p} · {d}"
   }
 };
+/* per-file role configuration: [roleKey, labelKey, optional] */
+var SIDES = {
+  sysQty: { titleKey: "sysQtyFile", tagKey: "tagSys1", hintKey: "qtyHint", cardClass: "",
+            roles: [["emp","colEmp",true],["code","colCode",false],["qtyA","colAantal",true],["qtyU","colUren",true],["qtyD","colDagen",true]] },
+  sysAmt: { titleKey: "sysAmtFile", tagKey: "tagSys2", hintKey: null, cardClass: "",
+            roles: [["emp","colEmp",true],["code","colCode",false],["amt","colAmt",false]] },
+  cust:   { titleKey: "custFile", tagKey: "tagCust", hintKey: null, cardClass: "custCard",
+            roles: [["emp","colEmp",true],["code","colCode",false],["qty","colQty",true],["amt","colAmt",true]] }
+};
 var state = {
   lang: "nl",
   view: "code",
-  files: { sys: null, cust: null },   // {name, sheets:[{name,rows}], sheetIdx, hasHeader, map}
+  files: { sysQty: null, sysAmt: null, cust: null },  // {name, sheets:[{name,rows}], sheetIdx, hasHeader, map}
   result: null
 };
 function t(key, vars) {
@@ -528,14 +618,20 @@ function setLang(lang) {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.getAttribute("data-i18n")); });
   document.querySelectorAll("[data-i18n-ph]").forEach(function(el){ el.placeholder = t(el.getAttribute("data-i18n-ph")); });
-  ["sys", "cust"].forEach(function(side){ if (state.files[side]) renderMapCard(side); });
+  Object.keys(SIDES).forEach(function(side){ if (state.files[side]) renderMapCard(side); });
   if (state.result) { renderTiles(); renderResults(); updateTolNote(); }
   try { localStorage.setItem("fourEyesLang", lang); } catch (e) {}
 }
 /* ================= file loading ================= */
+var DOM_IDS = {
+  sysQty: { dz: "dzSysQty", input: "fileSysQty", meta: "metaSysQty", mapCard: "mapSysQty" },
+  sysAmt: { dz: "dzSysAmt", input: "fileSysAmt", meta: "metaSysAmt", mapCard: "mapSysAmt" },
+  cust:   { dz: "dzCust",   input: "fileCust",   meta: "metaCust",   mapCard: "mapCust" }
+};
 function setupDropzone(side) {
-  var dz = document.getElementById(side === "sys" ? "dzSys" : "dzCust");
-  var inp = document.getElementById(side === "sys" ? "fileSys" : "fileCust");
+  var ids = DOM_IDS[side];
+  var dz = document.getElementById(ids.dz);
+  var inp = document.getElementById(ids.input);
   dz.addEventListener("click", function(){ inp.click(); });
   dz.addEventListener("keydown", function(e){ if (e.key === "Enter" || e.key === " ") { e.preventDefault(); inp.click(); } });
   dz.addEventListener("dragover", function(e){ e.preventDefault(); dz.classList.add("drag"); });
@@ -568,26 +664,28 @@ function loadFile(side, file) {
       return;
     }
     if (!sheets.length) { alert(state.lang === "nl" ? "Geen gegevens gevonden in het bestand." : "No data found in the file."); return; }
-    var f = { name: file.name, sheets: sheets, sheetIdx: 0, hasHeader: true, map: { emp: -1, code: -1, qty: -1, amt: -1 } };
-    initSheet(f);
+    var f = { name: file.name, sheets: sheets, sheetIdx: 0, hasHeader: true, map: {} };
+    initSheet(f, side);
     state.files[side] = f;
     state.result = null;
     document.getElementById("step3").classList.add("hidden");
-    var dz = document.getElementById(side === "sys" ? "dzSys" : "dzCust");
-    dz.classList.add("loaded");
-    document.getElementById(side === "sys" ? "metaSys" : "metaCust").textContent =
-      file.name + " — " + t("fileLoaded", { n: f.sheets[f.sheetIdx].rows.length });
+    var ids = DOM_IDS[side];
+    document.getElementById(ids.dz).classList.add("loaded");
+    document.getElementById(ids.meta).textContent = file.name + " — " + t("fileLoaded", { n: f.sheets[f.sheetIdx].rows.length });
     document.getElementById("step2").classList.remove("hidden");
+    document.getElementById(ids.mapCard).classList.remove("hidden");
     renderMapCard(side);
     document.getElementById("step2").scrollIntoView({ behavior: "smooth", block: "start" });
   };
   if (isSheet) reader.readAsArrayBuffer(file);
   else reader.readAsText(file);
 }
-function initSheet(f) {
+function initSheet(f, side) {
   var rows = f.sheets[f.sheetIdx].rows;
+  var roleKeys = SIDES[side].roles.map(function(r){ return r[0]; });
   f.hasHeader = detectHeader(rows);
-  f.map = f.hasHeader && rows.length ? guessMapping(rows[0]) : { emp: -1, code: -1, qty: -1, amt: -1 };
+  f.map = f.hasHeader && rows.length ? guessMapping(rows[0], roleKeys)
+    : roleKeys.reduce(function(m, k){ m[k] = -1; return m; }, {});
 }
 /* ================= mapping UI ================= */
 function colLabel(rows, hasHeader, i) {
@@ -600,13 +698,15 @@ function colLabel(rows, hasHeader, i) {
 }
 function renderMapCard(side) {
   var f = state.files[side];
-  var el = document.getElementById(side === "sys" ? "mapSys" : "mapCust");
+  var cfg = SIDES[side];
+  var el = document.getElementById(DOM_IDS[side].mapCard);
   if (!f) { el.innerHTML = ""; return; }
   var rows = f.sheets[f.sheetIdx].rows;
   var nCols = rows.reduce(function(m, r){ return Math.max(m, r.length); }, 0);
-  var html = "<h3>" + esc(t(side === "sys" ? "sysFile" : "custFile")) + " · <span class='muted'>" + esc(f.name) + "</span></h3>";
+  var html = "<h3><span class='dzTag'>" + esc(t(cfg.tagKey)) + "</span> " + esc(t(cfg.titleKey)) + " · <span class='muted'>" + esc(f.name) + "</span></h3>";
+  if (cfg.hintKey) html += "<p class='mapHint'>" + esc(t(cfg.hintKey)) + "</p>";
   if (f.sheets.length > 1) {
-    html += "<div class='field'><label>" + esc(t("sheet")) + "</label><select onchange='changeSheet(\"" + side + "\", this.value)'>";
+    html += "<div class='field' style='max-width:320px'><label>" + esc(t("sheet")) + "</label><select onchange='changeSheet(\"" + side + "\", this.value)'>";
     f.sheets.forEach(function(s, i) {
       html += "<option value='" + i + "'" + (i === f.sheetIdx ? " selected" : "") + ">" + esc(s.name) + " (" + s.rows.length + ")</option>";
     });
@@ -614,9 +714,8 @@ function renderMapCard(side) {
   }
   html += "<label class='chk' style='margin-bottom:8px'><input type='checkbox' " + (f.hasHeader ? "checked" : "") +
     " onchange='toggleHeader(\"" + side + "\", this.checked)'> " + esc(t("hasHeader")) + "</label>";
-  var roles = [["emp", "colEmp", true], ["code", "colCode", false], ["qty", "colQty", true], ["amt", "colAmt", true]];
   html += "<div class='fieldRow'>";
-  roles.forEach(function(role) {
+  cfg.roles.forEach(function(role) {
     var key = role[0], lbl = role[1], optional = role[2];
     html += "<div class='field'><label>" + esc(t(lbl)) + "</label><select onchange='setMap(\"" + side + "\", \"" + key + "\", this.value)'>";
     html += "<option value='-1'>" + esc(t(optional ? "colNone" : "colChoose")) + "</option>";
@@ -629,10 +728,9 @@ function renderMapCard(side) {
   /* preview */
   html += "<div class='previewWrap'><table class='preview'><thead><tr>";
   var roleByCol = {};
-  Object.keys(f.map).forEach(function(k){ if (f.map[k] >= 0) roleByCol[f.map[k]] = k; });
-  var roleNames = { emp: t("colEmp"), code: t("colCode"), qty: t("colQty"), amt: t("colAmt") };
+  cfg.roles.forEach(function(role){ if (f.map[role[0]] >= 0) roleByCol[f.map[role[0]]] = t(role[1]); });
   for (var ci = 0; ci < nCols; ci++) {
-    html += "<th>" + (roleByCol[ci] ? "<span style='color:var(--brand)'>" + esc(roleNames[roleByCol[ci]]) + "</span>" : "&nbsp;") + "</th>";
+    html += "<th>" + (roleByCol[ci] ? "<span style='color:var(--brand)'>" + esc(roleByCol[ci]) + "</span>" : "&nbsp;") + "</th>";
   }
   html += "</tr></thead><tbody>";
   rows.slice(0, 8).forEach(function(r, ri) {
@@ -647,53 +745,75 @@ function renderMapCard(side) {
 function changeSheet(side, idx) {
   var f = state.files[side];
   f.sheetIdx = parseInt(idx, 10);
-  initSheet(f);
+  initSheet(f, side);
   renderMapCard(side);
 }
 function toggleHeader(side, on) {
   var f = state.files[side];
   f.hasHeader = on;
-  if (on) f.map = guessMapping(f.sheets[f.sheetIdx].rows[0] || []);
+  var roleKeys = SIDES[side].roles.map(function(r){ return r[0]; });
+  if (on) f.map = guessMapping(f.sheets[f.sheetIdx].rows[0] || [], roleKeys);
   renderMapCard(side);
 }
 function setMap(side, role, val) {
   state.files[side].map[role] = parseInt(val, 10);
   renderMapCard(side);
 }
-function validateMappings() {
-  var warn = document.getElementById("mapWarn"), btn = document.getElementById("btnCompare");
-  var fs = state.files.sys, fc = state.files.cust;
-  var msg = "";
-  if (!fs || !fc) { btn.disabled = true; warn.textContent = ""; return; }
-  if (fs.map.code < 0 || fc.map.code < 0) msg = t("needCode");
-  else {
-    var qtyBoth = fs.map.qty >= 0 && fc.map.qty >= 0;
-    var amtBoth = fs.map.amt >= 0 && fc.map.amt >= 0;
-    if (!qtyBoth && !amtBoth) msg = t("needVal");
+function qtyCols(f) {
+  return ["qtyA", "qtyU", "qtyD"].map(function(k){ return f.map[k]; }).filter(function(i){ return i >= 0; });
+}
+/* returns {errors: [], infos: [], cmpQty, cmpAmt} */
+function checkSetup() {
+  var fq = state.files.sysQty, fa = state.files.sysAmt, fc = state.files.cust;
+  var errors = [], infos = [];
+  if (!fc) errors.push(t("needCust"));
+  if (!fq && !fa) errors.push(t("needSys"));
+  var codeMissing = [fq, fa, fc].some(function(f){ return f && f.map.code < 0; });
+  if (codeMissing) errors.push(t("needCode"));
+  if (fq && qtyCols(fq).length === 0) errors.push(t("needQtyCols"));
+  if (fa && fa.map.amt < 0) errors.push(t("needAmtCol"));
+  var cmpQty = false, cmpAmt = false;
+  if (!errors.length) {
+    cmpQty = !!(fq && fc.map.qty >= 0);
+    cmpAmt = !!(fa && fc.map.amt >= 0);
+    if (fq && !cmpQty) infos.push(t("infoQtySkipped"));
+    if (fa && !cmpAmt) infos.push(t("infoAmtSkipped"));
+    if (!cmpQty && !cmpAmt) { errors.push(t("needDim")); infos = []; }
   }
-  warn.textContent = msg;
-  btn.disabled = !!msg;
+  return { errors: errors, infos: infos, cmpQty: cmpQty, cmpAmt: cmpAmt };
+}
+function validateMappings() {
+  var chk = checkSetup();
+  document.getElementById("mapWarn").textContent = chk.errors.join(" ");
+  document.getElementById("mapInfo").textContent = chk.infos.join(" ");
+  document.getElementById("btnCompare").disabled = chk.errors.length > 0;
 }
 /* ================= compare + render ================= */
-function getOpts() {
-  var fs = state.files.sys, fc = state.files.cust;
-  return {
+function runCompare(noScroll) {
+  var chk = checkSetup();
+  if (chk.errors.length) return;
+  var fq = state.files.sysQty, fa = state.files.sysAmt, fc = state.files.cust;
+  var opts = {
     tolAmt: parseFloat(document.getElementById("tolAmt").value) || 0,
     tolQty: parseFloat(document.getElementById("tolQty").value) || 0,
-    cmpQty: fs.map.qty >= 0 && fc.map.qty >= 0,
-    cmpAmt: fs.map.amt >= 0 && fc.map.amt >= 0
+    cmpQty: chk.cmpQty, cmpAmt: chk.cmpAmt,
+    ignoreMissing: document.getElementById("ignoreMissing").checked
   };
-}
-function runCompare() {
-  var fs = state.files.sys, fc = state.files.cust;
-  var opts = getOpts();
-  var sysRec = extractRecords(fs.sheets[fs.sheetIdx].rows, fs.map, fs.hasHeader);
-  var custRec = extractRecords(fc.sheets[fc.sheetIdx].rows, fc.map, fc.hasHeader);
-  var sysAgg = aggregateRecords(sysRec, opts.cmpQty, opts.cmpAmt);
-  var custAgg = aggregateRecords(custRec, opts.cmpQty, opts.cmpAmt);
+  var sysRecords = [];
+  if (opts.cmpQty) sysRecords = sysRecords.concat(extractRecords(
+    fq.sheets[fq.sheetIdx].rows, { emp: fq.map.emp, code: fq.map.code, qtyCols: qtyCols(fq), amtCols: [] }, fq.hasHeader));
+  if (opts.cmpAmt) sysRecords = sysRecords.concat(extractRecords(
+    fa.sheets[fa.sheetIdx].rows, { emp: fa.map.emp, code: fa.map.code, qtyCols: [], amtCols: [fa.map.amt] }, fa.hasHeader));
+  var custRecords = extractRecords(fc.sheets[fc.sheetIdx].rows, {
+    emp: fc.map.emp, code: fc.map.code,
+    qtyCols: opts.cmpQty && fc.map.qty >= 0 ? [fc.map.qty] : [],
+    amtCols: opts.cmpAmt && fc.map.amt >= 0 ? [fc.map.amt] : []
+  }, fc.hasHeader);
+  var sysAgg = aggregateRecords(sysRecords, opts.cmpQty, opts.cmpAmt);
+  var custAgg = aggregateRecords(custRecords, opts.cmpQty, opts.cmpAmt);
   state.result = compareData(sysAgg, custAgg, opts);
   state.result.opts = opts;
-  state.result.empCompared = fs.map.emp >= 0 || fc.map.emp >= 0;
+  state.result.empCompared = [fq, fa, fc].some(function(f){ return f && f.map.emp >= 0; });
   document.getElementById("step3").classList.remove("hidden");
   document.getElementById("vwEmp").classList.toggle("hidden", !state.result.empCompared);
   if (!state.result.empCompared) state.view = "code";
@@ -701,7 +821,7 @@ function runCompare() {
   renderTiles();
   renderResults();
   updatePrintHeader();
-  document.getElementById("step3").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (!noScroll) document.getElementById("step3").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 function updateTolNote() {
   if (!state.result) return;
@@ -718,13 +838,15 @@ function updatePrintHeader() {
 }
 function renderTiles() {
   var s = state.result.summary;
+  var ignored = state.result.opts.ignoreMissing;
+  var sfx = ignored ? t("ignoredSuffix") : "";
   var tiles = [
     ["brand", s.codes, t("tCodes")],
     state.result.empCompared ? ["brand", s.employees, t("tEmployees")] : null,
     ["ok", s.ok, t("tOk")],
     ["diff", s.diff, t("tDiff")],
-    ["miss", s.onlySys, t("tOnlySys")],
-    ["miss", s.onlyCust, t("tOnlyCust")],
+    [ignored ? "ignored" : "miss", s.onlySys, t("tOnlySys") + sfx],
+    [ignored ? "ignored" : "miss", s.onlyCust, t("tOnlyCust") + sfx],
     ["unknown", s.unknownCodes, t("tUnknown")]
   ].filter(Boolean);
   document.getElementById("tiles").innerHTML = tiles.map(function(tl) {
@@ -750,8 +872,10 @@ function fmt(n) {
 function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
-function statusBadge(st, inMaster) {
-  var h = "<span class='badge " + st + "'>" + esc(t("st" + st.charAt(0).toUpperCase() + st.slice(1))) + "</span>";
+function statusBadge(st, inMaster, ignored) {
+  var cls = st + (ignored && (st === "onlySys" || st === "onlyCust") ? " ignoredBadge" : "");
+  var h = "<span class='badge " + cls + "'>" + esc(t("st" + st.charAt(0).toUpperCase() + st.slice(1))) +
+    (ignored && (st === "onlySys" || st === "onlyCust") ? esc(t("ignoredSuffix")) : "") + "</span>";
   if (inMaster === false) h += " <span class='badge unknown'>" + esc(t("stUnknown")) + "</span>";
   return h;
 }
@@ -764,15 +888,20 @@ function matchesSearch(l, q) {
   if (!q) return true;
   return l.code.toLowerCase().indexOf(q) >= 0 || (l.emp && l.emp.toLowerCase().indexOf(q) >= 0);
 }
+function rowClass(status, ignored) {
+  if (ignored && (status === "onlySys" || status === "onlyCust")) return "stIgnored";
+  return "st-" + status;
+}
 function renderResults() {
   if (!state.result) return;
   var r = state.result, o = r.opts;
+  var ignored = o.ignoreMissing;
   var onlyIssues = document.getElementById("onlyIssues").checked;
   var q = document.getElementById("searchBox").value.trim().toLowerCase();
   var html = "";
   if (state.view === "code") {
     var rows = r.codes.filter(function(g) {
-      if (onlyIssues && g.status === "ok" && g.inMaster) return false;
+      if (onlyIssues && !g.issue && g.inMaster) return false;
       if (q && !(g.code.toLowerCase().indexOf(q) >= 0 || g.lines.some(function(l){ return matchesSearch(l, q); }))) return false;
       return true;
     });
@@ -783,20 +912,20 @@ function renderResults() {
     html += "<th>" + esc(t("thStatus")) + "</th></tr></thead><tbody>";
     rows.forEach(function(g) {
       var exp = !!expanded[g.code];
-      html += "<tr class='codeRow st-" + g.status + "' onclick='toggleExpand(" + JSON.stringify(g.code) + ")'>";
+      html += "<tr class='codeRow " + rowClass(g.status, ignored) + "' onclick='toggleExpand(" + JSON.stringify(g.code) + ")'>";
       html += "<td><span class='expander'>" + (exp ? "▾" : "▸") + "</span></td>";
       html += "<td><strong>" + esc(g.code) + "</strong></td>";
       if (r.empCompared) html += "<td class='num'>" + g.lines.length + "</td>";
       if (o.cmpQty) html += "<td class='num'>" + fmt(g.sysN ? g.sysQty : null) + "</td><td class='num'>" + fmt(g.custN ? g.custQty : null) + "</td>" + deltaCell(g.dQty, o.tolQty);
       if (o.cmpAmt) html += "<td class='num'>" + fmt(g.sysN ? g.sysAmt : null) + "</td><td class='num'>" + fmt(g.custN ? g.custAmt : null) + "</td>" + deltaCell(g.dAmt, o.tolAmt);
-      html += "<td>" + statusBadge(g.status, g.inMaster) + "</td></tr>";
+      html += "<td>" + statusBadge(g.status, g.inMaster, ignored) + "</td></tr>";
       if (exp) {
         g.lines.filter(function(l){ return !q || matchesSearch(l, q); }).forEach(function(l) {
-          html += "<tr class='detailRow st-" + l.status + "'><td></td><td style='padding-left:24px'>" + esc(l.emp || "(–)") + "</td>";
+          html += "<tr class='detailRow " + rowClass(l.status, ignored) + "'><td></td><td style='padding-left:24px'>" + esc(l.emp || "(–)") + "</td>";
           if (r.empCompared) html += "<td></td>";
           if (o.cmpQty) html += "<td class='num'>" + fmt(l.sysQty) + "</td><td class='num'>" + fmt(l.custQty) + "</td>" + deltaCell(l.dQty, o.tolQty);
           if (o.cmpAmt) html += "<td class='num'>" + fmt(l.sysAmt) + "</td><td class='num'>" + fmt(l.custAmt) + "</td>" + deltaCell(l.dAmt, o.tolAmt);
-          html += "<td>" + statusBadge(l.status) + "</td></tr>";
+          html += "<td>" + statusBadge(l.status, undefined, ignored) + "</td></tr>";
         });
       }
     });
@@ -804,7 +933,7 @@ function renderResults() {
     if (!rows.length) html = emptyMsg(r);
   } else {
     var lines = r.lines.filter(function(l) {
-      if (onlyIssues && l.status === "ok" && l.inMaster) return false;
+      if (onlyIssues && !l.issue && l.inMaster) return false;
       return matchesSearch(l, q);
     }).slice().sort(function(a, b) {
       var ea = a.emp.toLowerCase(), eb = b.emp.toLowerCase();
@@ -816,10 +945,10 @@ function renderResults() {
     if (o.cmpAmt) html += "<th class='num'>" + esc(t("thSysAmt")) + "</th><th class='num'>" + esc(t("thCustAmt")) + "</th><th class='num'>" + esc(t("thDAmt")) + "</th>";
     html += "<th>" + esc(t("thStatus")) + "</th></tr></thead><tbody>";
     lines.forEach(function(l) {
-      html += "<tr class='st-" + l.status + "'><td>" + esc(l.emp || "(–)") + "</td><td><strong>" + esc(l.code) + "</strong></td>";
+      html += "<tr class='" + rowClass(l.status, ignored) + "'><td>" + esc(l.emp || "(–)") + "</td><td><strong>" + esc(l.code) + "</strong></td>";
       if (o.cmpQty) html += "<td class='num'>" + fmt(l.sysQty) + "</td><td class='num'>" + fmt(l.custQty) + "</td>" + deltaCell(l.dQty, o.tolQty);
       if (o.cmpAmt) html += "<td class='num'>" + fmt(l.sysAmt) + "</td><td class='num'>" + fmt(l.custAmt) + "</td>" + deltaCell(l.dAmt, o.tolAmt);
-      html += "<td>" + statusBadge(l.status, l.inMaster ? undefined : false) + "</td></tr>";
+      html += "<td>" + statusBadge(l.status, l.inMaster ? undefined : false, ignored) + "</td></tr>";
     });
     html += "</tbody></table>";
     if (!lines.length) html = emptyMsg(r);
@@ -828,7 +957,7 @@ function renderResults() {
 }
 function emptyMsg(r) {
   var s = r.summary;
-  var allOk = s.diff === 0 && s.onlySys === 0 && s.onlyCust === 0 && s.unknownCodes === 0;
+  var allOk = s.issues === 0 && s.unknownCodes === 0;
   return "<div style='padding:24px;text-align:center;color:" + (allOk ? "var(--ok)" : "#6b7280") + "'>" +
     esc(allOk && document.getElementById("onlyIssues").checked ? t("allOk") : t("noRows")) + "</div>";
 }
@@ -852,9 +981,11 @@ function exportCSV() {
   L.push([t("rptClient"), client]);
   L.push([t("rptPeriod"), period]);
   L.push([t("rptDate"), new Date().toLocaleString(state.lang === "nl" ? "nl-NL" : "en-GB")]);
-  L.push([t("rptSys"), state.files.sys.name]);
+  L.push([t("rptSysQty"), state.files.sysQty ? state.files.sysQty.name : "—"]);
+  L.push([t("rptSysAmt"), state.files.sysAmt ? state.files.sysAmt.name : "—"]);
   L.push([t("rptCust"), state.files.cust.name]);
   L.push([t("rptTol"), "± € " + csvNum(o.tolAmt) + " / ± " + csvNum(o.tolQty)]);
+  L.push([t("rptIgnore"), t(o.ignoreMissing ? "yes" : "no")]);
   L.push([t("tCodes"), s.codes, t("tOk"), s.ok, t("tDiff"), s.diff, t("tOnlySys"), s.onlySys, t("tOnlyCust"), s.onlyCust, t("tUnknown"), s.unknownCodes]);
   L.push([]);
   var head = [t("rptLevel"), t("thCode"), t("thEmp")];
@@ -867,14 +998,16 @@ function exportCSV() {
     var row = [t("rptLevelCode"), g.code, ""];
     if (o.cmpQty) row = row.concat([csvNum(g.sysN ? g.sysQty : null), csvNum(g.custN ? g.custQty : null), csvNum(g.dQty)]);
     if (o.cmpAmt) row = row.concat([csvNum(g.sysN ? g.sysAmt : null), csvNum(g.custN ? g.custAmt : null), csvNum(g.dAmt)]);
-    row.push(t("st" + g.status.charAt(0).toUpperCase() + g.status.slice(1)));
+    row.push(t("st" + g.status.charAt(0).toUpperCase() + g.status.slice(1)) +
+      (o.ignoreMissing && (g.status === "onlySys" || g.status === "onlyCust") ? t("ignoredSuffix") : ""));
     row.push(g.inMaster ? "" : "X");
     L.push(row);
     g.lines.forEach(function(l) {
       var lr = [t("rptLevelEmp"), l.code, l.emp];
       if (o.cmpQty) lr = lr.concat([csvNum(l.sysQty), csvNum(l.custQty), csvNum(l.dQty)]);
       if (o.cmpAmt) lr = lr.concat([csvNum(l.sysAmt), csvNum(l.custAmt), csvNum(l.dAmt)]);
-      lr.push(t("st" + l.status.charAt(0).toUpperCase() + l.status.slice(1)));
+      lr.push(t("st" + l.status.charAt(0).toUpperCase() + l.status.slice(1)) +
+        (o.ignoreMissing && (l.status === "onlySys" || l.status === "onlyCust") ? t("ignoredSuffix") : ""));
       lr.push(l.inMaster ? "" : "X");
       L.push(lr);
     });
@@ -892,23 +1025,27 @@ function exportCSV() {
 /* ================= reset ================= */
 function resetAll() {
   if (!confirm(t("confirmNew"))) return;
-  state.files = { sys: null, cust: null };
+  state.files = { sysQty: null, sysAmt: null, cust: null };
   state.result = null;
   expanded = {};
   ["clientName", "periodName"].forEach(function(id){ document.getElementById(id).value = ""; });
-  ["dzSys", "dzCust"].forEach(function(id){ document.getElementById(id).classList.remove("loaded"); });
-  ["metaSys", "metaCust"].forEach(function(id){ document.getElementById(id).textContent = ""; });
-  document.getElementById("mapSys").innerHTML = "";
-  document.getElementById("mapCust").innerHTML = "";
+  Object.keys(DOM_IDS).forEach(function(side) {
+    var ids = DOM_IDS[side];
+    document.getElementById(ids.dz).classList.remove("loaded");
+    document.getElementById(ids.meta).textContent = "";
+    var mc = document.getElementById(ids.mapCard);
+    mc.innerHTML = "";
+    mc.classList.add("hidden");
+  });
   document.getElementById("step2").classList.add("hidden");
   document.getElementById("step3").classList.add("hidden");
   document.getElementById("searchBox").value = "";
   document.getElementById("onlyIssues").checked = true;
+  document.getElementById("ignoreMissing").checked = false;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 /* ================= init ================= */
-setupDropzone("sys");
-setupDropzone("cust");
+Object.keys(DOM_IDS).forEach(setupDropzone);
 var savedLang = "nl";
 try { savedLang = localStorage.getItem("fourEyesLang") || "nl"; } catch (e) {}
 setLang(savedLang);
