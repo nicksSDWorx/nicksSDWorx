@@ -204,6 +204,7 @@
       </div>
       <label class="chk"><input type="checkbox" id="onlyIssues" checked onchange="renderResults()"> <span data-i18n="onlyIssues">Alleen afwijkingen</span></label>
       <label class="chk"><input type="checkbox" id="ignoreMissing" onchange="runCompare(true)"> <span data-i18n="ignoreMissing">Negeer ontbrekende looncodes</span></label>
+      <label class="chk"><input type="checkbox" id="custOnly" onchange="runCompare(true)"> <span data-i18n="custOnly">Alleen looncodes uit klantbestand</span></label>
       <input type="search" id="searchBox" oninput="renderResults()" data-i18n-ph="searchPh" placeholder="Zoek looncode of werknemer…">
       <span class="toleranceNote" id="tolNote"></span>
     </div>
@@ -536,6 +537,8 @@ var I18N = {
     infoAmtSkipped: "Let op: bedragen worden niet vergeleken — wijs 'Bedrag' toe in het klantbestand.",
     vwCode: "Per looncode", vwEmp: "Per werknemer",
     onlyIssues: "Alleen afwijkingen", ignoreMissing: "Negeer ontbrekende looncodes",
+    custOnly: "Alleen looncodes uit klantbestand",
+    rptCustOnly: "Alleen looncodes uit klantbestand gecontroleerd",
     searchPh: "Zoek looncode of werknemer…",
     tCodes: "Looncodes", tEmployees: "Werknemers", tOk: "Akkoord", tDiff: "Verschillen",
     tOnlySys: "Alleen in systeem", tOnlyCust: "Alleen in klantinput", tUnknown: "Niet in loonmodel 2026",
@@ -591,6 +594,8 @@ var I18N = {
     infoAmtSkipped: "Note: amounts are not compared — assign 'Amount' in the customer file.",
     vwCode: "Per wagecode", vwEmp: "Per employee",
     onlyIssues: "Only differences", ignoreMissing: "Ignore missing wagecodes",
+    custOnly: "Only wagecodes in customer file",
+    rptCustOnly: "Only wagecodes from customer file checked",
     searchPh: "Search wagecode or employee…",
     tCodes: "Wagecodes", tEmployees: "Employees", tOk: "OK", tDiff: "Differences",
     tOnlySys: "Only in system", tOnlyCust: "Only in customer input", tUnknown: "Not in wage model 2026",
@@ -820,13 +825,26 @@ function runCompare(noScroll) {
     tolAmt: parseFloat(document.getElementById("tolAmt").value) || 0,
     tolQty: parseFloat(document.getElementById("tolQty").value) || 0,
     cmpQty: chk.cmpQty, cmpAmt: chk.cmpAmt,
-    ignoreMissing: document.getElementById("ignoreMissing").checked
+    ignoreMissing: document.getElementById("ignoreMissing").checked,
+    custOnly: document.getElementById("custOnly").checked
   };
   var sysRecords = [];
   var qtyRecs = opts.cmpQty ? extractRecords(
     fq.sheets[fq.sheetIdx].rows, { emp: fq.map.emp, code: fq.map.code, qtyCols: qtyCols(fq), amtCols: [] }, fq.hasHeader) : [];
   var amtRecs = opts.cmpAmt ? extractRecords(
     fa.sheets[fa.sheetIdx].rows, { emp: fa.map.emp, code: fa.map.code, qtyCols: [], amtCols: [fa.map.amt] }, fa.hasHeader) : [];
+  var custRecordsEarly = extractRecords(fc.sheets[fc.sheetIdx].rows, {
+    emp: fc.map.emp, code: fc.map.code,
+    qtyCols: opts.cmpQty && fc.map.qty >= 0 ? [fc.map.qty] : [],
+    amtCols: opts.cmpAmt && fc.map.amt >= 0 ? [fc.map.amt] : []
+  }, fc.hasHeader);
+  if (opts.custOnly) {
+    // restrict the check to wagecodes the customer actually supplied
+    var custCodes = {};
+    custRecordsEarly.forEach(function(r){ custCodes[r.code] = true; });
+    qtyRecs = qtyRecs.filter(function(r){ return custCodes[r.code]; });
+    amtRecs = amtRecs.filter(function(r){ return custCodes[r.code]; });
+  }
   if (opts.cmpQty && opts.cmpAmt) {
     // file 1 wins per wagecode: codes present there are checked on quantities only;
     // file 2 only counts for the remaining codes
@@ -837,11 +855,7 @@ function runCompare(noScroll) {
     opts.codeDim = codeDim;
   }
   sysRecords = qtyRecs.concat(amtRecs);
-  var custRecords = extractRecords(fc.sheets[fc.sheetIdx].rows, {
-    emp: fc.map.emp, code: fc.map.code,
-    qtyCols: opts.cmpQty && fc.map.qty >= 0 ? [fc.map.qty] : [],
-    amtCols: opts.cmpAmt && fc.map.amt >= 0 ? [fc.map.amt] : []
-  }, fc.hasHeader);
+  var custRecords = custRecordsEarly;
   var sysAgg = aggregateRecords(sysRecords, opts.cmpQty, opts.cmpAmt);
   var custAgg = aggregateRecords(custRecords, opts.cmpQty, opts.cmpAmt);
   state.result = compareData(sysAgg, custAgg, opts);
@@ -1024,6 +1038,7 @@ function exportCSV() {
   L.push([t("rptCust"), state.files.cust.name]);
   L.push([t("rptTol"), "± € " + csvNum(o.tolAmt) + " / ± " + csvNum(o.tolQty)]);
   L.push([t("rptIgnore"), t(o.ignoreMissing ? "yes" : "no")]);
+  L.push([t("rptCustOnly"), t(o.custOnly ? "yes" : "no")]);
   L.push([t("tCodes"), s.codes, t("tOk"), s.ok, t("tDiff"), s.diff, t("tOnlySys"), s.onlySys, t("tOnlyCust"), s.onlyCust, t("tUnknown"), s.unknownCodes]);
   L.push([]);
   var head = [t("rptLevel"), t("thCode"), t("thDesc"), t("thEmp")];
@@ -1080,6 +1095,7 @@ function resetAll() {
   document.getElementById("searchBox").value = "";
   document.getElementById("onlyIssues").checked = true;
   document.getElementById("ignoreMissing").checked = false;
+  document.getElementById("custOnly").checked = false;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 /* ================= init ================= */

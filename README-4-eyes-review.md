@@ -36,6 +36,8 @@ De uploadvakken in stap 1 zijn duidelijk gelabeld (Bestand 1 · Systeem, Bestand
 | **Alleen klant** | Regel/looncode staat wel in de klantinput maar niet in het systeem |
 | **Onbekende code** | Looncode komt niet voor in het Master loonmodel 2026 (2.064 codes, ingebouwd) |
 
+**Alleen looncodes uit klantbestand** — met dit vinkje (boven de resultaattabel) worden alleen looncodes gecontroleerd die in het klantbestand voorkomen; systeemcodes die de klant niet aanlevert (bijv. door het systeem berekende codes) blijven volledig buiten de vergelijking. Looncodes die de klant wél aanlevert maar in het systeem ontbreken, blijven zichtbaar. De keuze wordt in het rapport vastgelegd.
+
 **Negeer ontbrekende looncodes** — met dit vinkje (boven de resultaattabel) tellen regels die maar aan één kant voorkomen niet meer mee als afwijking. Ze blijven zichtbaar met een grijze status "(genegeerd)", en echte waardeverschillen en onbekende codes blijven gewoon gemarkeerd. De keuze wordt ook in het rapport vastgelegd.
 
 ## Rapport & audit trail
