@@ -615,10 +615,15 @@ function run(){
       if(res.calc.wntCapped) warns.push('Nieuw percentage begrensd door de Balkenendenorm (norm € '+fmtMoney(wntNorm)+' op jaarbasis, pro rata € '+fmtMoney(res.calc.wntPro)+').');
       if(res.calc.b22==null){ res.status='geen-historie'; warns.push('Niet afgelaagd loon is 0; percentage niet te bepalen.'); }
       else if(res.calc.b22<=0){ res.status='geen-ruimte'; }
-      else if(res.calc.b22>=maxPct){ res.status='volledig'; }
-      else{ res.status='aanpassen'; }
-      if(meldB18&&res.calc.b18!=null&&res.calc.b22!=null&&excelRound(res.calc.b18,2)>excelRound(res.calc.b22*100,2))
-        warns.push('Reeds toegepast percentage ('+fmtPct(res.calc.b18,2)+') is hoger dan het nieuwe percentage ('+fmtPct(res.calc.b22*100,2)+'); er is al meer afgelaagd dan toegestaan — de TWK leidt tot een correctie omlaag.');
+      else{
+        var teVeelAfgelaagd=meldB18&&res.calc.b18!=null&&excelRound(res.calc.b18,2)>excelRound(res.calc.b22*100,2);
+        if(teVeelAfgelaagd){
+          res.status='aanpassen';
+          warns.push('Reeds toegepast percentage ('+fmtPct(res.calc.b18,2)+') is hoger dan het nieuwe percentage ('+fmtPct(res.calc.b22*100,2)+'); er is al meer afgelaagd dan toegestaan — de TWK leidt tot een correctie omlaag.');
+        }
+        else if(res.calc.b22>=maxPct){ res.status='volledig'; }
+        else{ res.status='aanpassen'; }
+      }
     }
     results.push(res);
   });

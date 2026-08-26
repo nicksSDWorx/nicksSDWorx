@@ -62,10 +62,11 @@ toepassen.
 - **Maximaal percentage** — 30; per 2027 wordt dit 27, dan hier aan te passen.
 - **Balkenendenorm** — WNT-norm op jaarbasis (2025: € 246.000); 0 = niet toepassen.
 - **Looncodes** voor SVW-loon (9970) en netto 30% (5990).
-- **Melding bij te hoge aflaging** — geeft (standaard aan) een aandachtspunt per
-  medewerker wanneer het reeds toegepaste percentage (B18) hoger is dan het nieuwe
-  percentage (B22), vergeleken op 2 decimalen: er is dan al meer afgelaagd dan
-  toegestaan en de TWK leidt tot een correctie omlaag.
+- **Melding bij te hoge aflaging** — wanneer het reeds toegepaste percentage (B18)
+  hoger is dan het nieuwe percentage (B22), vergeleken op 2 decimalen, krijgt de
+  medewerker (standaard aan) de rode status *Aanpassen → juiste %* plus een
+  aandachtspunt: er is al meer afgelaagd dan toegestaan en de TWK leidt tot een
+  correctie omlaag. Dit geldt ook als het nieuwe percentage het maximum is.
 - Instellingen worden lokaal onthouden (localStorage van de browser).
 
 ## Aandachtspunten / bewuste keuzes
