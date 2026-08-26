@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expatregeling herrekenen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blue:#006dd8; --white:#ffffff; --black:#000000;
+    --icy:#d9f1ff; --coolsky:#9ed2ff; --azure:#38a1ff;
+    --navy:#001c52; --persian:#000d3a;
+    --red:#f1002f;
+    --x:24px; /* base unit */
+    --radius:8px; --radius-sm:4px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:'Inter',-apple-system,'Segoe UI',system-ui,sans-serif;
+    color:var(--black); background:var(--white);
+    font-size:15px; line-height:1.5;
+  }
+  .wrap{max-width:1160px;margin:0 auto;padding:0 var(--x)}
+  /* ---- header: pillar with gradient ---- */
+  header{
+    background:linear-gradient(135deg,var(--blue) 0%,var(--navy) 100%);
+    color:var(--white); padding:calc(var(--x)*1.5) 0 calc(var(--x)*1.25);
+  }
+  header .brand{font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.95}
+  header h1{font-size:32px;line-height:1.2;font-weight:800;margin-top:6px}
+  header p.sub{margin-top:6px;font-size:15px;max-width:70ch}
+  /* ---- sections ---- */
+  main{padding:calc(var(--x)*1.5) 0 calc(var(--x)*3)}
+  section{margin-bottom:calc(var(--x)*1.5)}
+  h2{color:var(--blue);font-size:20px;font-weight:700;margin-bottom:calc(var(--x)*.5)}
+  h2 .stepnr{
+    display:inline-flex;align-items:center;justify-content:center;
+    width:28px;height:28px;border-radius:50%;background:var(--blue);color:#fff;
+    font-size:14px;font-weight:700;margin-right:10px;vertical-align:-4px;
+  }
+  .hint{font-size:13px;color:#333;margin-bottom:12px}
+  /* ---- warning banner (accent, used once) ---- */
+  .banner{
+    border:1px solid var(--red); border-left:6px solid var(--red);
+    border-radius:var(--radius); background:#fff;
+    padding:12px 16px; margin-bottom:calc(var(--x)*1.25);
+    font-size:14px;
+  }
+  .banner strong{color:var(--red)}
+  /* ---- widgets / cards ---- */
+  .card{
+    background:var(--white); border:1px solid var(--black); border-radius:var(--radius);
+    padding:calc(var(--x)*.75) var(--x);
+  }
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--x)}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  /* drop zones */
+  .drop{
+    border:2px dashed var(--blue); border-radius:var(--radius); background:var(--white);
+    padding:calc(var(--x)*1) var(--x); text-align:center; cursor:pointer;
+    transition:background .15s;
+  }
+  .drop.hover{background:var(--icy)}
+  .drop.ok{border-style:solid;background:var(--icy)}
+  .drop h3{font-size:15px;font-weight:700;margin-bottom:4px}
+  .drop .filemeta{font-size:13px;color:#222;margin-top:6px;word-break:break-all}
+  .drop .cta{display:inline-block;margin-top:10px;background:var(--blue);color:#fff;
+    border-radius:var(--radius);padding:8px 18px;font-weight:600;font-size:14px}
+  .drop input{display:none}
+  /* settings */
+  .settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:calc(var(--x)*.75) var(--x)}
+  .field label{display:block;font-size:12.5px;font-weight:600;margin-bottom:4px}
+  .field input[type=number],.field input[type=date],.field input[type=text]{
+    width:100%;border:1px solid var(--black);border-radius:var(--radius-sm);
+    padding:8px 10px;font:inherit;font-size:14px;background:#fff;
+  }
+  .field input:focus{outline:2px solid var(--azure);outline-offset:1px}
+  .field .derived{font-size:12.5px;color:var(--blue);font-weight:600;margin-top:4px}
+  .field.checkbox{display:flex;align-items:flex-start;gap:8px;padding-top:20px}
+  .field.checkbox input{width:16px;height:16px;margin-top:2px;accent-color:var(--blue)}
+  .field.checkbox label{font-weight:500;font-size:13px;margin:0}
+  /* buttons */
+  .btn{
+    display:inline-block;border:none;cursor:pointer;font:inherit;font-weight:700;font-size:15px;
+    background:var(--blue);color:#fff;border-radius:var(--radius);padding:12px 28px;
+  }
+  .btn:hover{background:#005bb5}
+  .btn[disabled]{background:#9ed2ff;cursor:not-allowed}
+  .btn.secondary{background:#fff;color:var(--blue);border:1px solid var(--blue);font-weight:600;font-size:14px;padding:9px 18px}
+  .btn.secondary:hover{background:var(--icy)}
+  /* summary widgets */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:var(--x);margin-bottom:var(--x)}
+  .stat{background:#fff;border:1px solid var(--black);border-radius:var(--radius);padding:16px 20px}
+  .stat .t{font-size:12.5px;font-weight:600}
+  .stat .v{font-size:30px;font-weight:800;color:var(--blue);line-height:1.15;margin-top:2px}
+  .stat .s{font-size:12.5px;color:#333;margin-top:2px}
+  /* table */
+  .tablewrap{overflow-x:auto;border:1px solid var(--black);border-radius:var(--radius);background:#fff}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:1080px}
+  th{background:var(--navy);color:#fff;text-align:left;padding:9px 12px;font-weight:600;white-space:nowrap;position:sticky;top:0}
+  th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+  td{padding:8px 12px;border-top:1px solid #d9d9d9;white-space:nowrap;vertical-align:top}
+  tr.main{cursor:pointer}
+  tr.main:hover td{background:var(--icy)}
+  tr.detail>td{background:#f4faff;white-space:normal;padding:0}
+  .badge{display:inline-block;border-radius:var(--radius-sm);padding:2px 9px;font-size:11.5px;font-weight:700;letter-spacing:.02em}
+  .badge.ok{background:var(--icy);color:var(--navy)}
+  .badge.action{background:var(--red);color:#fff}
+  .badge.warn{background:#fff;color:var(--red);border:1px solid var(--red)}
+  .caret{display:inline-block;transition:transform .15s;margin-right:6px;color:var(--blue);font-weight:700}
+  tr.open .caret{transform:rotate(90deg)}
+  /* detail: excel replica */
+  .replica{
+    padding:16px 20px;display:grid;grid-template-columns:1fr 1fr;gap:var(--x);
+    position:sticky;left:0;max-width:min(1110px,calc(100vw - 52px));
+  }
+  @media(max-width:900px){.replica{grid-template-columns:1fr}}
+  .replica table{min-width:0;font-size:13px;border:1px solid #bbb}
+  .replica th{background:var(--blue);position:static}
+  .replica td{white-space:normal}
+  .replica td.lbl{width:58%}
+  .replica tr.calcrow td{background:#fff}
+  .replica tr.inputrow td{background:#fff8d1}
+  .replica tr.resultrow td{background:var(--icy);font-weight:700}
+  .replica .actie{grid-column:1/-1;border:1px solid var(--blue);border-radius:var(--radius);padding:12px 16px;font-size:13.5px;background:#fff}
+  .replica .actie strong{color:var(--blue)}
+  .replica .warns{grid-column:1/-1;font-size:13px}
+  .replica .warns li{margin-left:18px;margin-top:2px}
+  .controle input{width:120px;border:1px solid var(--black);border-radius:var(--radius-sm);padding:4px 8px;font:inherit;font-size:13px;text-align:right}
+  /* meldingen */
+  .msgs{margin-top:var(--x)}
+  .msg{border:1px solid var(--black);border-radius:var(--radius);background:#fff;padding:10px 14px;font-size:13.5px;margin-bottom:8px}
+  .msg.err{border-color:var(--red);border-left:5px solid var(--red)}
+  footer{background:var(--icy);padding:var(--x) 0;font-size:12.5px;color:#222}
+  footer .wrap{display:flex;justify-content:space-between;gap:var(--x);flex-wrap:wrap}
+  .nowrapcell{max-width:340px;overflow:hidden;text-overflow:ellipsis}
+  .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:var(--x)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">SD Worx · Payroll Services</div>
+    <h1>Expatregeling herrekenen</h1>
+    <p class="sub">Jaarlijkse controle van de 30%-regeling (expatregeling). Upload het expatregeling&shy;overzicht en het historisch overzicht; de tool voert per medewerker de berekening uit conform het rekenmodel <em>Expatregeling herrekenen</em>. Alle gegevens blijven lokaal in je browser.</p>
+  </div>
+</header>
+<main>
+  <div class="wrap">
+    <div class="banner"><strong>Let op:</strong> de maximering van de Balkenendenorm (WNT-norm) zit <strong>niet</strong> in deze berekening — controleer die apart. De tool vervangt geen fiscale beoordeling.</div>
+
+    <section id="sec-upload">
+      <h2><span class="stepnr">1</span>Bestanden</h2>
+      <p class="hint">CSV-exports (puntkomma of komma gescheiden). Kolommen worden herkend op kolomnaam; ontbreken de namen, dan vallen we terug op de vaste kolomposities (expat: J&nbsp;=&nbsp;Persnr, N&nbsp;=&nbsp;Datum uit dienst, U&nbsp;=&nbsp;Regeling vanaf, V&nbsp;=&nbsp;Regeling t/m, AD&nbsp;=&nbsp;Grenswaarde · historie: E&nbsp;=&nbsp;Persnr, L&nbsp;=&nbsp;Looncode, AB&nbsp;=&nbsp;Cumulatief).</p>
+      <div class="grid2">
+        <div class="drop" id="drop-expat">
+          <h3>Expatregeling overzicht</h3>
+          <div>Sleep het bestand hierheen of</div>
+          <span class="cta">Kies bestand</span>
+          <div class="filemeta" id="meta-expat">Nog geen bestand</div>
+          <input type="file" id="file-expat" accept=".csv,.txt">
+        </div>
+        <div class="drop" id="drop-hist">
+          <h3>Historisch overzicht</h3>
+          <div>Sleep het bestand hierheen of</div>
+          <span class="cta">Kies bestand</span>
+          <div class="filemeta" id="meta-hist">Nog geen bestand</div>
+          <input type="file" id="file-hist" accept=".csv,.txt">
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-settings">
+      <h2><span class="stepnr">2</span>Instellingen</h2>
+      <div class="card">
+        <div class="settings-grid">
+          <div class="field">
+            <label for="set-jaar">Berekeningsjaar (A1)</label>
+            <input type="number" id="set-jaar" min="2000" max="2100" step="1">
+          </div>
+          <div class="field">
+            <label for="set-startdatum">Standaard startdatum (B5-ondergrens)</label>
+            <input type="date" id="set-startdatum">
+            <div class="derived">Standaard 1 januari van het berekeningsjaar</div>
+          </div>
+          <div class="field">
+            <label for="set-toetsloon">Toetsloon (B3), €</label>
+            <input type="number" id="set-toetsloon" min="0" step="0.01">
+            <div class="derived" id="derived-b4">Toetsloon maximaal 30% (B4): —</div>
+          </div>
+          <div class="field">
+            <label for="set-maxpct">Maximaal percentage regeling, %</label>
+            <input type="number" id="set-maxpct" min="0" max="100" step="0.01">
+            <div class="derived">30%-regeling: 30 · (vanaf 2027: 27)</div>
+          </div>
+          <div class="field">
+            <label for="set-lc-svw">Looncode SVW-loon (B14)</label>
+            <input type="text" id="set-lc-svw">
+          </div>
+          <div class="field">
+            <label for="set-lc-netto">Looncode netto 30% (B15)</label>
+            <input type="text" id="set-lc-netto">
+          </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="set-grenswaarde" checked>
+            <label for="set-grenswaarde">Toetsloon per medewerker uit expatbestand (kolom <b>Grenswaarde</b>) gebruiken; het veld hierboven geldt als terugval&shy;waarde. Zo wordt ook het lage toetsloon (jonge masters) juist meegenomen.</label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sec-run">
+      <div class="toolbar">
+        <button class="btn" id="btn-run" disabled>Bereken</button>
+        <button class="btn secondary" id="btn-export" style="display:none">Exporteer resultaten (CSV)</button>
+        <button class="btn secondary" id="btn-copy" style="display:none">Kopieer naar klembord</button>
+      </div>
+      <div class="msgs" id="global-msgs"></div>
+    </section>
+
+    <section id="sec-results" style="display:none">
+      <h2><span class="stepnr">3</span>Resultaten</h2>
+      <div class="stats" id="stats"></div>
+      <div class="tablewrap">
+        <table id="result-table">
+          <thead>
+            <tr>
+              <th></th><th>Persnr</th><th>Naam</th><th>Status</th>
+              <th>Datum start (B5)</th><th>Einde (B6)</th>
+              <th class="num">Toetsloon (B3)</th>
+              <th class="num">Toetsloon pro rato (B12)</th>
+              <th class="num">LC SVW (B14)</th>
+              <th class="num">LC netto 30% (B15)</th>
+              <th class="num">Niet afgelaagd loon (B16)</th>
+              <th class="num">Reeds toegepast % (B18)</th>
+              <th class="num">Nieuw % (B22)</th>
+            </tr>
+          </thead>
+          <tbody id="result-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+<footer>
+  <div class="wrap">
+    <div>Expatregeling herrekenen · gebaseerd op rekenmodel “Expatregeling herrekenen 2025” (30% regeling).</div>
+    <div>Verwerking gebeurt volledig lokaal in de browser — er worden geen gegevens verstuurd.</div>
+  </div>
+</footer>
+<script>
+/* ================= CALC-CORE-START =================
+   Getrouwe herimplementatie van het Excel-rekenmodel
+   "Expatregeling herrekenen" (tabblad '30% regeling'). */
+'use strict';
+
+// Datums als {y,m,d}. m = 1..12.
+function mkD(y,m,d){ return {y:y,m:m,d:d}; }
+function dNum(a){ return Date.UTC(a.y,a.m-1,a.d)/86400000; }
+function dCmp(a,b){ return dNum(a)-dNum(b); }
+function fromNum(n){ var t=new Date(n*86400000); return mkD(t.getUTCFullYear(),t.getUTCMonth()+1,t.getUTCDate()); }
+function addDays(a,n){ return fromNum(dNum(a)+n); }
+function daysInMonth(y,m){ return new Date(Date.UTC(y,m,0)).getUTCDate(); }
+function eom(a){ return mkD(a.y,a.m,daysInMonth(a.y,a.m)); }
+function bom(a){ return mkD(a.y,a.m,1); }
+function weekday(a){ return new Date(dNum(a)*86400000).getUTCDay(); } // 0=zo..6=za
+
+// NETWORKDAYS: werkdagen ma-vr, begin en eind inclusief (zonder feestdagenlijst, zoals in het Excel-model)
+function networkdays(a,b){
+  if(dCmp(b,a)<0) return 0;
+  var n=0;
+  for(var t=dNum(a); t<=dNum(b); t++){
+    var wd=new Date(t*86400000).getUTCDay();
+    if(wd!==0 && wd!==6) n++;
+  }
+  return n;
+}
+// DATEDIF(a,b,"m"): volledige maanden
+function datedifM(a,b){
+  var m=(b.y-a.y)*12+(b.m-a.m);
+  if(b.d<a.d) m--;
+  return m;
+}
+// Excel ROUND: half weg van nul
+function excelRound(x,n){
+  var f=Math.pow(10,n||0);
+  return Math.sign(x)*Math.floor(Math.abs(x)*f+0.5)/f;
+}
+function sameMonth(a,b){ return a.y===b.y && a.m===b.m; }
+
+/**
+ * Voert de berekening uit voor één medewerker.
+ * b5,b6: {y,m,d} · b3: toetsloon · b14: LC 9970 cum · b15: LC 5990 cum · maxPct: bv. 0.30
+ */
+function bereken(b5,b6,b3,b14,b15,maxPct){
+  var b7,b8,b9;
+  // B7: SV-dagen gebroken eerste maand
+  if(sameMonth(b5,b6)){
+    b7=networkdays(b5,b6);
+  } else if(networkdays(b5,eom(b5))===networkdays(bom(b5),eom(b5))){
+    b7=0; // eerste maand telt als volledige maand
+  } else {
+    b7=networkdays(b5,eom(b5));
+  }
+  // B8: aantal volledige maanden
+  if(sameMonth(b5,b6)){
+    b8=0;
+  } else if(b5.d===1 || b6.d===eom(b6).d){
+    b8=datedifM(b5,addDays(b6,1));
+  } else {
+    b8=datedifM(b5,addDays(b6,1))-1;
+  }
+  // B9: SV-dagen gebroken laatste maand
+  if(sameMonth(b5,b6) || b6.d===eom(b6).d){
+    b9=0;
+  } else {
+    b9=networkdays(bom(b6),b6);
+  }
+  // B12: toetsloon pro rato
+  var b12=(b7/networkdays(bom(b5),eom(b5)))*(b3/12)
+         +(b8/12)*b3
+         +(b9/networkdays(bom(b6),eom(b6)))*(b3/12);
+  var b16=b14+b15;                                  // niet afgelaagd belastbaar loon
+  var b18=b16!==0 ? (b15/b16)*100 : null;           // procentuele aflaging (reeds toegepast)
+  var b20=excelRound(b16-b12,0);                    // verschil toetsloon - niet afgelaagd loon
+  var b21=b20-b15;                                  // nog extra af te lagen
+  var b22=null;                                     // nieuw percentage (fractie)
+  if(b16!==0){
+    var ratio=b20/b16;
+    b22=ratio>maxPct ? maxPct : excelRound(ratio,5);
+  }
+  return {b7:b7,b8:b8,b9:b9,b12:b12,b16:b16,b18:b18,b20:b20,b21:b21,b22:b22};
+}
+
+// ---- parsing helpers ----
+function parseDateNL(s){
+  if(s==null) return null;
+  s=String(s).trim();
+  if(!s) return null;
+  var m=s.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})/);
+  if(m) return mkD(+m[3],+m[2],+m[1]);
+  m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return mkD(+m[1],+m[2],+m[3]);
+  return null;
+}
+function parseNumNL(s){
+  if(s==null) return null;
+  s=String(s).trim().replace(/[€\s ]/g,'');
+  if(!s) return null;
+  var hasC=s.indexOf(',')>=0, hasP=s.indexOf('.')>=0;
+  if(hasC&&hasP){
+    if(s.lastIndexOf(',')>s.lastIndexOf('.')) s=s.replace(/\./g,'').replace(',','.');
+    else s=s.replace(/,/g,'');
+  } else if(hasC){ s=s.replace(/\./g,'').replace(',','.'); }
+  var v=parseFloat(s);
+  return isNaN(v)?null:v;
+}
+// CSV-parser met quote-ondersteuning
+function parseCSV(text,delim){
+  var rows=[],row=[],cur='',inQ=false;
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(inQ){
+      if(ch==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else inQ=false; }
+      else cur+=ch;
+    } else if(ch==='"'){ inQ=true; }
+    else if(ch===delim){ row.push(cur); cur=''; }
+    else if(ch==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
+    else if(ch==='\r'){ /* skip */ }
+    else cur+=ch;
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){return String(c).trim()!=='';}); });
+}
+function detectDelim(line){
+  var sc=(line.match(/;/g)||[]).length, cm=(line.match(/,/g)||[]).length;
+  return sc>=cm?';':',';
+}
+function colLetterToIndex(letter){
+  var n=0; letter=letter.toUpperCase();
+  for(var i=0;i<letter.length;i++){ n=n*26+(letter.charCodeAt(i)-64); }
+  return n-1;
+}
+// kolom vinden: eerst op naam, anders vaste letterpositie
+function findCol(header,names,fallbackLetter,notes,label){
+  var lower=header.map(function(h){return String(h).trim().toLowerCase();});
+  for(var i=0;i<names.length;i++){
+    var idx=lower.indexOf(names[i].toLowerCase());
+    if(idx>=0) return idx;
+  }
+  var fb=colLetterToIndex(fallbackLetter);
+  notes.push('Kolomnaam “'+names[0]+'” niet gevonden voor '+label+'; teruggevallen op vaste kolom '+fallbackLetter+'.');
+  return fb<header.length?fb:-1;
+}
+/* ================= CALC-CORE-END ================= */
+
+// ================= UI =================
+var state={expat:null,hist:null,results:null,exportRows:null};
+
+function fmtMoney(v){ return v==null?'—':new Intl.NumberFormat('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
+function fmtPct(v,dec){ return v==null?'—':new Intl.NumberFormat('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:dec==null?3:dec}).format(v)+'%'; }
+function fmtDate(d){ if(!d) return '—'; var p=function(n){return (n<10?'0':'')+n;}; return p(d.d)+'-'+p(d.m)+'-'+d.y; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+// ---- instellingen ----
+var els={
+  jaar:document.getElementById('set-jaar'),
+  startdatum:document.getElementById('set-startdatum'),
+  toetsloon:document.getElementById('set-toetsloon'),
+  maxpct:document.getElementById('set-maxpct'),
+  lcSvw:document.getElementById('set-lc-svw'),
+  lcNetto:document.getElementById('set-lc-netto'),
+  grenswaarde:document.getElementById('set-grenswaarde'),
+};
+function defaultSettings(){
+  var y=new Date().getFullYear();
+  return {jaar:y,startdatum:y+'-01-01',toetsloon:46660,maxpct:30,lcSvw:'9970',lcNetto:'5990',grenswaarde:true};
+}
+function loadSettings(){
+  var s=defaultSettings();
+  try{
+    var raw=localStorage.getItem('expat-tool-settings');
+    if(raw){ var p=JSON.parse(raw); for(var k in s){ if(p[k]!==undefined) s[k]=p[k]; } }
+  }catch(e){}
+  els.jaar.value=s.jaar; els.startdatum.value=s.startdatum; els.toetsloon.value=s.toetsloon;
+  els.maxpct.value=s.maxpct; els.lcSvw.value=s.lcSvw; els.lcNetto.value=s.lcNetto; els.grenswaarde.checked=!!s.grenswaarde;
+  updateDerived();
+}
+function saveSettings(){
+  try{
+    localStorage.setItem('expat-tool-settings',JSON.stringify({
+      jaar:+els.jaar.value,startdatum:els.startdatum.value,toetsloon:+els.toetsloon.value,
+      maxpct:+els.maxpct.value,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim(),
+      grenswaarde:els.grenswaarde.checked}));
+  }catch(e){}
+}
+function updateDerived(){
+  var b3=+els.toetsloon.value, pct=+els.maxpct.value;
+  var b4=(b3&&pct<100)?b3/(1-pct/100):null;
+  document.getElementById('derived-b4').textContent=
+    'Toetsloon maximaal '+(pct||30)+'% (B4): '+(b4?'€\u00A0'+fmtMoney(b4):'—');
+}
+[els.toetsloon,els.maxpct].forEach(function(el){ el.addEventListener('input',updateDerived); });
+Object.keys(els).forEach(function(k){ els[k].addEventListener('change',saveSettings); });
+els.jaar.addEventListener('change',function(){
+  var y=+els.jaar.value;
+  if(y>=2000&&y<=2100){ els.startdatum.value=y+'-01-01'; saveSettings(); }
+});
+loadSettings();
+
+// ---- bestand inlezen ----
+function decodeBuffer(buf){
+  try{ return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
+  catch(e){ return new TextDecoder('windows-1252').decode(buf); }
+}
+function hookDrop(dropId,inputId,metaId,key){
+  var drop=document.getElementById(dropId), input=document.getElementById(inputId), meta=document.getElementById(metaId);
+  function handle(file){
+    file.arrayBuffer().then(function(buf){
+      var text=decodeBuffer(buf).replace(/^﻿/,'');
+      var rows=parseCSV(text,detectDelim(text.split('\n')[0]||''));
+      if(rows.length<2){ meta.textContent='⚠ Bestand bevat geen dataregels'; state[key]=null; syncRun(); return; }
+      state[key]={name:file.name,rows:rows};
+      drop.classList.add('ok');
+      meta.textContent=file.name+' · '+(rows.length-1)+' regels';
+      syncRun();
+    });
+  }
+  drop.addEventListener('click',function(){ input.click(); });
+  input.addEventListener('change',function(){ if(input.files[0]) handle(input.files[0]); });
+  ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('hover'); }); });
+  ['dragleave','drop'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('hover'); }); });
+  drop.addEventListener('drop',function(e){ if(e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+}
+hookDrop('drop-expat','file-expat','meta-expat','expat');
+hookDrop('drop-hist','file-hist','meta-hist','hist');
+function syncRun(){ document.getElementById('btn-run').disabled=!(state.expat&&state.hist); }
+
+// ---- hoofdberekening over de bestanden ----
+function run(){
+  saveSettings();
+  var notes=[];
+  var jaar=+els.jaar.value;
+  var defStart=parseDateNL(els.startdatum.value)||mkD(jaar,1,1);
+  var defToetsloon=+els.toetsloon.value;
+  var maxPct=(+els.maxpct.value)/100;
+  var lcSvw=els.lcSvw.value.trim(), lcNetto=els.lcNetto.value.trim();
+  var useGw=els.grenswaarde.checked;
+  var eindJaar=mkD(jaar,12,31);
+
+  // expat-kolommen
+  var eh=state.expat.rows[0];
+  var eCols={
+    pers:findCol(eh,['Persnr'],'J',notes,'personeelsnummer (expat)'),
+    naam:findCol(eh,['LijstNaamCompleet'],'K',notes,'naam (expat)'),
+    periode:findCol(eh,['Periode'],'D',notes,'periode (expat)'),
+    runnr:findCol(eh,['Runnr'],'C',notes,'runnr (expat)'),
+    uitdienst:findCol(eh,['Datum uit Dienst','DatumUitDienst'],'N',notes,'datum uit dienst (expat, kolom N)'),
+    vanaf:findCol(eh,['Regeling Vanaf'],'U',notes,'regeling vanaf (expat, kolom U)'),
+    tm:findCol(eh,['Regeling Tm'],'V',notes,'regeling t/m (expat, kolom V)'),
+    gw:findCol(eh,['Grenswaarde'],'AD',notes,'grenswaarde (expat, kolom AD)'),
+    regeling:findCol(eh,['Expatregeling'],'T',notes,'code expatregeling (expat, kolom T)'),
+  };
+  // historie-kolommen
+  var hh=state.hist.rows[0];
+  var hCols={
+    pers:findCol(hh,['Persnr'],'E',notes,'personeelsnummer (historie, kolom E)'),
+    lc:findCol(hh,['MasterLooncode'],'L',notes,'looncode (historie)'),
+    cum:findCol(hh,['cumulatief','Cumulatief'],'AB',notes,'cumulatief (historie, kolom AB)'),
+  };
+
+  // historie indexeren: persnr+looncode -> som cumulatief (+ teller voor waarschuwing)
+  var histIdx={};
+  for(var i=1;i<state.hist.rows.length;i++){
+    var hr=state.hist.rows[i];
+    var p=String(hr[hCols.pers]||'').trim(), lc=String(hr[hCols.lc]||'').trim();
+    if(!p||!lc) continue;
+    if(lc!==lcSvw&&lc!==lcNetto) continue;
+    var v=parseNumNL(hr[hCols.cum]);
+    var k=p+'|'+lc;
+    if(!histIdx[k]) histIdx[k]={sum:0,count:0};
+    if(v!=null){ histIdx[k].sum+=v; histIdx[k].count++; }
+  }
+
+  // expat groeperen per persnr
+  var byPers={};
+  for(var j=1;j<state.expat.rows.length;j++){
+    var er=state.expat.rows[j];
+    var pp=String(er[eCols.pers]||'').trim();
+    if(!pp) continue;
+    (byPers[pp]=byPers[pp]||[]).push(er);
+  }
+
+  var results=[];
+  Object.keys(byPers).sort(function(a,b){return (+a||0)-(+b||0)||a.localeCompare(b);}).forEach(function(p){
+    var rows=byPers[p];
+    // laatste periode (hoogste periode, dan hoogste runnr)
+    var last=rows.reduce(function(best,r){
+      var kb=[+best[eCols.periode]||0,+best[eCols.runnr]||0], kr=[+r[eCols.periode]||0,+r[eCols.runnr]||0];
+      return (kr[0]>kb[0]||(kr[0]===kb[0]&&kr[1]>kb[1]))?r:best;
+    },rows[0]);
+    var warns=[];
+    // wisselende gegevens over perioden?
+    var keyset={};
+    rows.forEach(function(r){ keyset[[r[eCols.vanaf],r[eCols.tm],r[eCols.uitdienst],r[eCols.gw]].join('|')]=1; });
+    if(Object.keys(keyset).length>1) warns.push('Regeling-/dienstverbandgegevens wisselen tussen perioden; de regel van de laatste periode is gebruikt.');
+
+    var u=parseDateNL(last[eCols.vanaf]), v=parseDateNL(last[eCols.tm]), n=parseDateNL(last[eCols.uitdienst]);
+    var naam=String(last[eCols.naam]||'').trim();
+    var regeling=String(last[eCols.regeling]||'').trim();
+    // B5: laatste van (kolom U, standaard startdatum)
+    var b5=defStart;
+    if(u&&dCmp(u,b5)>0) b5=u;
+    if(!u) warns.push('Geen “Regeling Vanaf” (kolom U) gevonden; standaard startdatum gebruikt.');
+    // B6: eerste datum uit (kolom N, kolom V), begrensd op 31-12 van het jaar
+    var candidates=[v,n,eindJaar].filter(function(d){return !!d;});
+    var b6=candidates.reduce(function(a,b){return dCmp(b,a)<0?b:a;});
+    if(!v&&!n) warns.push('Geen einddatum in kolom N/V; 31-12-'+jaar+' gebruikt.');
+
+    var gw=useGw?parseNumNL(last[eCols.gw]):null;
+    var b3=gw!=null&&gw>0?gw:defToetsloon;
+    if(useGw&&(gw==null||gw<=0)) warns.push('Geen bruikbare Grenswaarde in expatbestand; standaard toetsloon € '+fmtMoney(defToetsloon)+' gebruikt.');
+
+    var hs=histIdx[p+'|'+lcSvw], hn=histIdx[p+'|'+lcNetto];
+    var b14=hs&&hs.count?hs.sum:null, b15=hn&&hn.count?hn.sum:null;
+    if(hs&&hs.count>1) warns.push('Meerdere regels looncode '+lcSvw+' in historie; cumulatieven opgeteld.');
+    if(hn&&hn.count>1) warns.push('Meerdere regels looncode '+lcNetto+' in historie; cumulatieven opgeteld.');
+
+    var res={persnr:p,naam:naam,regeling:regeling,b3:b3,b5:b5,b6:b6,b14:b14,b15:b15,warns:warns,status:null,calc:null,maxPct:maxPct};
+    if(b14==null&&b15==null){ res.status='geen-historie'; warns.push('Personeelsnummer niet gevonden in historisch overzicht (looncodes '+lcSvw+'/'+lcNetto+').'); }
+    else if(b14==null){ res.status='geen-historie'; warns.push('Looncode '+lcSvw+' (SVW-loon) ontbreekt in historie.'); }
+    else if(b15==null){ res.status='geen-historie'; warns.push('Looncode '+lcNetto+' (netto 30%) ontbreekt in historie.'); }
+    else if(dCmp(b6,b5)<0){ res.status='niet-actief'; warns.push('Einddatum ligt vóór startdatum: regeling niet actief in '+jaar+'.'); }
+    else{
+      // bekende beperking van het Excel-model: start op eerste werkdag ≠ 1e van de maand
+      if(!sameMonth(b5,b6)&&b5.d>1&&networkdays(b5,eom(b5))===networkdays(bom(b5),eom(b5)))
+        warns.push('Startdatum valt op de eerste werkdag maar niet op de 1e van de maand; het rekenmodel telt deze maand dan niet mee als volledige maand. Controleer B8 handmatig.');
+      res.calc=bereken(b5,b6,b3,b14,b15,maxPct);
+      if(res.calc.b22==null){ res.status='geen-historie'; warns.push('Niet afgelaagd loon is 0; percentage niet te bepalen.'); }
+      else if(res.calc.b22<=0){ res.status='geen-ruimte'; }
+      else if(res.calc.b22>=maxPct){ res.status='volledig'; }
+      else{ res.status='aanpassen'; }
+    }
+    results.push(res);
+  });
+  state.results={list:results,notes:notes,jaar:jaar,maxPct:maxPct,lcSvw:lcSvw,lcNetto:lcNetto};
+  render();
+}
+document.getElementById('btn-run').addEventListener('click',run);
+
+// ---- weergave ----
+function statusBadge(r){
+  switch(r.status){
+    case 'volledig': return '<span class="badge ok">Volledig '+fmtPct(r.maxPct*100,2)+' — geen actie</span>';
+    case 'aanpassen': return '<span class="badge action">Aanpassen → '+fmtPct(r.calc.b22*100,3)+'</span>';
+    case 'geen-ruimte': return '<span class="badge warn">Geen ruimte — controleer</span>';
+    case 'niet-actief': return '<span class="badge warn">Niet actief in jaar</span>';
+    default: return '<span class="badge warn">Handmatig controleren</span>';
+  }
+}
+function render(){
+  var R=state.results;
+  document.getElementById('sec-results').style.display='';
+  document.getElementById('btn-export').style.display='';
+  document.getElementById('btn-copy').style.display='';
+  // meldingen
+  var gm=document.getElementById('global-msgs');
+  gm.innerHTML=R.notes.map(function(n){return '<div class="msg">'+esc(n)+'</div>';}).join('');
+  // statistieken
+  var c=function(s){return R.list.filter(function(r){return r.status===s;}).length;};
+  var attn=R.list.filter(function(r){return r.status!=='volledig'&&r.status!=='aanpassen';}).length;
+  document.getElementById('stats').innerHTML=
+    '<div class="stat"><div class="t">Medewerkers in expatoverzicht</div><div class="v">'+R.list.length+'</div><div class="s">berekeningsjaar '+R.jaar+'</div></div>'
+   +'<div class="stat"><div class="t">Volledig '+fmtPct(R.maxPct*100,2)+'</div><div class="v">'+c('volledig')+'</div><div class="s">geen TWK-actie nodig</div></div>'
+   +'<div class="stat"><div class="t">Percentage aanpassen</div><div class="v">'+c('aanpassen')+'</div><div class="s">TWK aanmaken op LC 9535</div></div>'
+   +'<div class="stat"><div class="t">Handmatig controleren</div><div class="v">'+attn+'</div><div class="s">ontbrekende of afwijkende gegevens</div></div>';
+  // tabel
+  var body=document.getElementById('result-body');
+  body.innerHTML=R.list.map(function(r,i){
+    var cells='<td><span class="caret">▸</span></td>'
+      +'<td>'+esc(r.persnr)+'</td>'
+      +'<td class="nowrapcell">'+esc(r.naam)+'</td>'
+      +'<td>'+statusBadge(r)
+      +(r.warns.length?' <span class="badge warn" title="'+esc(r.warns.join(' • '))+'">⚠ '+r.warns.length+'</span>':'')+'</td>'
+      +'<td>'+fmtDate(r.b5)+'</td><td>'+fmtDate(r.b6)+'</td>'
+      +'<td class="num">'+fmtMoney(r.b3)+'</td>'
+      +'<td class="num">'+(r.calc?fmtMoney(r.calc.b12):'—')+'</td>'
+      +'<td class="num">'+fmtMoney(r.b14)+'</td>'
+      +'<td class="num">'+fmtMoney(r.b15)+'</td>'
+      +'<td class="num">'+(r.calc?fmtMoney(r.calc.b16):'—')+'</td>'
+      +'<td class="num">'+(r.calc?fmtPct(r.calc.b18,3):'—')+'</td>'
+      +'<td class="num"><b>'+(r.calc&&r.calc.b22!=null?fmtPct(r.calc.b22*100,3):'—')+'</b></td>';
+    return '<tr class="main" data-i="'+i+'">'+cells+'</tr>'
+      +'<tr class="detail" data-i="'+i+'" style="display:none"><td colspan="13">'+detailHTML(r)+'</td></tr>';
+  }).join('');
+  body.querySelectorAll('tr.main').forEach(function(tr){
+    tr.addEventListener('click',function(){
+      var det=body.querySelector('tr.detail[data-i="'+tr.dataset.i+'"]');
+      var open=det.style.display==='none';
+      det.style.display=open?'':'none';
+      tr.classList.toggle('open',open);
+    });
+  });
+  buildExport();
+}
+function detailHTML(r){
+  var c=r.calc, mp=r.maxPct*100;
+  var b4=r.b3/(1-r.maxPct);
+  function row(cls,lbl,val,note){
+    return '<tr class="'+cls+'"><td class="lbl">'+lbl+'</td><td class="num">'+val+'</td><td>'+(note||'')+'</td></tr>';
+  }
+  var left='<table><thead><tr><th>Berekening (rekenmodel)</th><th class="num">Waarde</th><th>Toelichting</th></tr></thead><tbody>'
+    +row('calcrow','Regeling',esc(r.regeling||'—'),'code expatregeling (B2)')
+    +row('calcrow','Toetsloon (B3)','€\u00A0'+fmtMoney(r.b3),'')
+    +row('calcrow','Toetsloon maximaal '+fmtPct(mp,2)+' (B4)','€\u00A0'+fmtMoney(b4),'B3 ÷ '+(1-r.maxPct).toLocaleString('nl-NL'))
+    +row('inputrow','Datum start (B5)',fmtDate(r.b5),'laatste van: Regeling Vanaf (kolom U) en standaard startdatum')
+    +row('inputrow','Datum uit dienst of einde regeling (B6)',fmtDate(r.b6),'eerste van: kolom N, kolom V en 31-12')
+    +(c?(
+      row('calcrow','SV-dagen gebroken eerste maand (B7)',c.b7,'')
+     +row('calcrow','Aantal volledige maanden (B8)',c.b8,'')
+     +row('calcrow','SV-dagen gebroken laatste maand (B9)',c.b9,'')
+     +row('calcrow','Toetsloon pro rato (B12)','€\u00A0'+fmtMoney(c.b12),'')
+    ):'')
+    +'</tbody></table>';
+  var right='<table><thead><tr><th>Aflaging</th><th class="num">Waarde</th><th>Toelichting</th></tr></thead><tbody>'
+    +row('inputrow','LC '+esc(state.results.lcSvw)+' totaal SVW-loon (B14)',r.b14!=null?'€\u00A0'+fmtMoney(r.b14):'—','uit historisch overzicht')
+    +row('inputrow','LC '+esc(state.results.lcNetto)+' netto 30% (B15)',r.b15!=null?'€\u00A0'+fmtMoney(r.b15):'—','uit historisch overzicht')
+    +(c?(
+      row('calcrow','Niet afgelaagd belastbaar loon (B16)','€\u00A0'+fmtMoney(c.b16),'B14 + B15')
+     +row('calcrow','Procentuele aflaging (B18)',fmtPct(c.b18,4),'reeds toegepast')
+     +row('calcrow','Verschil toetsloon – niet afgelaagd loon (B20)','€\u00A0'+fmtMoney(c.b20),'afgerond op hele euro’s')
+     +row('calcrow','Nog extra af te lagen (B21)','€\u00A0'+fmtMoney(c.b21),'')
+     +row('resultrow','Nieuw percentage (B22)',c.b22!=null?fmtPct(c.b22*100,3):'—','boven '+fmtPct(mp,2)+' → volledig toepassen')
+    ):'')
+    +'</tbody></table>';
+  var actie='';
+  if(r.status==='aanpassen'){
+    actie='<div class="actie"><strong>Actie:</strong> TWK aanmaken met percentage <strong>'+fmtPct(c.b22*100,3)+'</strong> op LC 9535 (SYSLC904), alle maanden.</div>';
+  } else if(r.status==='volledig'){
+    actie='<div class="actie"><strong>Geen actie:</strong> nieuw percentage is gelijk aan het maximum ('+fmtPct(mp,2)+'); de regeling kan volledig toegepast blijven.</div>';
+  } else if(r.status==='geen-ruimte'){
+    actie='<div class="actie"><strong>Let op:</strong> berekend percentage is nul of negatief — loon ligt op of onder het (pro rato) toetsloon. Handmatig beoordelen.</div>';
+  }
+  var controle='';
+  if(c){
+    controle='<div class="actie controle" data-pers="'+esc(r.persnr)+'"><strong>Controle (na correctie in Cobra):</strong> '
+      +' LC '+esc(state.results.lcSvw)+' <input type="text" class="ctrl-svw" placeholder="0,00">'
+      +' LC '+esc(state.results.lcNetto)+' <input type="text" class="ctrl-netto" placeholder="0,00">'
+      +' → <span class="ctrl-out">niet afgelaagd loon: — · aflaging: —</span>'
+      +'<br><span style="font-size:12px">De aflaging moet gelijk zijn aan het nieuwe percentage'+(c.b22!=null?' ('+fmtPct(c.b22*100,3)+')':'')+'.</span></div>';
+  }
+  var warns=r.warns.length?'<div class="warns"><strong>Aandachtspunten</strong><ul>'+r.warns.map(function(w){return '<li>'+esc(w)+'</li>';}).join('')+'</ul></div>':'';
+  return '<div class="replica">'+left+right+actie+controle+warns+'</div>';
+}
+// live controle-berekening
+document.addEventListener('input',function(e){
+  var box=e.target.closest&&e.target.closest('.controle');
+  if(!box) return;
+  var a=parseNumNL(box.querySelector('.ctrl-svw').value), b=parseNumNL(box.querySelector('.ctrl-netto').value);
+  var out=box.querySelector('.ctrl-out');
+  if(a==null||b==null){ out.textContent='niet afgelaagd loon: — · aflaging: —'; return; }
+  var b28=a+b;
+  out.textContent='niet afgelaagd loon: € '+fmtMoney(b28)+' · aflaging: '+(b28!==0?fmtPct((b/b28)*100,4):'—');
+});
+
+// ---- export ----
+function buildExport(){
+  var R=state.results, mp=R.maxPct*100;
+  var hdr=['Persnr','Naam','Status','Regeling','Toetsloon (B3)','Datum start (B5)','Einde (B6)',
+    'SV-dagen eerste maand (B7)','Volledige maanden (B8)','SV-dagen laatste maand (B9)',
+    'Toetsloon pro rato (B12)','LC '+R.lcSvw+' (B14)','LC '+R.lcNetto+' (B15)',
+    'Niet afgelaagd loon (B16)','Reeds toegepast % (B18)','Verschil (B20)','Nog extra af te lagen (B21)',
+    'Nieuw percentage (B22)','Actie','Aandachtspunten'];
+  var lines=[hdr];
+  R.list.forEach(function(r){
+    var c=r.calc||{};
+    var num=function(v,d){ return v==null?'':String(v.toFixed(d==null?2:d)).replace('.',','); };
+    var statusTxt={volledig:'Volledig '+mp+'% - geen actie',aanpassen:'Aanpassen',
+      'geen-ruimte':'Geen ruimte - controleren','niet-actief':'Niet actief in jaar','geen-historie':'Handmatig controleren'}[r.status]||r.status;
+    var actie=r.status==='aanpassen'?'TWK LC 9535 alle maanden: '+num(c.b22*100,3)+'%':(r.status==='volledig'?'Geen':'Handmatig beoordelen');
+    lines.push([r.persnr,r.naam,statusTxt,r.regeling,num(r.b3),fmtDate(r.b5),fmtDate(r.b6),
+      c.b7!=null?c.b7:'',c.b8!=null?c.b8:'',c.b9!=null?c.b9:'',
+      num(c.b12),num(r.b14),num(r.b15),num(c.b16),num(c.b18,4),num(c.b20,0),num(c.b21),
+      c.b22!=null?num(c.b22*100,3):'',actie,r.warns.join(' | ')]);
+  });
+  state.exportRows=lines;
+}
+function toCSV(rows){
+  return rows.map(function(r){
+    return r.map(function(v){
+      v=String(v==null?'':v);
+      return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;
+    }).join(';');
+  }).join('\r\n');
+}
+document.getElementById('btn-export').addEventListener('click',function(){
+  if(!state.exportRows) return;
+  var blob=new Blob(['﻿'+toCSV(state.exportRows)],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='expatregeling_herrekening_'+state.results.jaar+'.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+});
+document.getElementById('btn-copy').addEventListener('click',function(){
+  if(!state.exportRows) return;
+  var tsv=state.exportRows.map(function(r){return r.join('\t');}).join('\n');
+  navigator.clipboard.writeText(tsv).then(function(){
+    var b=document.getElementById('btn-copy'); var t=b.textContent;
+    b.textContent='Gekopieerd ✓'; setTimeout(function(){b.textContent=t;},1500);
+  });
+});
+</script>
+</body>
+</html>
