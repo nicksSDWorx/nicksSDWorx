@@ -81,6 +81,14 @@
   .field.checkbox{display:flex;align-items:flex-start;gap:8px;padding-top:20px}
   .field.checkbox input{width:16px;height:16px;margin-top:2px;accent-color:var(--blue)}
   .field.checkbox label{font-weight:500;font-size:13px;margin:0}
+  /* inklapbare instellingen */
+  details.settings summary{cursor:pointer;list-style:none;display:flex;align-items:center}
+  details.settings summary::-webkit-details-marker{display:none}
+  details.settings summary h2{margin-bottom:0}
+  details.settings summary .sum-caret{display:inline-block;color:var(--blue);font-weight:700;margin-left:10px;transition:transform .15s;font-size:15px}
+  details.settings[open] summary .sum-caret{transform:rotate(90deg)}
+  details.settings summary .sum-hint{font-size:13px;color:#333;margin-left:12px}
+  details.settings .card{margin-top:calc(var(--x)*.5)}
   /* buttons */
   .btn{
     display:inline-block;border:none;cursor:pointer;font:inherit;font-weight:700;font-size:15px;
@@ -149,7 +157,7 @@
 </header>
 <main>
   <div class="wrap">
-    <div class="banner"><strong>Let op:</strong> de maximering van de Balkenendenorm (WNT-norm) zit <strong>niet</strong> in deze berekening — controleer die apart. De tool vervangt geen fiscale beoordeling.</div>
+    <div class="banner"><strong>Let op:</strong> de maximering van de Balkenendenorm (WNT-norm) wordt toegepast op basis van het instelbare normbedrag, pro rata over de looptijd. Controleer jaarlijks het actuele normbedrag. De tool vervangt geen fiscale beoordeling.</div>
 
     <section id="sec-upload">
       <h2><span class="stepnr">1</span>Bestanden</h2>
@@ -173,34 +181,40 @@
     </section>
 
     <section id="sec-settings">
-      <h2><span class="stepnr">2</span>Instellingen</h2>
+      <details class="settings" id="settings-details">
+      <summary><h2><span class="stepnr">2</span>Instellingen</h2><span class="sum-caret">▸</span><span class="sum-hint">klik om te openen — standaardwaarden staan goed voor 2025</span></summary>
       <div class="card">
         <div class="settings-grid">
           <div class="field">
-            <label for="set-jaar">Berekeningsjaar (A1)</label>
+            <label for="set-jaar">Berekeningsjaar</label>
             <input type="number" id="set-jaar" min="2000" max="2100" step="1">
           </div>
           <div class="field">
-            <label for="set-startdatum">Standaard startdatum (B5-ondergrens)</label>
+            <label for="set-startdatum">Standaard startdatum</label>
             <input type="date" id="set-startdatum">
             <div class="derived">Standaard 1 januari van het berekeningsjaar</div>
           </div>
           <div class="field">
-            <label for="set-toetsloon">Toetsloon (B3), €</label>
+            <label for="set-toetsloon">Toetsloon, €</label>
             <input type="number" id="set-toetsloon" min="0" step="0.01">
-            <div class="derived" id="derived-b4">Toetsloon maximaal 30% (B4): —</div>
+            <div class="derived" id="derived-b4">Toetsloon maximaal 30%: —</div>
           </div>
           <div class="field">
             <label for="set-maxpct">Maximaal percentage regeling, %</label>
             <input type="number" id="set-maxpct" min="0" max="100" step="0.01">
-            <div class="derived">30%-regeling: 30 · (vanaf 2027: 27)</div>
+            <div class="derived">30%-regeling: 30 · vanaf 2027: 27</div>
           </div>
           <div class="field">
-            <label for="set-lc-svw">Looncode SVW-loon (B14)</label>
+            <label for="set-wnt">Balkenendenorm, €</label>
+            <input type="number" id="set-wnt" min="0" step="1">
+            <div class="derived">WNT-norm 2025: € 246.000 · leeg of 0 = niet toepassen</div>
+          </div>
+          <div class="field">
+            <label for="set-lc-svw">Looncode SVW-loon</label>
             <input type="text" id="set-lc-svw">
           </div>
           <div class="field">
-            <label for="set-lc-netto">Looncode netto 30% (B15)</label>
+            <label for="set-lc-netto">Looncode netto 30%</label>
             <input type="text" id="set-lc-netto">
           </div>
           <div class="field checkbox">
@@ -209,6 +223,7 @@
           </div>
         </div>
       </div>
+      </details>
     </section>
 
     <section id="sec-run">
@@ -293,8 +308,9 @@ function sameMonth(a,b){ return a.y===b.y && a.m===b.m; }
 /**
  * Voert de berekening uit voor één medewerker.
  * b5,b6: {y,m,d} · b3: toetsloon · b14: LC 9970 cum · b15: LC 5990 cum · maxPct: bv. 0.30
+ * wntNorm: Balkenendenorm op jaarbasis (0/null = niet toepassen)
  */
-function bereken(b5,b6,b3,b14,b15,maxPct){
+function bereken(b5,b6,b3,b14,b15,maxPct,wntNorm){
   var b7,b8,b9;
   // B7: SV-dagen gebroken eerste maand
   if(sameMonth(b5,b6)){
@@ -326,12 +342,23 @@ function bereken(b5,b6,b3,b14,b15,maxPct){
   var b18=b16!==0 ? (b15/b16)*100 : null;           // procentuele aflaging (reeds toegepast)
   var b20=excelRound(b16-b12,0);                    // verschil toetsloon - niet afgelaagd loon
   var b21=b20-b15;                                  // nog extra af te lagen
-  var b22=null;                                     // nieuw percentage (fractie)
+  var b22=null;                                     // nieuw percentage (fractie, 2 decimalen als %)
+  var wntPro=null,wntMax=null,wntCapped=false;      // Balkenendenorm pro rata en max vergoeding
   if(b16!==0){
     var ratio=b20/b16;
-    b22=ratio>maxPct ? maxPct : excelRound(ratio,5);
+    b22=ratio>maxPct ? maxPct : excelRound(ratio,4);
+    if(wntNorm){
+      // WNT-norm pro rata, met dezelfde SV-dagenmethodiek als het toetsloon
+      wntPro=(b7/networkdays(bom(b5),eom(b5)))*(wntNorm/12)
+            +(b8/12)*wntNorm
+            +(b9/networkdays(bom(b6),eom(b6)))*(wntNorm/12);
+      wntMax=maxPct*Math.min(b16,wntPro);           // maximale vergoeding onder de norm
+      var wntPct=excelRound(wntMax/b16,4);
+      if(wntPct<b22){ b22=wntPct; wntCapped=true; }
+    }
   }
-  return {b7:b7,b8:b8,b9:b9,b12:b12,b16:b16,b18:b18,b20:b20,b21:b21,b22:b22};
+  return {b7:b7,b8:b8,b9:b9,b12:b12,b16:b16,b18:b18,b20:b20,b21:b21,b22:b22,
+          wntPro:wntPro,wntMax:wntMax,wntCapped:wntCapped};
 }
 
 // ---- parsing helpers ----
@@ -400,7 +427,7 @@ function findCol(header,names,fallbackLetter,notes,label){
 var state={expat:null,hist:null,results:null,exportRows:null};
 
 function fmtMoney(v){ return v==null?'—':new Intl.NumberFormat('nl-NL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
-function fmtPct(v,dec){ return v==null?'—':new Intl.NumberFormat('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:dec==null?3:dec}).format(v)+'%'; }
+function fmtPct(v,dec){ return v==null?'—':new Intl.NumberFormat('nl-NL',{minimumFractionDigits:0,maximumFractionDigits:dec==null?2:dec}).format(v)+'%'; }
 function fmtDate(d){ if(!d) return '—'; var p=function(n){return (n<10?'0':'')+n;}; return p(d.d)+'-'+p(d.m)+'-'+d.y; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
 
@@ -410,13 +437,14 @@ var els={
   startdatum:document.getElementById('set-startdatum'),
   toetsloon:document.getElementById('set-toetsloon'),
   maxpct:document.getElementById('set-maxpct'),
+  wnt:document.getElementById('set-wnt'),
   lcSvw:document.getElementById('set-lc-svw'),
   lcNetto:document.getElementById('set-lc-netto'),
   grenswaarde:document.getElementById('set-grenswaarde'),
 };
 function defaultSettings(){
   var y=new Date().getFullYear();
-  return {jaar:y,startdatum:y+'-01-01',toetsloon:46660,maxpct:30,lcSvw:'9970',lcNetto:'5990',grenswaarde:true};
+  return {jaar:y,startdatum:y+'-01-01',toetsloon:46660,maxpct:30,wnt:246000,lcSvw:'9970',lcNetto:'5990',grenswaarde:true};
 }
 function loadSettings(){
   var s=defaultSettings();
@@ -425,14 +453,14 @@ function loadSettings(){
     if(raw){ var p=JSON.parse(raw); for(var k in s){ if(p[k]!==undefined) s[k]=p[k]; } }
   }catch(e){}
   els.jaar.value=s.jaar; els.startdatum.value=s.startdatum; els.toetsloon.value=s.toetsloon;
-  els.maxpct.value=s.maxpct; els.lcSvw.value=s.lcSvw; els.lcNetto.value=s.lcNetto; els.grenswaarde.checked=!!s.grenswaarde;
+  els.maxpct.value=s.maxpct; els.wnt.value=s.wnt; els.lcSvw.value=s.lcSvw; els.lcNetto.value=s.lcNetto; els.grenswaarde.checked=!!s.grenswaarde;
   updateDerived();
 }
 function saveSettings(){
   try{
     localStorage.setItem('expat-tool-settings',JSON.stringify({
       jaar:+els.jaar.value,startdatum:els.startdatum.value,toetsloon:+els.toetsloon.value,
-      maxpct:+els.maxpct.value,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim(),
+      maxpct:+els.maxpct.value,wnt:+els.wnt.value||0,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim(),
       grenswaarde:els.grenswaarde.checked}));
   }catch(e){}
 }
@@ -486,6 +514,7 @@ function run(){
   var defStart=parseDateNL(els.startdatum.value)||mkD(jaar,1,1);
   var defToetsloon=+els.toetsloon.value;
   var maxPct=(+els.maxpct.value)/100;
+  var wntNorm=(+els.wnt.value)||0;
   var lcSvw=els.lcSvw.value.trim(), lcNetto=els.lcNetto.value.trim();
   var useGw=els.grenswaarde.checked;
   var eindJaar=mkD(jaar,12,31);
@@ -577,7 +606,8 @@ function run(){
       // bekende beperking van het Excel-model: start op eerste werkdag ≠ 1e van de maand
       if(!sameMonth(b5,b6)&&b5.d>1&&networkdays(b5,eom(b5))===networkdays(bom(b5),eom(b5)))
         warns.push('Startdatum valt op de eerste werkdag maar niet op de 1e van de maand; het rekenmodel telt deze maand dan niet mee als volledige maand. Controleer B8 handmatig.');
-      res.calc=bereken(b5,b6,b3,b14,b15,maxPct);
+      res.calc=bereken(b5,b6,b3,b14,b15,maxPct,wntNorm);
+      if(res.calc.wntCapped) warns.push('Nieuw percentage begrensd door de Balkenendenorm (norm € '+fmtMoney(wntNorm)+' op jaarbasis, pro rata € '+fmtMoney(res.calc.wntPro)+').');
       if(res.calc.b22==null){ res.status='geen-historie'; warns.push('Niet afgelaagd loon is 0; percentage niet te bepalen.'); }
       else if(res.calc.b22<=0){ res.status='geen-ruimte'; }
       else if(res.calc.b22>=maxPct){ res.status='volledig'; }
@@ -594,7 +624,7 @@ document.getElementById('btn-run').addEventListener('click',run);
 function statusBadge(r){
   switch(r.status){
     case 'volledig': return '<span class="badge ok">Volledig '+fmtPct(r.maxPct*100,2)+' — geen actie</span>';
-    case 'aanpassen': return '<span class="badge action">Aanpassen → '+fmtPct(r.calc.b22*100,3)+'</span>';
+    case 'aanpassen': return '<span class="badge action">Aanpassen → '+fmtPct(r.calc.b22*100,2)+'</span>';
     case 'geen-ruimte': return '<span class="badge warn">Geen ruimte — controleer</span>';
     case 'niet-actief': return '<span class="badge warn">Niet actief in jaar</span>';
     default: return '<span class="badge warn">Handmatig controleren</span>';
@@ -630,8 +660,8 @@ function render(){
       +'<td class="num">'+fmtMoney(r.b14)+'</td>'
       +'<td class="num">'+fmtMoney(r.b15)+'</td>'
       +'<td class="num">'+(r.calc?fmtMoney(r.calc.b16):'—')+'</td>'
-      +'<td class="num">'+(r.calc?fmtPct(r.calc.b18,3):'—')+'</td>'
-      +'<td class="num"><b>'+(r.calc&&r.calc.b22!=null?fmtPct(r.calc.b22*100,3):'—')+'</b></td>';
+      +'<td class="num">'+(r.calc?fmtPct(r.calc.b18,2):'—')+'</td>'
+      +'<td class="num"><b>'+(r.calc&&r.calc.b22!=null?fmtPct(r.calc.b22*100,2):'—')+'</b></td>';
     return '<tr class="main" data-i="'+i+'">'+cells+'</tr>'
       +'<tr class="detail" data-i="'+i+'" style="display:none"><td colspan="13">'+detailHTML(r)+'</td></tr>';
   }).join('');
@@ -669,15 +699,19 @@ function detailHTML(r){
     +row('inputrow','LC '+esc(state.results.lcNetto)+' netto 30% (B15)',r.b15!=null?'€\u00A0'+fmtMoney(r.b15):'—','uit historisch overzicht')
     +(c?(
       row('calcrow','Niet afgelaagd belastbaar loon (B16)','€\u00A0'+fmtMoney(c.b16),'B14 + B15')
-     +row('calcrow','Procentuele aflaging (B18)',fmtPct(c.b18,4),'reeds toegepast')
+     +row('calcrow','Procentuele aflaging (B18)',fmtPct(c.b18,2),'reeds toegepast')
      +row('calcrow','Verschil toetsloon – niet afgelaagd loon (B20)','€\u00A0'+fmtMoney(c.b20),'afgerond op hele euro’s')
      +row('calcrow','Nog extra af te lagen (B21)','€\u00A0'+fmtMoney(c.b21),'')
-     +row('resultrow','Nieuw percentage (B22)',c.b22!=null?fmtPct(c.b22*100,3):'—','boven '+fmtPct(mp,2)+' → volledig toepassen')
+     +(c.wntPro!=null?(
+      row('calcrow','Balkenendenorm pro rato','€\u00A0'+fmtMoney(c.wntPro),'WNT-norm herleid naar de looptijd')
+     +row('calcrow','Maximale vergoeding Balkenendenorm','€\u00A0'+fmtMoney(c.wntMax),fmtPct(mp,2)+' × min(B16, norm pro rato)')
+     ):'')
+     +row('resultrow','Nieuw percentage (B22)',c.b22!=null?fmtPct(c.b22*100,2):'—',(c.wntCapped?'begrensd door Balkenendenorm':'boven '+fmtPct(mp,2)+' → volledig toepassen'))
     ):'')
     +'</tbody></table>';
   var actie='';
   if(r.status==='aanpassen'){
-    actie='<div class="actie"><strong>Actie:</strong> TWK aanmaken met percentage <strong>'+fmtPct(c.b22*100,3)+'</strong> op LC 9535 (SYSLC904), alle maanden.</div>';
+    actie='<div class="actie"><strong>Actie:</strong> TWK aanmaken met percentage <strong>'+fmtPct(c.b22*100,2)+'</strong> op LC 9535 (SYSLC904), alle maanden'+(c.wntCapped?' — begrensd door de Balkenendenorm':'')+'.</div>';
   } else if(r.status==='volledig'){
     actie='<div class="actie"><strong>Geen actie:</strong> nieuw percentage is gelijk aan het maximum ('+fmtPct(mp,2)+'); de regeling kan volledig toegepast blijven.</div>';
   } else if(r.status==='geen-ruimte'){
@@ -689,7 +723,7 @@ function detailHTML(r){
       +' LC '+esc(state.results.lcSvw)+' <input type="text" class="ctrl-svw" placeholder="0,00">'
       +' LC '+esc(state.results.lcNetto)+' <input type="text" class="ctrl-netto" placeholder="0,00">'
       +' → <span class="ctrl-out">niet afgelaagd loon: — · aflaging: —</span>'
-      +'<br><span style="font-size:12px">De aflaging moet gelijk zijn aan het nieuwe percentage'+(c.b22!=null?' ('+fmtPct(c.b22*100,3)+')':'')+'.</span></div>';
+      +'<br><span style="font-size:12px">De aflaging moet gelijk zijn aan het nieuwe percentage'+(c.b22!=null?' ('+fmtPct(c.b22*100,2)+')':'')+'.</span></div>';
   }
   var warns=r.warns.length?'<div class="warns"><strong>Aandachtspunten</strong><ul>'+r.warns.map(function(w){return '<li>'+esc(w)+'</li>';}).join('')+'</ul></div>':'';
   return '<div class="replica">'+left+right+actie+controle+warns+'</div>';
@@ -702,7 +736,7 @@ document.addEventListener('input',function(e){
   var out=box.querySelector('.ctrl-out');
   if(a==null||b==null){ out.textContent='niet afgelaagd loon: — · aflaging: —'; return; }
   var b28=a+b;
-  out.textContent='niet afgelaagd loon: € '+fmtMoney(b28)+' · aflaging: '+(b28!==0?fmtPct((b/b28)*100,4):'—');
+  out.textContent='niet afgelaagd loon: € '+fmtMoney(b28)+' · aflaging: '+(b28!==0?fmtPct((b/b28)*100,2):'—');
 });
 
 // ---- export ----
@@ -712,18 +746,18 @@ function buildExport(){
     'SV-dagen eerste maand (B7)','Volledige maanden (B8)','SV-dagen laatste maand (B9)',
     'Toetsloon pro rato (B12)','LC '+R.lcSvw+' (B14)','LC '+R.lcNetto+' (B15)',
     'Niet afgelaagd loon (B16)','Reeds toegepast % (B18)','Verschil (B20)','Nog extra af te lagen (B21)',
-    'Nieuw percentage (B22)','Actie','Aandachtspunten'];
+    'Balkenendenorm pro rato','Max vergoeding Balkenendenorm','Nieuw percentage (B22)','Actie','Aandachtspunten'];
   var lines=[hdr];
   R.list.forEach(function(r){
     var c=r.calc||{};
     var num=function(v,d){ return v==null?'':String(v.toFixed(d==null?2:d)).replace('.',','); };
     var statusTxt={volledig:'Volledig '+mp+'% - geen actie',aanpassen:'Aanpassen',
       'geen-ruimte':'Geen ruimte - controleren','niet-actief':'Niet actief in jaar','geen-historie':'Handmatig controleren'}[r.status]||r.status;
-    var actie=r.status==='aanpassen'?'TWK LC 9535 alle maanden: '+num(c.b22*100,3)+'%':(r.status==='volledig'?'Geen':'Handmatig beoordelen');
+    var actie=r.status==='aanpassen'?'TWK LC 9535 alle maanden: '+num(c.b22*100,2)+'%':(r.status==='volledig'?'Geen':'Handmatig beoordelen');
     lines.push([r.persnr,r.naam,statusTxt,r.regeling,num(r.b3),fmtDate(r.b5),fmtDate(r.b6),
       c.b7!=null?c.b7:'',c.b8!=null?c.b8:'',c.b9!=null?c.b9:'',
-      num(c.b12),num(r.b14),num(r.b15),num(c.b16),num(c.b18,4),num(c.b20,0),num(c.b21),
-      c.b22!=null?num(c.b22*100,3):'',actie,r.warns.join(' | ')]);
+      num(c.b12),num(r.b14),num(r.b15),num(c.b16),num(c.b18,2),num(c.b20,0),num(c.b21),
+      num(c.wntPro),num(c.wntMax),c.b22!=null?num(c.b22*100,2):'',actie,r.warns.join(' | ')]);
   });
   state.exportRows=lines;
 }

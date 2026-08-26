@@ -12,7 +12,7 @@ medewerkers tegelijk.
 2. Upload de twee CSV-exports:
    - **Expatregeling overzicht** (bijv. `Expatregeling 2025.csv`)
    - **Historisch overzicht** (bijv. `Historisch Overzicht Export 2025.csv`)
-3. Controleer de **instellingen** (zie hieronder) en klik **Bereken**.
+3. Controleer zo nodig de **instellingen** (standaard ingeklapt; klik op *Instellingen* om ze te openen) en klik **Bereken**.
 4. Per medewerker verschijnt de uitkomst met status; klik een regel aan voor de volledige
    berekening in het stramien van de Excel, inclusief de actie- en controlesectie.
 5. **Exporteer resultaten (CSV)** of **Kopieer naar klembord** (plakt direct in Excel).
@@ -40,22 +40,34 @@ Eén-op-één overgenomen uit het Excel-rekenmodel, inclusief de NETWORKDAYS/DAT
 voor gebroken maanden (B7–B9), toetsloon pro rato (B12), niet afgelaagd belastbaar loon
 (B16 = B14 + B15), reeds toegepaste aflaging (B18), verschil (B20, afgerond op hele euro's),
 nog extra af te lagen (B21) en het **nieuwe percentage** (B22, afgekapt op het maximum en
-afgerond op 5 decimalen). Bij een percentage onder het maximum toont de tool de actie:
+berekend op 2 decimalen). Bij een percentage onder het maximum toont de tool de actie:
 *TWK aanmaken met het nieuwe percentage op LC 9535 (SYSLC904), alle maanden.*
+
+### Balkenendenorm (WNT-norm)
+
+Aanvullend op het Excel-model past de tool de maximering van de Balkenendenorm toe:
+de onbelaste vergoeding is gemaximeerd op *maximaal percentage × min(niet afgelaagd
+loon, norm pro rata)*. De norm (instelbaar; 2025: € 246.000) wordt pro rata herleid
+naar de looptijd met dezelfde SV-dagenmethodiek als het toetsloon. Ligt het hierdoor
+begrensde percentage onder het reguliere nieuwe percentage, dan geldt het begrensde
+percentage en markeert de tool dit bij de medewerker. Veld leeg of 0 = norm niet
+toepassen.
 
 ## Instellingen
 
 - **Berekeningsjaar** (A1) en **standaard startdatum** (ondergrens voor B5, aanpasbaar).
-- **Toetsloon (B3)** — jaarlijks wettelijk bedrag (2025: € 46.660). Het afgeleide
-  *Toetsloon maximaal 30% (B4 = B3 ÷ 0,7)* wordt live getoond.
+- **Toetsloon** — jaarlijks wettelijk bedrag (2025: € 46.660). Het afgeleide
+  *toetsloon maximaal 30%* (÷ 0,7) wordt live getoond.
 - **Maximaal percentage** — 30; per 2027 wordt dit 27, dan hier aan te passen.
+- **Balkenendenorm** — WNT-norm op jaarbasis (2025: € 246.000); 0 = niet toepassen.
 - **Looncodes** voor SVW-loon (9970) en netto 30% (5990).
 - Instellingen worden lokaal onthouden (localStorage van de browser).
 
 ## Aandachtspunten / bewuste keuzes
 
-- **De maximering van de Balkenendenorm (WNT) zit niet in de berekening** — net als in de
-  Excel. De tool toont hiervoor een waarschuwing.
+- De Balkenendenorm-maximering zit — anders dan in de oorspronkelijke Excel — wél in de
+  berekening, op basis van het instelbare normbedrag (jaarlijks controleren).
+- Percentages worden berekend en getoond met 2 decimalen.
 - NETWORKDAYS rekent zonder feestdagenkalender, exact zoals het Excel-model.
 - Bekende beperking uit het Excel-model is overgenomen én wordt gesignaleerd: start op de
   eerste *werkdag* van een maand die niet de 1e is, telt die maand niet als volledige maand.

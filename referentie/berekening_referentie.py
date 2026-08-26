@@ -71,7 +71,7 @@ def parse_num(s):
         return None
 
 
-def bereken(b5, b6, b3, b14, b15, max_pct):
+def bereken(b5, b6, b3, b14, b15, max_pct, wnt_norm=0):
     same = (b5.year, b5.month) == (b6.year, b6.month)
     if same:
         b7 = networkdays(b5, b6)
@@ -93,11 +93,21 @@ def bereken(b5, b6, b3, b14, b15, max_pct):
     b18 = (b15 / b16) * 100 if b16 else None
     b20 = excel_round(b16 - b12, 0)
     b21 = b20 - b15
-    b22 = None
+    b22, wnt_pro, wnt_max, wnt_capped = None, None, None, False
     if b16:
         ratio = b20 / b16
-        b22 = max_pct if ratio > max_pct else excel_round(ratio, 5)
-    return dict(b7=b7, b8=b8, b9=b9, b12=b12, b16=b16, b18=b18, b20=b20, b21=b21, b22=b22)
+        b22 = max_pct if ratio > max_pct else excel_round(ratio, 4)
+        if wnt_norm:
+            # Balkenendenorm pro rata, zelfde SV-dagenmethodiek als het toetsloon
+            wnt_pro = (b7 / networkdays(bom(b5), eom(b5)) * (wnt_norm / 12)) \
+                + (b8 / 12 * wnt_norm) \
+                + (b9 / networkdays(bom(b6), eom(b6))) * (wnt_norm / 12)
+            wnt_max = max_pct * min(b16, wnt_pro)
+            wnt_pct = excel_round(wnt_max / b16, 4)
+            if wnt_pct < b22:
+                b22, wnt_capped = wnt_pct, True
+    return dict(b7=b7, b8=b8, b9=b9, b12=b12, b16=b16, b18=b18, b20=b20, b21=b21, b22=b22,
+                wnt_pro=wnt_pro, wnt_max=wnt_max, wnt_capped=wnt_capped)
 
 
 def read_csv(path):
@@ -123,6 +133,8 @@ def main():
     ap.add_argument('--jaar', type=int, default=date.today().year)
     ap.add_argument('--toetsloon', type=float, default=46660)
     ap.add_argument('--maxpct', type=float, default=30)
+    ap.add_argument('--wnt', type=float, default=246000,
+                    help='Balkenendenorm (WNT-norm) op jaarbasis; 0 = niet toepassen')
     ap.add_argument('--lc-svw', default='9970')
     ap.add_argument('--lc-netto', default='5990')
     ap.add_argument('--geen-grenswaarde', action='store_true',
@@ -153,7 +165,7 @@ def main():
             by.setdefault(p, []).append(r)
 
     max_pct = a.maxpct / 100
-    w = ('Persnr;Naam;Status;B3;B5;B6;B7;B8;B9;B12;B14;B15;B16;B18;B20;B21;B22_pct')
+    w = ('Persnr;Naam;Status;B3;B5;B6;B7;B8;B9;B12;B14;B15;B16;B18;B20;B21;WNT_prorata;WNT_max;B22_pct')
     print(w)
     for p in sorted(by, key=lambda x: (int(x) if x.isdigit() else 0, x)):
         rows = by[p]
@@ -171,15 +183,17 @@ def main():
         if b6 < b5:
             print(f'{p};{naam};Niet actief in jaar;;;;;;;;;;;;;;')
             continue
-        c = bereken(b5, b6, b3, b14, b15, max_pct)
+        c = bereken(b5, b6, b3, b14, b15, max_pct, a.wnt)
         status = ('Volledig' if c['b22'] is not None and c['b22'] >= max_pct
                   else 'Geen ruimte' if c['b22'] is not None and c['b22'] <= 0
                   else 'Aanpassen')
         f = lambda x, d=2: ('' if x is None else f'{x:.{d}f}'.replace('.', ','))
         print(';'.join([p, naam, status, f(b3), b5.strftime('%d-%m-%Y'), b6.strftime('%d-%m-%Y'),
                         str(c['b7']), str(c['b8']), str(c['b9']), f(c['b12']), f(b14), f(b15),
-                        f(c['b16']), f(c['b18'], 4), f(c['b20'], 0), f(c['b21']),
-                        f(c['b22'] * 100 if c['b22'] is not None else None, 3)]))
+                        f(c['b16']), f(c['b18'], 2), f(c['b20'], 0), f(c['b21']),
+                        f(c['wnt_pro']), f(c['wnt_max']),
+                        f(c['b22'] * 100 if c['b22'] is not None else None, 2)
+                        + (' (begrensd door Balkenendenorm)' if c['wnt_capped'] else '')]))
 
 
 if __name__ == '__main__':
