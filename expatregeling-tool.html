@@ -211,6 +211,10 @@
             <label for="set-lc-netto">Looncode netto 30%</label>
             <input type="text" id="set-lc-netto">
           </div>
+          <div class="field checkbox">
+            <input type="checkbox" id="set-meld-b18" checked>
+            <label for="set-meld-b18">Melding geven als het reeds toegepaste percentage hoger is dan het nieuwe percentage</label>
+          </div>
         </div>
       </div>
       </details>
@@ -431,10 +435,11 @@ var els={
   wnt:document.getElementById('set-wnt'),
   lcSvw:document.getElementById('set-lc-svw'),
   lcNetto:document.getElementById('set-lc-netto'),
+  meldB18:document.getElementById('set-meld-b18'),
 };
 function defaultSettings(){
   var y=new Date().getFullYear();
-  return {jaar:y,startdatum:y+'-01-01',toetsloon913:35468,toetsloon914:46660,maxpct:30,wnt:246000,lcSvw:'9970',lcNetto:'5990'};
+  return {jaar:y,startdatum:y+'-01-01',toetsloon913:35468,toetsloon914:46660,maxpct:30,wnt:246000,lcSvw:'9970',lcNetto:'5990',meldB18:true};
 }
 function loadSettings(){
   var s=defaultSettings();
@@ -445,6 +450,7 @@ function loadSettings(){
   els.jaar.value=s.jaar; els.startdatum.value=s.startdatum;
   els.toetsloon913.value=s.toetsloon913; els.toetsloon914.value=s.toetsloon914;
   els.maxpct.value=s.maxpct; els.wnt.value=s.wnt; els.lcSvw.value=s.lcSvw; els.lcNetto.value=s.lcNetto;
+  els.meldB18.checked=!!s.meldB18;
   updateDerived();
 }
 function saveSettings(){
@@ -452,7 +458,8 @@ function saveSettings(){
     localStorage.setItem('expat-tool-settings',JSON.stringify({
       jaar:+els.jaar.value,startdatum:els.startdatum.value,
       toetsloon913:+els.toetsloon913.value,toetsloon914:+els.toetsloon914.value,
-      maxpct:+els.maxpct.value,wnt:+els.wnt.value||0,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim()}));
+      maxpct:+els.maxpct.value,wnt:+els.wnt.value||0,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim(),
+      meldB18:els.meldB18.checked}));
   }catch(e){}
 }
 function updateDerived(){
@@ -507,6 +514,7 @@ function run(){
   var jaar=+els.jaar.value;
   var defStart=parseDateNL(els.startdatum.value)||mkD(jaar,1,1);
   var tl913=+els.toetsloon913.value, tl914=+els.toetsloon914.value;
+  var meldB18=els.meldB18.checked;
   var maxPct=(+els.maxpct.value)/100;
   var wntNorm=(+els.wnt.value)||0;
   var lcSvw=els.lcSvw.value.trim(), lcNetto=els.lcNetto.value.trim();
@@ -609,6 +617,8 @@ function run(){
       else if(res.calc.b22<=0){ res.status='geen-ruimte'; }
       else if(res.calc.b22>=maxPct){ res.status='volledig'; }
       else{ res.status='aanpassen'; }
+      if(meldB18&&res.calc.b18!=null&&res.calc.b22!=null&&excelRound(res.calc.b18,2)>excelRound(res.calc.b22*100,2))
+        warns.push('Reeds toegepast percentage ('+fmtPct(res.calc.b18,2)+') is hoger dan het nieuwe percentage ('+fmtPct(res.calc.b22*100,2)+'); er is al meer afgelaagd dan toegestaan — de TWK leidt tot een correctie omlaag.');
     }
     results.push(res);
   });
