@@ -27,7 +27,7 @@ kolom E `Persnr`). Per medewerker wordt de expat-regel van de **laatste periode*
 |---|---|
 | B5 · Datum start | laatste van: expat kolom U `Regeling Vanaf` en de instelbare standaard startdatum (standaard 1 januari van het berekeningsjaar) |
 | B6 · Datum uit dienst of einde 30% | eerste van: expat kolom N `Datum uit Dienst`, kolom V `Regeling Tm` en 31 december van het berekeningsjaar |
-| B3 · Toetsloon | expat kolom AD `Grenswaarde` per medewerker (zo telt ook het lage toetsloon voor jonge masters mee); uitschakelbaar — dan geldt het instelbare standaardtoetsloon |
+| B3 · Toetsloon | op basis van expat kolom T `Expatregeling`: code 913 → instelling *Toetsloon regeling 913*, code 914 → instelling *Toetsloon regeling 914*. Andere of ontbrekende code → status *Handmatig controleren*. Wijkt kolom AD `Grenswaarde` af van het ingestelde bedrag, dan volgt een aandachtspunt (het ingestelde bedrag blijft leidend) |
 | B14 · LC 9970 (totaal SVW-loon) | historie: regel met `MasterLooncode` 9970 (kolom L), waarde uit `cumulatief` (kolom AB) |
 | B15 · LC 5990 (netto 30%) | historie: regel met `MasterLooncode` 5990 (kolom L), waarde uit `cumulatief` (kolom AB) |
 
@@ -56,8 +56,9 @@ toepassen.
 ## Instellingen
 
 - **Berekeningsjaar** (A1) en **standaard startdatum** (ondergrens voor B5, aanpasbaar).
-- **Toetsloon** — jaarlijks wettelijk bedrag (2025: € 46.660). Het afgeleide
-  *toetsloon maximaal 30%* (÷ 0,7) wordt live getoond.
+- **Toetsloon regeling 913** en **Toetsloon regeling 914** — jaarlijks wettelijke
+  bedragen (2025: € 35.468 laag, € 46.660 hoog); per medewerker gekozen op basis van
+  kolom T. Het afgeleide *toetsloon maximaal 30%* (÷ 0,7) wordt per veld live getoond.
 - **Maximaal percentage** — 30; per 2027 wordt dit 27, dan hier aan te passen.
 - **Balkenendenorm** — WNT-norm op jaarbasis (2025: € 246.000); 0 = niet toepassen.
 - **Looncodes** voor SVW-loon (9970) en netto 30% (5990).

@@ -131,14 +131,15 @@ def main():
     ap.add_argument('expat')
     ap.add_argument('historie')
     ap.add_argument('--jaar', type=int, default=date.today().year)
-    ap.add_argument('--toetsloon', type=float, default=46660)
+    ap.add_argument('--toetsloon-913', type=float, default=35468,
+                    help='Toetsloon regeling 913 (laag)')
+    ap.add_argument('--toetsloon-914', type=float, default=46660,
+                    help='Toetsloon regeling 914 (hoog)')
     ap.add_argument('--maxpct', type=float, default=30)
     ap.add_argument('--wnt', type=float, default=246000,
                     help='Balkenendenorm (WNT-norm) op jaarbasis; 0 = niet toepassen')
     ap.add_argument('--lc-svw', default='9970')
     ap.add_argument('--lc-netto', default='5990')
-    ap.add_argument('--geen-grenswaarde', action='store_true',
-                    help='Grenswaarde-kolom negeren; altijd --toetsloon gebruiken')
     a = ap.parse_args()
 
     expat, hist = read_csv(a.expat), read_csv(a.historie)
@@ -146,7 +147,8 @@ def main():
     e = dict(pers=col(eh, 'Persnr', 9, 'persnr expat'), naam=col(eh, 'LijstNaamCompleet', 10, 'naam'),
              per=col(eh, 'Periode', 3, 'periode'), run=col(eh, 'Runnr', 2, 'runnr'),
              n=col(eh, 'Datum uit Dienst', 13, 'kolom N'), u=col(eh, 'Regeling Vanaf', 20, 'kolom U'),
-             v=col(eh, 'Regeling Tm', 21, 'kolom V'), gw=col(eh, 'Grenswaarde', 29, 'kolom AD'))
+             v=col(eh, 'Regeling Tm', 21, 'kolom V'), gw=col(eh, 'Grenswaarde', 29, 'kolom AD'),
+             reg=col(eh, 'Expatregeling', 19, 'kolom T'))
     h = dict(pers=col(hh, 'Persnr', 4, 'persnr historie'), lc=col(hh, 'MasterLooncode', 11, 'looncode'),
              cum=col(hh, 'cumulatief', 27, 'kolom AB'))
 
@@ -173,15 +175,18 @@ def main():
         u, v, n = (parse_date(last[i]) for i in (e['u'], e['v'], e['n']))
         b5 = max(d for d in (u, date(a.jaar, 1, 1)) if d)
         b6 = min(d for d in (v, n, date(a.jaar, 12, 31)) if d)
-        gw = None if a.geen_grenswaarde else parse_num(last[e['gw']])
-        b3 = gw if gw else a.toetsloon
-        b14, b15 = cum.get((p, a.lc_svw)), cum.get((p, a.lc_netto))
+        regeling = last[e['reg']].strip()
+        b3 = {'913': a.toetsloon_913, '914': a.toetsloon_914}.get(regeling)
         naam = last[e['naam']].strip()
+        if b3 is None:
+            print(f'{p};{naam};Handmatig controleren (onbekende regelingcode: {regeling or "leeg"});;;;;;;;;;;;;;;;')
+            continue
+        b14, b15 = cum.get((p, a.lc_svw)), cum.get((p, a.lc_netto))
         if b14 is None or b15 is None:
-            print(f'{p};{naam};Handmatig controleren (looncodes ontbreken);;;;;;;;;;;;;;')
+            print(f'{p};{naam};Handmatig controleren (looncodes ontbreken);;;;;;;;;;;;;;;;')
             continue
         if b6 < b5:
-            print(f'{p};{naam};Niet actief in jaar;;;;;;;;;;;;;;')
+            print(f'{p};{naam};Niet actief in jaar;;;;;;;;;;;;;;;;')
             continue
         c = bereken(b5, b6, b3, b14, b15, max_pct, a.wnt)
         status = ('Volledig' if c['b22'] is not None and c['b22'] >= max_pct

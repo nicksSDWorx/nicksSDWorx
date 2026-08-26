@@ -184,9 +184,14 @@
             <div class="derived">Standaard 1 januari van het berekeningsjaar</div>
           </div>
           <div class="field">
-            <label for="set-toetsloon">Toetsloon, €</label>
-            <input type="number" id="set-toetsloon" min="0" step="0.01">
-            <div class="derived" id="derived-b4">Toetsloon maximaal 30%: —</div>
+            <label for="set-toetsloon913">Toetsloon regeling 913, €</label>
+            <input type="number" id="set-toetsloon913" min="0" step="0.01">
+            <div class="derived" id="derived-b4-913">Toetsloon maximaal 30%: —</div>
+          </div>
+          <div class="field">
+            <label for="set-toetsloon914">Toetsloon regeling 914, €</label>
+            <input type="number" id="set-toetsloon914" min="0" step="0.01">
+            <div class="derived" id="derived-b4-914">Toetsloon maximaal 30%: —</div>
           </div>
           <div class="field">
             <label for="set-maxpct">Maximaal percentage regeling, %</label>
@@ -205,10 +210,6 @@
           <div class="field">
             <label for="set-lc-netto">Looncode netto 30%</label>
             <input type="text" id="set-lc-netto">
-          </div>
-          <div class="field checkbox">
-            <input type="checkbox" id="set-grenswaarde" checked>
-            <label for="set-grenswaarde">Toetsloon per medewerker uit expatbestand (kolom <b>Grenswaarde</b>) gebruiken; het veld hierboven geldt als terugval&shy;waarde. Zo wordt ook het lage toetsloon (jonge masters) juist meegenomen.</label>
           </div>
         </div>
       </div>
@@ -424,16 +425,16 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){retu
 var els={
   jaar:document.getElementById('set-jaar'),
   startdatum:document.getElementById('set-startdatum'),
-  toetsloon:document.getElementById('set-toetsloon'),
+  toetsloon913:document.getElementById('set-toetsloon913'),
+  toetsloon914:document.getElementById('set-toetsloon914'),
   maxpct:document.getElementById('set-maxpct'),
   wnt:document.getElementById('set-wnt'),
   lcSvw:document.getElementById('set-lc-svw'),
   lcNetto:document.getElementById('set-lc-netto'),
-  grenswaarde:document.getElementById('set-grenswaarde'),
 };
 function defaultSettings(){
   var y=new Date().getFullYear();
-  return {jaar:y,startdatum:y+'-01-01',toetsloon:46660,maxpct:30,wnt:246000,lcSvw:'9970',lcNetto:'5990',grenswaarde:true};
+  return {jaar:y,startdatum:y+'-01-01',toetsloon913:35468,toetsloon914:46660,maxpct:30,wnt:246000,lcSvw:'9970',lcNetto:'5990'};
 }
 function loadSettings(){
   var s=defaultSettings();
@@ -441,25 +442,29 @@ function loadSettings(){
     var raw=localStorage.getItem('expat-tool-settings');
     if(raw){ var p=JSON.parse(raw); for(var k in s){ if(p[k]!==undefined) s[k]=p[k]; } }
   }catch(e){}
-  els.jaar.value=s.jaar; els.startdatum.value=s.startdatum; els.toetsloon.value=s.toetsloon;
-  els.maxpct.value=s.maxpct; els.wnt.value=s.wnt; els.lcSvw.value=s.lcSvw; els.lcNetto.value=s.lcNetto; els.grenswaarde.checked=!!s.grenswaarde;
+  els.jaar.value=s.jaar; els.startdatum.value=s.startdatum;
+  els.toetsloon913.value=s.toetsloon913; els.toetsloon914.value=s.toetsloon914;
+  els.maxpct.value=s.maxpct; els.wnt.value=s.wnt; els.lcSvw.value=s.lcSvw; els.lcNetto.value=s.lcNetto;
   updateDerived();
 }
 function saveSettings(){
   try{
     localStorage.setItem('expat-tool-settings',JSON.stringify({
-      jaar:+els.jaar.value,startdatum:els.startdatum.value,toetsloon:+els.toetsloon.value,
-      maxpct:+els.maxpct.value,wnt:+els.wnt.value||0,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim(),
-      grenswaarde:els.grenswaarde.checked}));
+      jaar:+els.jaar.value,startdatum:els.startdatum.value,
+      toetsloon913:+els.toetsloon913.value,toetsloon914:+els.toetsloon914.value,
+      maxpct:+els.maxpct.value,wnt:+els.wnt.value||0,lcSvw:els.lcSvw.value.trim(),lcNetto:els.lcNetto.value.trim()}));
   }catch(e){}
 }
 function updateDerived(){
-  var b3=+els.toetsloon.value, pct=+els.maxpct.value;
-  var b4=(b3&&pct<100)?b3/(1-pct/100):null;
-  document.getElementById('derived-b4').textContent=
-    'Toetsloon maximaal '+(pct||30)+'% (B4): '+(b4?'€\u00A0'+fmtMoney(b4):'—');
+  var pct=+els.maxpct.value;
+  [['toetsloon913','derived-b4-913'],['toetsloon914','derived-b4-914']].forEach(function(pair){
+    var b3=+els[pair[0]].value;
+    var b4=(b3&&pct<100)?b3/(1-pct/100):null;
+    document.getElementById(pair[1]).textContent=
+      'Toetsloon maximaal '+(pct||30)+'%: '+(b4!=null?'€ '+fmtMoney(b4):'—');
+  });
 }
-[els.toetsloon,els.maxpct].forEach(function(el){ el.addEventListener('input',updateDerived); });
+[els.toetsloon913,els.toetsloon914,els.maxpct].forEach(function(el){ el.addEventListener('input',updateDerived); });
 Object.keys(els).forEach(function(k){ els[k].addEventListener('change',saveSettings); });
 els.jaar.addEventListener('change',function(){
   var y=+els.jaar.value;
@@ -501,11 +506,10 @@ function run(){
   var notes=[];
   var jaar=+els.jaar.value;
   var defStart=parseDateNL(els.startdatum.value)||mkD(jaar,1,1);
-  var defToetsloon=+els.toetsloon.value;
+  var tl913=+els.toetsloon913.value, tl914=+els.toetsloon914.value;
   var maxPct=(+els.maxpct.value)/100;
   var wntNorm=(+els.wnt.value)||0;
   var lcSvw=els.lcSvw.value.trim(), lcNetto=els.lcNetto.value.trim();
-  var useGw=els.grenswaarde.checked;
   var eindJaar=mkD(jaar,12,31);
 
   // expat-kolommen
@@ -577,9 +581,12 @@ function run(){
     var b6=candidates.reduce(function(a,b){return dCmp(b,a)<0?b:a;});
     if(!v&&!n) warns.push('Geen einddatum in kolom N/V; 31-12-'+jaar+' gebruikt.');
 
-    var gw=useGw?parseNumNL(last[eCols.gw]):null;
-    var b3=gw!=null&&gw>0?gw:defToetsloon;
-    if(useGw&&(gw==null||gw<=0)) warns.push('Geen bruikbare Grenswaarde in expatbestand; standaard toetsloon € '+fmtMoney(defToetsloon)+' gebruikt.');
+    var b3=null;
+    if(regeling==='913') b3=tl913;
+    else if(regeling==='914') b3=tl914;
+    var gw=parseNumNL(last[eCols.gw]);
+    if(b3!=null&&gw!=null&&gw>0&&Math.abs(gw-b3)>0.005)
+      warns.push('Grenswaarde in expatbestand (€ '+fmtMoney(gw)+') wijkt af van het ingestelde toetsloon regeling '+regeling+' (€ '+fmtMoney(b3)+'); het ingestelde toetsloon is gebruikt.');
 
     var hs=histIdx[p+'|'+lcSvw], hn=histIdx[p+'|'+lcNetto];
     var b14=hs&&hs.count?hs.sum:null, b15=hn&&hn.count?hn.sum:null;
@@ -587,7 +594,8 @@ function run(){
     if(hn&&hn.count>1) warns.push('Meerdere regels looncode '+lcNetto+' in historie; cumulatieven opgeteld.');
 
     var res={persnr:p,naam:naam,regeling:regeling,b3:b3,b5:b5,b6:b6,b14:b14,b15:b15,warns:warns,status:null,calc:null,maxPct:maxPct};
-    if(b14==null&&b15==null){ res.status='geen-historie'; warns.push('Personeelsnummer niet gevonden in historisch overzicht (looncodes '+lcSvw+'/'+lcNetto+').'); }
+    if(b3==null){ res.status='geen-regeling'; warns.push('Onbekende of ontbrekende regelingcode in kolom T (“'+(regeling||'leeg')+'”); stel het toetsloon voor deze regeling in of controleer het bestand.'); }
+    else if(b14==null&&b15==null){ res.status='geen-historie'; warns.push('Personeelsnummer niet gevonden in historisch overzicht (looncodes '+lcSvw+'/'+lcNetto+').'); }
     else if(b14==null){ res.status='geen-historie'; warns.push('Looncode '+lcSvw+' (SVW-loon) ontbreekt in historie.'); }
     else if(b15==null){ res.status='geen-historie'; warns.push('Looncode '+lcNetto+' (netto 30%) ontbreekt in historie.'); }
     else if(dCmp(b6,b5)<0){ res.status='niet-actief'; warns.push('Einddatum ligt vóór startdatum: regeling niet actief in '+jaar+'.'); }
@@ -666,14 +674,14 @@ function render(){
 }
 function detailHTML(r){
   var c=r.calc, mp=r.maxPct*100;
-  var b4=r.b3/(1-r.maxPct);
+  var b4=r.b3!=null?r.b3/(1-r.maxPct):null;
   function row(cls,lbl,val,note){
     return '<tr class="'+cls+'"><td class="lbl">'+lbl+'</td><td class="num">'+val+'</td><td>'+(note||'')+'</td></tr>';
   }
   var left='<table><thead><tr><th>Berekening (rekenmodel)</th><th class="num">Waarde</th><th>Toelichting</th></tr></thead><tbody>'
     +row('calcrow','Regeling',esc(r.regeling||'—'),'code expatregeling (B2)')
-    +row('calcrow','Toetsloon (B3)','€\u00A0'+fmtMoney(r.b3),'')
-    +row('calcrow','Toetsloon maximaal '+fmtPct(mp,2)+' (B4)','€\u00A0'+fmtMoney(b4),'B3 ÷ '+(1-r.maxPct).toLocaleString('nl-NL'))
+    +row('calcrow','Toetsloon (B3)',r.b3!=null?'€\u00A0'+fmtMoney(r.b3):'—','instelling toetsloon regeling '+esc(r.regeling||'?'))
+    +row('calcrow','Toetsloon maximaal '+fmtPct(mp,2)+' (B4)',b4!=null?'€\u00A0'+fmtMoney(b4):'—','B3 ÷ '+(1-r.maxPct).toLocaleString('nl-NL'))
     +row('inputrow','Datum start (B5)',fmtDate(r.b5),'laatste van: Regeling Vanaf (kolom U) en standaard startdatum')
     +row('inputrow','Datum uit dienst of einde regeling (B6)',fmtDate(r.b6),'eerste van: kolom N, kolom V en 31-12')
     +(c?(
@@ -741,7 +749,7 @@ function buildExport(){
     var c=r.calc||{};
     var num=function(v,d){ return v==null?'':String(v.toFixed(d==null?2:d)).replace('.',','); };
     var statusTxt={volledig:'Volledig '+mp+'% - geen actie',aanpassen:'Aanpassen',
-      'geen-ruimte':'Geen ruimte - controleren','niet-actief':'Niet actief in jaar','geen-historie':'Handmatig controleren'}[r.status]||r.status;
+      'geen-ruimte':'Geen ruimte - controleren','niet-actief':'Niet actief in jaar','geen-historie':'Handmatig controleren','geen-regeling':'Handmatig controleren'}[r.status]||r.status;
     var actie=r.status==='aanpassen'?'TWK LC 9535 alle maanden: '+num(c.b22*100,2)+'%':(r.status==='volledig'?'Geen':'Handmatig beoordelen');
     lines.push([r.persnr,r.naam,statusTxt,r.regeling,num(r.b3),fmtDate(r.b5),fmtDate(r.b6),
       c.b7!=null?c.b7:'',c.b8!=null?c.b8:'',c.b9!=null?c.b9:'',
