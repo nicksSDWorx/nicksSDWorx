@@ -2323,6 +2323,53 @@ function debounce(fn, ms) {
   };
 }
 
+/* Grafiek-doorklik: onClick/onHover-opties voor een klikbare grafiek.
+   fn krijgt de index van het aangeklikte element. */
+function klikbaar(fn) {
+  return {
+    onClick: (ev, actief) => {
+      if (!actief || !actief.length) return;
+      const i = actief[0].index;
+      // uitgesteld: de navigatie kan deze grafiek zelf vervangen, en dat mag
+      // pas nadat Chart.js zijn eigen eventafhandeling heeft afgerond
+      setTimeout(() => fn(i), 0);
+    },
+    onHover: (ev, actief, chart) => { chart.canvas.style.cursor = (actief && actief.length) ? 'pointer' : 'default'; },
+  };
+}
+
+/* Selecteer een analyseperiode (bijv. via klik op een maand in een grafiek). */
+function selecteerPeriode(p) {
+  if (!p || !state.periodIndex.has(p) || p === state.selectedPeriod) return;
+  state.selectedPeriod = p;
+  const sel = document.getElementById('periodSelect');
+  if (sel) sel.value = p;
+  renderAlles();
+}
+
+/* Navigeer naar de Signalen-tab, gefilterd op één categorie (overige filters gereset). */
+function gaNaarSignalenCategorie(catKey) {
+  ['sigSearch', 'sigDebiteur', 'sigKlantnaam', 'sigComm', 'sigMinOmzet', 'sigMinAfwijking'].forEach(id => document.getElementById(id).value = '');
+  ['sigFilterKorting', 'sigFilterCredit', 'sigFilterNieuw', 'sigFilterOntbrekend', 'sigFilterPrijs'].forEach(id => document.getElementById(id).checked = false);
+  document.getElementById('sigPeriode').value = '';   // = geselecteerde periode
+  document.getElementById('sigProduct').value = '';
+  document.getElementById('sigPrioriteit').value = '';
+  document.getElementById('sigCategorie').value = catKey || '';
+  sigLimiet = 300;
+  renderSignalen();
+  toonTab('signalen');
+}
+
+/* Navigeer naar de Vergelijkingen-tab met alle regels van één product. */
+function gaNaarVergelijkingenProduct(product) {
+  document.getElementById('vglSearch').value = product || '';
+  document.getElementById('vglMinOmzet').value = '';
+  document.getElementById('vglAlleenAfwijkend').checked = false;
+  vglLimiet = 300;
+  renderVergelijkingen();
+  toonTab('vergelijkingen');
+}
+
 const charts = {};
 function maakChart(canvasId, config) {
   const el = document.getElementById(canvasId);
@@ -2597,9 +2644,13 @@ function renderOverzichtCharts(p, sigs) {
     options: chartBasisOpties({
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => 'Omzet: ' + euro(ctx.parsed.y, true) } },
+        tooltip: { callbacks: {
+          label: ctx => 'Omzet: ' + euro(ctx.parsed.y, true),
+          footer: () => 'Klik om deze maand te selecteren',
+        } },
       },
       scales: { x: catTicks(), y: euroTicks() },
+      ...klikbaar(i => selecteerPeriode(state.periods[i])),
     }),
   });
 
@@ -2619,9 +2670,11 @@ function renderOverzichtCharts(p, sigs) {
         tooltip: { callbacks: {
           title: items => top10[items[0].dataIndex] ? top10[items[0].dataIndex].naam : '',
           label: ctx => 'Omzet: ' + euro(ctx.parsed.x, true),
+          footer: () => 'Klik voor klantdetail',
         } },
       },
       scales: { x: euroTicks(), y: catTicks() },
+      ...klikbaar(i => { if (top10[i]) openKlantdetail(top10[i].debNr); }),
     }),
   });
 
@@ -2647,8 +2700,10 @@ function renderOverzichtCharts(p, sigs) {
       plugins: { legend: { display: false }, tooltip: { callbacks: {
         title: items => { const i = items[0].dataIndex; return i < topProd.length ? topProd[i].product : 'Overige producten'; },
         label: ctx => 'Omzet: ' + euro(ctx.parsed.x, true),
+        footer: items => items.length && items[0].dataIndex < topProd.length ? 'Klik voor alle regels van dit product' : 'Klik voor alle vergelijkingen',
       } } },
       scales: { x: euroTicks(), y: catTicks() },
+      ...klikbaar(i => gaNaarVergelijkingenProduct(i < topProd.length ? topProd[i].product : '')),
     }),
   });
 
@@ -2664,8 +2719,10 @@ function renderOverzichtCharts(p, sigs) {
       plugins: { legend: { display: false }, tooltip: { callbacks: {
         title: items => stijgers[items[0].dataIndex] ? stijgers[items[0].dataIndex].naam : '',
         label: ctx => 'Omzetstijging: ' + signEuro(ctx.parsed.x),
+        footer: () => 'Klik voor klantdetail',
       } } },
       scales: { x: euroTicks(), y: catTicks() },
+      ...klikbaar(i => { if (stijgers[i]) openKlantdetail(stijgers[i].debNr); }),
     }),
   });
   maakChart('chartDalers', {
@@ -2676,23 +2733,33 @@ function renderOverzichtCharts(p, sigs) {
       plugins: { legend: { display: false }, tooltip: { callbacks: {
         title: items => dalers[items[0].dataIndex] ? dalers[items[0].dataIndex].naam : '',
         label: ctx => 'Omzetdaling: ' + signEuro(ctx.parsed.x),
+        footer: () => 'Klik voor klantdetail',
       } } },
       scales: { x: euroTicks(), y: catTicks() },
+      ...klikbaar(i => { if (dalers[i]) openKlantdetail(dalers[i].debNr); }),
     }),
   });
 
-  /* 6. Signalen per categorie */
-  const perCat = new Map();
-  for (const s of sigs) perCat.set(s.categorieLabel, (perCat.get(s.categorieLabel) || 0) + 1);
-  const catData = [...perCat.entries()].sort((a, b) => b[1] - a[1]);
+  /* 6. Signalen per categorie (sleutel bewaren voor doorklik naar het categoriefilter) */
+  const perCat = new Map(); // categorie-key -> {label, n}
+  for (const s of sigs) {
+    const e = perCat.get(s.categorie) || { label: s.categorieLabel, n: 0 };
+    e.n++;
+    perCat.set(s.categorie, e);
+  }
+  const catData = [...perCat.entries()].map(([key, e]) => ({ key, label: e.label, n: e.n })).sort((a, b) => b.n - a.n);
   document.getElementById('chartSignalenNote').textContent = periodeLabel(p) + ' · ' + meervoud(sigs.length, 'signaal', 'signalen');
   maakChart('chartSignalen', {
     type: 'bar',
-    data: { labels: catData.map(x => x[0]), datasets: [{ data: catData.map(x => x[1]), backgroundColor: KLEUR.blauw, maxBarThickness: 18, borderRadius: 4, borderSkipped: 'start' }] },
+    data: { labels: catData.map(x => x.label), datasets: [{ data: catData.map(x => x.n), backgroundColor: KLEUR.blauw, maxBarThickness: 18, borderRadius: 4, borderSkipped: 'start' }] },
     options: chartBasisOpties({
       indexAxis: 'y',
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.x + ' signalen' } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: ctx => meervoud(ctx.parsed.x, 'signaal', 'signalen'),
+        footer: () => 'Klik om deze signalen te tonen',
+      } } },
       scales: { x: { grid: { color: KLEUR.grid, drawTicks: false }, border: { color: KLEUR.grid }, ticks: { color: KLEUR.tekst, precision: 0 } }, y: catTicks() },
+      ...klikbaar(i => { if (catData[i]) gaNaarSignalenCategorie(catData[i].key); }),
     }),
   });
 }
@@ -2832,16 +2899,24 @@ function renderKlantdetail(debNr) {
     type: 'bar',
     data: { labels, datasets: [{ data: omzetData, backgroundColor: state.periods.map((q, i) => i === selIdx ? KLEUR.navy : KLEUR.blauw), maxBarThickness: 20, borderRadius: 4 }] },
     options: chartBasisOpties({
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Omzet: ' + euro(ctx.parsed.y, true) } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: ctx => 'Omzet: ' + euro(ctx.parsed.y, true),
+        footer: () => 'Klik om deze maand te selecteren',
+      } } },
       scales: { x: catTicks(), y: euroTicks() },
+      ...klikbaar(i => selecteerPeriode(state.periods[i])),
     }),
   });
   maakChart('chartDetailVolume', {
     type: 'line',
     data: { labels, datasets: [{ data: volumeData, borderColor: KLEUR.blauw, borderWidth: 2, tension: 0.25, pointRadius: 4, pointBackgroundColor: KLEUR.blauw, pointBorderColor: '#fff', pointBorderWidth: 2 }] },
     options: chartBasisOpties({
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => 'Volume: ' + getal(ctx.parsed.y) } } },
+      plugins: { legend: { display: false }, tooltip: { callbacks: {
+        label: ctx => 'Volume: ' + getal(ctx.parsed.y),
+        footer: () => 'Klik om deze maand te selecteren',
+      } } },
       scales: { x: catTicks(), y: { grid: { color: KLEUR.grid, drawTicks: false }, border: { color: KLEUR.grid }, ticks: { color: KLEUR.tekst } } },
+      ...klikbaar(i => selecteerPeriode(state.periods[i])),
     }),
   });
 
