@@ -60,7 +60,7 @@ rekenverschil €1, aantal maanden voor "gestopt product") zijn instelbaar via h
 ## Techniek
 
 - Eén HTML-bestand: HTML + moderne CSS + vanilla JavaScript.
-- [SheetJS](https://sheetjs.com/) 0.18.5 (Apache-2.0) voor Excel/CSV, ingebed.
+- [SheetJS](https://sheetjs.com/) 0.20.3 (Apache-2.0) voor Excel/CSV, ingebed.
 - [Chart.js](https://www.chartjs.org/) 4.4.3 (MIT) voor grafieken, ingebed.
 - Geen build-omgeving, backend of database.
 - Vormgeving volgens de SD Worx-huisstijl.
