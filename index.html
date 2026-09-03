@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SD Worx · Notulentool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sdw-blue: #006dd8;        /* dominant: header, primaire knoppen, koppen, nadruk */
+  --sdw-white: #ffffff;       /* achtergronden, kaarten */
+  --sdw-black: #000000;       /* tekst, iconen, randen. NOOIT als achtergrond */
+  --sdw-navy: #001c52;        /* enige toegestane donkere vlakken */
+  --sdw-icy: #d9f1ff;         /* zachte achtergrondvariatie, drop-zones */
+  --sdw-sky: #9ed2ff;
+  --sdw-azure: #38a1ff;
+  --sdw-yellow: #ffbe00;      /* enige accent, alleen voor één focuspunt, < 10% van het scherm */
+  --font: 'Inter', -apple-system, 'Segoe UI', system-ui, sans-serif;
+  --s1: 8px;
+  --s2: 16px;
+  --s3: 24px;
+  --s4: 32px;
+  --s6: 48px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; font-family: var(--font); font-size: 16px; line-height: 1.5; color: var(--sdw-black); background: var(--sdw-white); }
+h1, h2, h3 { margin: 0; line-height: 1.2; font-weight: 700; color: var(--sdw-blue); }
+h1 { font-size: 32px; }
+h2 { font-size: 24px; }
+h3 { font-size: 18px; }
+p { margin: 0 0 var(--s2); }
+a { color: var(--sdw-blue); }
+code { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 14px; }
+[hidden] { display: none !important; }
+
+/* Kop */
+.kop { background: var(--sdw-blue); color: var(--sdw-white); padding: var(--s3) var(--s4); }
+.kop-binnen { max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; justify-content: space-between; }
+.kop h1 { color: var(--sdw-white); }
+.kop p { margin: 4px 0 0; font-size: 13px; }
+.kop .knop { background: var(--sdw-white); color: var(--sdw-black); border-color: var(--sdw-white); }
+.kop .knop:hover { background: var(--sdw-icy); border-color: var(--sdw-icy); }
+
+/* Lay-out */
+main { max-width: 1200px; margin: 0 auto; padding: var(--s4); display: grid; gap: var(--s3); }
+.kaart { background: var(--sdw-white); border: 1px solid var(--sdw-black); border-radius: 8px; padding: var(--s3); }
+.raster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.kaart-kop { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); flex-wrap: wrap; margin-bottom: var(--s2); }
+.rij { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
+.rij-eind { justify-content: flex-end; }
+.groei { flex: 1 1 200px; }
+.veld { margin-bottom: var(--s2); }
+.mt2 { margin-top: var(--s2); }
+.mt3 { margin-top: var(--s3); }
+.voet { max-width: 1200px; margin: 0 auto; padding: var(--s3) var(--s4) var(--s6); font-size: 13px; }
+@media (max-width: 960px) {
+  .raster { grid-template-columns: 1fr; }
+  main { padding: var(--s2); }
+  .kop { padding: var(--s2); }
+  .voet { padding: var(--s2) var(--s2) var(--s4); }
+}
+
+/* Formulieren */
+label, .label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.label-normaal { font-size: 16px; font-weight: 400; display: flex; align-items: center; gap: var(--s1); }
+.hulp { font-size: 13px; margin: 4px 0 0; }
+input[type="text"], input[type="url"], input[type="password"], input[type="date"], select, textarea {
+  font: inherit; color: var(--sdw-black); background: var(--sdw-white); border: 1px solid var(--sdw-black);
+  border-radius: 4px; padding: var(--s1) 12px; width: 100%; margin: 0;
+}
+textarea { border-radius: 8px; min-height: 220px; resize: vertical; display: block; }
+#ruw { min-height: 480px; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 14px; }
+::placeholder { color: var(--sdw-blue); opacity: 1; }
+input[type="checkbox"] { accent-color: var(--sdw-blue); width: 16px; height: 16px; margin: 0; }
+:focus-visible { outline: 2px solid var(--sdw-blue); outline-offset: 2px; }
+
+/* Knoppen */
+.knop { font: inherit; font-weight: 600; line-height: 1.5; border: 1px solid var(--sdw-black); border-radius: 8px; padding: 12px var(--s3); background: var(--sdw-white); color: var(--sdw-black); cursor: pointer; }
+.knop:hover { background: var(--sdw-icy); }
+.knop-primair { background: var(--sdw-blue); border-color: var(--sdw-blue); color: var(--sdw-white); }
+.knop-primair:hover { background: var(--sdw-navy); border-color: var(--sdw-navy); }
+.knop-accent { background: var(--sdw-yellow); border-color: var(--sdw-yellow); color: var(--sdw-black); font-size: 18px; padding: 12px var(--s4); }
+.knop-accent:hover { border-color: var(--sdw-black); background: var(--sdw-yellow); }
+.knop-klein { font-size: 13px; padding: 6px 12px; border-radius: 4px; }
+.knop[aria-disabled="true"] { cursor: not-allowed; background: var(--sdw-sky); border-color: var(--sdw-sky); color: var(--sdw-black); }
+.tekstknop { font: inherit; font-size: 13px; background: none; border: 0; padding: 0; color: var(--sdw-blue); text-decoration: underline; cursor: pointer; }
+
+/* Kleine elementen */
+.pil { display: inline-block; font-size: 13px; font-weight: 600; line-height: 1.5; padding: 0 var(--s1); border-radius: 4px; background: var(--sdw-icy); color: var(--sdw-black); text-transform: uppercase; letter-spacing: 0.02em; vertical-align: middle; }
+.pil-navy { background: var(--sdw-navy); color: var(--sdw-white); }
+.melding { border: 1px solid var(--sdw-black); border-left: var(--s1) solid var(--sdw-blue); border-radius: 8px; padding: var(--s2); background: var(--sdw-white); }
+.melding strong { color: var(--sdw-blue); }
+
+/* Bronnen */
+.dropzone { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); flex-wrap: wrap; border: 1px dashed var(--sdw-black); border-radius: 8px; background: var(--sdw-icy); padding: 12px var(--s2); font-size: 13px; margin-bottom: var(--s2); }
+.dropzone.actief { background: var(--sdw-sky); border-style: solid; }
+.dropzone .knop { background: var(--sdw-white); }
+.dropzone .knop:hover { background: var(--sdw-white); border-color: var(--sdw-blue); }
+.bron-voet { display: flex; gap: var(--s2); align-items: center; justify-content: space-between; flex-wrap: wrap; font-size: 13px; margin-top: var(--s1); }
+.verborgen-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Uitvoer */
+.schakel { display: inline-flex; border: 1px solid var(--sdw-black); border-radius: 4px; overflow: hidden; }
+.schakel button { font: inherit; font-size: 13px; font-weight: 600; padding: 6px 12px; border: 0; background: var(--sdw-white); color: var(--sdw-black); cursor: pointer; }
+.schakel button[aria-pressed="true"] { background: var(--sdw-blue); color: var(--sdw-white); }
+.notulen { margin: var(--s2) 0; overflow-x: auto; }
+.notulen h1 { font-size: 24px; margin: var(--s3) 0 var(--s2); }
+.notulen h2 { font-size: 18px; margin: var(--s3) 0 var(--s1); }
+.notulen h3 { font-size: 16px; margin: var(--s2) 0 var(--s1); }
+.notulen h1:first-child, .notulen h2:first-child { margin-top: 0; }
+.notulen ul, .notulen ol { margin: 0 0 var(--s2); padding-left: var(--s3); }
+.notulen li { margin-bottom: 4px; }
+.notulen table { border-collapse: collapse; width: 100%; margin: var(--s1) 0 var(--s2); }
+.notulen th, .notulen td { border: 1px solid var(--sdw-black); padding: var(--s1) 12px; text-align: left; vertical-align: top; }
+.notulen th { background: var(--sdw-icy); }
+.notulen hr { border: 0; border-top: 1px solid var(--sdw-black); margin: var(--s3) 0; }
+.notulen blockquote { margin: 0 0 var(--s2); padding-left: var(--s2); border-left: 4px solid var(--sdw-sky); }
+.notulen pre, .ruwtekst { white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 14px; margin: 0 0 var(--s2); }
+
+/* Instellingen */
+dialog { border: 1px solid var(--sdw-black); border-radius: 8px; padding: var(--s3); width: min(640px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; color: var(--sdw-black); background: var(--sdw-white); }
+dialog::backdrop { background: rgba(0, 28, 82, 0.6); }
+dialog h2 { margin-bottom: var(--s2); }
+</style>
+</head>
+<body>
+<header class="kop">
+  <div class="kop-binnen">
+    <div>
+      <h1>SD Worx · Notulentool</h1>
+      <p>Van notities, Teams-transcript en Copilot-recap naar notulen in de vaste structuur.</p>
+    </div>
+    <div class="rij">
+      <span id="mockBadge" class="pil pil-navy" hidden>Mock-modus</span>
+      <button id="knopInstellingen" class="knop knop-klein" type="button">Instellingen</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="startMelding" class="melding" hidden></div>
+
+  <section class="raster" aria-label="Bronnen">
+    <div class="kaart bron" data-bron="notities" data-accept="txt,md,docx">
+      <div class="kaart-kop"><h2>Notities</h2><span class="pil">Verplicht</span></div>
+      <div class="dropzone">
+        <span>Sleep een bestand hierheen (.txt, .md, .docx)</span>
+        <label class="knop knop-klein">Bestand kiezen<input type="file" class="verborgen-input" accept=".txt,.md,.docx"></label>
+      </div>
+      <label for="notities">Of plak de tekst hier</label>
+      <textarea id="notities" placeholder="Plak hier de vergadernotities…"></textarea>
+      <div class="bron-voet"><span class="teller" aria-live="polite">0 tekens</span><span class="bestandsnaam"></span><button type="button" class="tekstknop wis">Leegmaken</button></div>
+    </div>
+
+    <div class="kaart bron" data-bron="transcript" data-accept="vtt,txt,docx">
+      <div class="kaart-kop"><h2>Transcript</h2><span class="pil">Optioneel</span></div>
+      <div class="dropzone">
+        <span>Sleep een Teams-transcript hierheen (.vtt, .txt, .docx)</span>
+        <label class="knop knop-klein">Bestand kiezen<input type="file" class="verborgen-input" accept=".vtt,.txt,.docx"></label>
+      </div>
+      <label for="transcript">Of plak de tekst hier</label>
+      <textarea id="transcript" placeholder="Plak hier het transcript…"></textarea>
+      <div class="bron-voet"><span class="teller" aria-live="polite">0 tekens</span><span class="bestandsnaam"></span><button type="button" class="tekstknop wis">Leegmaken</button></div>
+    </div>
+
+    <div class="kaart bron" data-bron="recap" data-accept="txt,md,docx">
+      <div class="kaart-kop"><h2>Copilot-recap</h2><span class="pil">Optioneel</span></div>
+      <div class="dropzone">
+        <span>Sleep een bestand hierheen (.txt, .md, .docx)</span>
+        <label class="knop knop-klein">Bestand kiezen<input type="file" class="verborgen-input" accept=".txt,.md,.docx"></label>
+      </div>
+      <label for="recap">Of plak de tekst hier</label>
+      <textarea id="recap" placeholder="Plak hier de recap van Copilot…"></textarea>
+      <div class="bron-voet"><span class="teller" aria-live="polite">0 tekens</span><span class="bestandsnaam"></span><button type="button" class="tekstknop wis">Leegmaken</button></div>
+    </div>
+  </section>
+
+  <section class="kaart" aria-labelledby="metaKop">
+    <div class="kaart-kop"><h2 id="metaKop">Gegevens van de vergadering</h2><span class="pil">Optioneel</span></div>
+    <div class="raster">
+      <div class="veld"><label for="metaTitel">Vergadertitel</label><input id="metaTitel" type="text" autocomplete="off"></div>
+      <div class="veld"><label for="metaDatum">Datum</label><input id="metaDatum" type="date"></div>
+      <div class="veld"><label for="metaAanwezigen">Aanwezigen</label><input id="metaAanwezigen" type="text" autocomplete="off" placeholder="Namen, gescheiden door komma's"></div>
+    </div>
+    <p class="hulp">Laat je een veld leeg, dan leidt het model de gegevens af uit de bronnen.</p>
+  </section>
+
+  <div id="invoerMelding" class="melding" hidden></div>
+  <div id="waarschuwing" class="melding" hidden></div>
+
+  <div class="rij">
+    <button id="knopGenereer" class="knop knop-accent" type="button">Genereer notulen</button>
+    <button id="knopAnnuleer" class="knop" type="button" hidden>Annuleren</button>
+    <span id="totaalTeller" class="hulp">Totaal: 0 tekens</span>
+  </div>
+
+  <section id="uitvoer" class="kaart" aria-labelledby="uitvoerKop" hidden>
+    <div class="kaart-kop">
+      <h2 id="uitvoerKop">Notulen</h2>
+      <div class="schakel" role="group" aria-label="Weergave of bewerken">
+        <button id="tabWeergave" type="button" aria-pressed="true">Weergave</button>
+        <button id="tabBewerken" type="button" aria-pressed="false">Bewerken</button>
+      </div>
+    </div>
+    <p id="status" class="hulp" aria-live="polite"></p>
+    <div id="melding" class="melding" hidden></div>
+    <div id="gerenderd" class="notulen"></div>
+    <textarea id="ruw" aria-label="Notulen in markdown, bewerkbaar" spellcheck="false" hidden></textarea>
+    <div class="rij mt2" id="uitvoerKnoppen">
+      <button id="knopKopieerMd" class="knop knop-primair" type="button">Kopieer markdown</button>
+      <button id="knopKopieerTekst" class="knop" type="button">Kopieer als platte tekst</button>
+      <button id="knopDownloadMd" class="knop" type="button">Download .md</button>
+      <button id="knopDownloadDocx" class="knop" type="button">Download .docx</button>
+      <button id="knopOpnieuw" class="knop" type="button">Opnieuw genereren</button>
+    </div>
+  </section>
+</main>
+
+<footer class="voet">
+  <p>Je invoer wordt nergens opgeslagen en verlaat de browser alleen richting het gekozen model-endpoint. Alleen de instellingen blijven bewaard in deze browser.</p>
+</footer>
+
+<dialog id="instellingen" aria-labelledby="instellingenKop">
+  <h2 id="instellingenKop">Instellingen</h2>
+  <div class="veld">
+    <label for="instProvider">Provider</label>
+    <select id="instProvider">
+      <option value="anthropic">Anthropic API</option>
+      <option value="foundry">Microsoft Foundry</option>
+    </select>
+  </div>
+  <div class="veld foundry-only">
+    <label for="instEndpoint">Endpoint-URL</label>
+    <input id="instEndpoint" type="url" autocomplete="off" placeholder="https://mijn-resource.services.ai.azure.com/anthropic">
+    <p class="hulp" id="instEndpointHulp"></p>
+  </div>
+  <div class="veld foundry-only">
+    <label for="instAuthHeader">Naam van de auth-header</label>
+    <input id="instAuthHeader" type="text" autocomplete="off" list="authHeaderOpties">
+    <datalist id="authHeaderOpties"><option value="api-key"></option><option value="x-api-key"></option><option value="Authorization"></option></datalist>
+    <p class="hulp">Standaard <code>api-key</code>; Foundry accepteert ook <code>x-api-key</code>. Kies <code>Authorization</code> voor een Entra ID-token, “Bearer ” wordt dan automatisch toegevoegd.</p>
+  </div>
+  <div class="veld">
+    <label for="instApiKey">API-key</label>
+    <div class="rij"><input id="instApiKey" class="groei" type="password" autocomplete="off"><button id="knopToonKey" class="knop knop-klein" type="button">Toon</button></div>
+  </div>
+  <div class="veld">
+    <label for="instModel">Modelnaam</label>
+    <input id="instModel" type="text" autocomplete="off">
+    <p class="hulp">Standaard <code>claude-sonnet-5</code>. Bij Foundry vul je de naam van je deployment in.</p>
+  </div>
+  <div class="veld">
+    <label class="label-normaal" for="instMock"><input type="checkbox" id="instMock"> Mock-modus: vaste voorbeeldoutput, geen API-call</label>
+  </div>
+  <div class="rij"><button id="knopTest" class="knop knop-primair" type="button">Test verbinding</button><span id="testStatus" class="hulp" aria-live="polite"></span></div>
+  <div id="testResultaat" class="melding mt2" hidden></div>
+  <p class="hulp mt3">Instellingen worden automatisch bewaard in deze browser (localStorage), ook de API-key. <button id="knopWisInstellingen" class="tekstknop" type="button">Wis alle instellingen</button></p>
+  <div class="rij rij-eind mt2"><button id="knopSluit" class="knop" type="button">Sluiten</button></div>
+</dialog>
+
+<script>
+  // Laadt een bibliotheek opnieuw vanaf een tweede CDN als het eerste niet bereikbaar is.
+  function cdnFallback(el, url) {
+    var s = document.createElement('script');
+    s.src = url;
+    s.async = true;
+    s.onerror = function () { console.warn('Bibliotheek niet geladen: ' + url); };
+    document.head.appendChild(s);
+  }
+</script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.12.2/mammoth.browser.min.js" onerror="cdnFallback(this, 'https://unpkg.com/mammoth@1.12.2/mammoth.browser.min.js')"></script>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/marked/18.0.11/lib/marked.umd.js" onerror="cdnFallback(this, 'https://unpkg.com/marked@18.0.11/lib/marked.umd.js')"></script>
+<script async src="https://unpkg.com/docx@9.7.1/dist/index.iife.js" onerror="cdnFallback(this, 'https://unpkg.com/docx@9.7.1/dist/index.umd.cjs')"></script>
+
+<script>
+// === CONFIGURATIE ===
+// Dit blok mag de beheerder aanpassen. De rest van het script hoeft daarvoor niet gewijzigd te worden.
+// Let op: de teksten staan tussen backticks (`). Een backtick ín een tekst schrijf je als \` .
+
+// 1. SYSTEEMPROMPT: de instructies voor het model.
+const SYSTEEMPROMPT = `Je bent een ervaren management assistent bij SD Worx. Je schrijft notulen in het Nederlands op basis van aangeleverde bronnen: vergadernotities (altijd aanwezig), eventueel een Teams-transcript en eventueel een Copilot-recap.
+
+Regels:
+1. Volg de vaste structuur exact. Laat geen kop weg en voeg geen kop toe. Gebruik precies de koppen uit de structuur, in dezelfde volgorde en op hetzelfde niveau.
+2. Gebruik uitsluitend informatie uit de aangeleverde bronnen. Verzin niets en vul niets aan uit algemene kennis. Is er voor een onderdeel geen informatie, schrijf dan onder die kop: "Geen."
+3. De notities zijn leidend. Het transcript en de recap vullen aan en bevestigen.
+4. Spreken de bronnen elkaar tegen, benoem dat dan expliciet in de notulen (bijvoorbeeld: "De notities noemen 1 oktober als go-live, de recap 15 oktober."). Kies niet stilzwijgend voor één versie.
+5. Acties staan altijd in een markdown-tabel met exact deze kolommen: Actie | Eigenaar | Deadline | Bron. Ontbreekt een eigenaar of deadline, schrijf dan [NOG AAN TE VULLEN]. Raad geen eigenaren of deadlines. In de kolom Bron staat uit welke bron de actie komt: notities, transcript of recap (meerdere mag).
+6. Keypoints zijn concreet en zelfstandig leesbaar voor iemand die niet bij de vergadering was: wat is besproken, wat is de stand van zaken, wat is de conclusie. Geen losse steekwoorden.
+7. Vergadertitel, datum en aanwezigen: gebruik de opgegeven metadata. Ontbreekt die, leid ze dan af uit de bronnen. Lukt dat niet, schrijf dan [NOG AAN TE VULLEN].
+8. Je output bestaat alleen uit de notulen in markdown. Geen inleiding, geen afsluiting, geen uitleg over wat je hebt gedaan en geen codeblok om de notulen heen.`;
+
+// 2. STRUCTUUR: de vaste opzet van de notulen als markdown-sjabloon. Tekst tussen [ ] vult het model in.
+const STRUCTUUR = `# Notulen: [vergadertitel]
+
+**Datum:** [datum]
+**Aanwezigen:** [namen]
+
+## Samenvatting
+[Maximaal 5 zinnen.]
+
+## Keypoints per onderwerp
+### [Onderwerp 1]
+- [keypoint]
+- [keypoint]
+
+### [Onderwerp 2]
+- [keypoint]
+
+## Besluiten
+- [besluit]
+
+## Acties
+| Actie | Eigenaar | Deadline | Bron |
+|---|---|---|---|
+| [actie] | [naam of [NOG AAN TE VULLEN]] | [datum of [NOG AAN TE VULLEN]] | [notities / transcript / recap] |
+
+## Open punten
+- [open punt]`;
+
+// 3. VOORBEELDEN: array van teksten. Elk element is één compleet voorbeeld van goede notulen in de
+//    vaste structuur hierboven. Ze gaan als voorbeeld (few-shot) mee in de systeemprompt.
+//    Zo voeg je voorbeelden toe:
+//
+//    const VOORBEELDEN = [
+//    `# Notulen: Weekoverleg HR-team
+//
+//    **Datum:** 12 mei 2026
+//    ... (het volledige voorbeeld, in exact dezelfde structuur als STRUCTUUR) ...`,
+//
+//    `# Notulen: Stuurgroep payroll
+//    ... (tweede voorbeeld) ...`,
+//    ];
+//
+//    Tips: gebruik echte maar geanonimiseerde notulen; één tot drie voorbeelden volstaan; houd ze in
+//    dezelfde structuur als STRUCTUUR, anders spreken sjabloon en voorbeelden elkaar tegen.
+const VOORBEELDEN = [];
+
+// 4. MOCK_OUTPUT: de vaste output in mock-modus (zonder API-call).
+const MOCK_OUTPUT = `# Notulen: Projectoverleg implementatie People Hub
+
+**Datum:** 1 september 2026
+**Aanwezigen:** Sanne de Wit (projectleider), Tom Peeters (HR-manager), Fatima El Amrani (functioneel beheerder), Ruben Jansen (IT), Els Vermeulen (management assistent, notulist)
+
+## Samenvatting
+Het projectteam besprak de voortgang van de implementatie van People Hub. De datamigratie is voor 92% afgerond; veertig dossiers missen nog gegevens. De acceptatietest start op 15 september met twaalf testers uit vier afdelingen. De koppeling met de Outlook-agenda loopt vertraging op door een ontbrekend certificaat bij de leverancier. De go-live blijft gepland op 1 oktober, met 15 oktober als terugvaloptie als de testfase uitloopt.
+
+## Keypoints per onderwerp
+### Datamigratie
+- 92% van de personeelsdossiers is gemigreerd naar People Hub.
+- Bij veertig dossiers ontbreekt het BSN of de geboortedatum. Fatima El Amrani zoekt dit uit met de salarisadministratie.
+- De resterende migratie kan pas worden afgerond als deze gegevens compleet zijn.
+
+### Acceptatietest (UAT)
+- De acceptatietest start op 15 september en duurt twee weken.
+- Er doen twaalf testers mee uit vier afdelingen; Tom Peeters bevestigt de namen.
+- De testscripts zijn nog niet af; Fatima El Amrani rondt ze af vóór 10 september.
+
+### Koppeling Outlook-agenda
+- De leverancier heeft het benodigde certificaat nog niet geleverd, waardoor de koppeling niet getest kan worden.
+- Ruben Jansen verwacht het certificaat rond 20 september; de koppeling kan dan nog binnen de testfase worden meegenomen.
+
+### Communicatie naar medewerkers
+- Tom Peeters stelt een e-mail en een intranetbericht op voor alle medewerkers.
+- Els Vermeulen plant twee inloopsessies waarin medewerkers vragen kunnen stellen.
+- Er is nog niet besloten wie na de go-live de veelgestelde vragen (FAQ) beheert.
+
+### Go-live en budget
+- De go-live staat gepland op 1 oktober. De Copilot-recap noemt 15 oktober als go-livedatum; volgens de notities en het transcript is 15 oktober alleen de terugvaloptie als de testfase uitloopt.
+- Voor de testomgeving zijn extra licentiekosten nodig van 4.200 euro; het team gaat hiermee akkoord.
+
+## Besluiten
+- De acceptatietest start op 15 september.
+- De extra licentiekosten van 4.200 euro voor de testomgeving zijn akkoord; Sanne de Wit meldt dit aan de stuurgroep.
+- De go-live blijft 1 oktober, met 15 oktober als terugvaloptie.
+
+## Acties
+| Actie | Eigenaar | Deadline | Bron |
+|---|---|---|---|
+| Ontbrekende gegevens van veertig dossiers uitzoeken met de salarisadministratie | Fatima El Amrani | 8 september 2026 | notities |
+| Testscripts voor de acceptatietest afronden | Fatima El Amrani | 10 september 2026 | notities, transcript |
+| Namen van de twaalf testers bevestigen | Tom Peeters | 12 september 2026 | notities |
+| Certificaat bij de leverancier opvolgen | Ruben Jansen | 20 september 2026 | transcript |
+| E-mail en intranetbericht voor medewerkers opstellen | Tom Peeters | [NOG AAN TE VULLEN] | notities |
+| Twee inloopsessies plannen | Els Vermeulen | 25 september 2026 | recap |
+| Extra licentiekosten melden aan de stuurgroep | Sanne de Wit | 5 september 2026 | notities |
+| Beheer van de FAQ na go-live beleggen | [NOG AAN TE VULLEN] | [NOG AAN TE VULLEN] | transcript |
+
+## Open punten
+- Wie beheert de FAQ na de go-live?
+- Levert de leverancier het certificaat op tijd, zodat de Outlook-koppeling nog binnen de testfase valt?`;
+
+// 5. Overige instellingen.
+const STANDAARD_MODEL = 'claude-sonnet-5';               // standaard modelnaam (in de UI aan te passen)
+const MAX_TOKENS = 16000;                                // maximale lengte van de output in tokens
+const WAARSCHUWING_TEKENS = 300000;                      // waarschuwing (niet blokkerend) boven dit aantal tekens
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
+const ANTHROPIC_VERSION = '2023-06-01';
+// === EINDE CONFIGURATIE ===
+
+(function () {
+  'use strict';
+
+  /* ---------- Hulpfuncties ---------- */
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  const nf = new Intl.NumberFormat('nl-NL');
+  const tekens = (n) => nf.format(n) + (n === 1 ? ' teken' : ' tekens');
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function vandaagISO() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function datumNL(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    if (!m) return iso || '';
+    return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+  function slug(s) {
+    return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+  }
+  // Wacht (max. 60 s) tot een via CDN geladen bibliotheek beschikbaar is.
+  const wachtrij = new Set();
+  function wanneerGeladen(naam, cb) {
+    if (window[naam]) { cb(); return; }
+    if (wachtrij.has(naam)) return;
+    wachtrij.add(naam);
+    const start = Date.now();
+    const t = setInterval(() => {
+      if (window[naam]) { clearInterval(t); wachtrij.delete(naam); cb(); }
+      else if (Date.now() - start > 60000) { clearInterval(t); wachtrij.delete(naam); }
+    }, 250);
+  }
+
+  /* ---------- Elementen ---------- */
+  const el = {
+    startMelding: $('#startMelding'), invoerMelding: $('#invoerMelding'), waarschuwing: $('#waarschuwing'),
+    totaal: $('#totaalTeller'), knopGenereer: $('#knopGenereer'), knopAnnuleer: $('#knopAnnuleer'),
+    uitvoer: $('#uitvoer'), status: $('#status'), melding: $('#melding'), gerenderd: $('#gerenderd'), ruw: $('#ruw'),
+    tabWeergave: $('#tabWeergave'), tabBewerken: $('#tabBewerken'),
+    metaTitel: $('#metaTitel'), metaDatum: $('#metaDatum'), metaAanwezigen: $('#metaAanwezigen'),
+    knopKopieerMd: $('#knopKopieerMd'), knopKopieerTekst: $('#knopKopieerTekst'), knopDownloadMd: $('#knopDownloadMd'),
+    knopDownloadDocx: $('#knopDownloadDocx'), knopOpnieuw: $('#knopOpnieuw'),
+    dialoog: $('#instellingen'), mockBadge: $('#mockBadge'), knopInstellingen: $('#knopInstellingen'), knopSluit: $('#knopSluit'),
+    knopTest: $('#knopTest'), testStatus: $('#testStatus'), testResultaat: $('#testResultaat'),
+    knopToonKey: $('#knopToonKey'), knopWisInstellingen: $('#knopWisInstellingen'),
+    inst: {
+      provider: $('#instProvider'), endpoint: $('#instEndpoint'), authHeader: $('#instAuthHeader'),
+      apiKey: $('#instApiKey'), model: $('#instModel'), mock: $('#instMock'),
+    },
+    endpointHulp: $('#instEndpointHulp'),
+  };
+
+  function toonMelding(box, titel, tekst) {
+    box.innerHTML = '';
+    if (titel) { const b = document.createElement('strong'); b.textContent = titel + ': '; box.appendChild(b); }
+    box.appendChild(document.createTextNode(tekst));
+    box.hidden = false;
+  }
+  function verbergMelding(box) { box.hidden = true; box.innerHTML = ''; }
+  function zetStatus(tekst) { el.status.textContent = tekst || ''; }
+
+  /* ---------- Instellingen (localStorage) ---------- */
+  const OPSLAG_SLEUTEL = 'notulentool.instellingen';
+  const STANDAARD = { provider: 'anthropic', endpoint: '', authHeader: 'api-key', apiKey: '', model: STANDAARD_MODEL, mock: false };
+  const urlMock = new URLSearchParams(location.search).get('mock') === '1';
+  let instellingen = laadInstellingen();
+
+  function laadInstellingen() {
+    try {
+      const ruw = localStorage.getItem(OPSLAG_SLEUTEL);
+      return ruw ? Object.assign({}, STANDAARD, JSON.parse(ruw)) : Object.assign({}, STANDAARD);
+    } catch (e) { return Object.assign({}, STANDAARD); }
+  }
+  function bewaarInstellingen() {
+    try { localStorage.setItem(OPSLAG_SLEUTEL, JSON.stringify(instellingen)); }
+    catch (e) { console.warn('Instellingen konden niet bewaard worden', e); }
+  }
+  function mockActief() { return urlMock || !!instellingen.mock; }
+
+  // Maakt van wat de gebruiker invult een volledige Messages-URL voor Foundry.
+  function normaliseerEndpoint(raw) {
+    let u = String(raw || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    u = u.replace(/\/+$/, '');
+    if (/\/v1\/messages$/i.test(u)) return u;
+    if (/\/v1$/i.test(u)) return u + '/messages';
+    if (/\/anthropic$/i.test(u)) return u + '/v1/messages';
+    try {
+      const p = new URL(u);
+      if (p.pathname === '' || p.pathname === '/') return u + '/anthropic/v1/messages';
+    } catch (e) { return ''; }
+    return u + '/v1/messages';
+  }
+  function endpointUrl() { return instellingen.provider === 'foundry' ? normaliseerEndpoint(instellingen.endpoint) : ANTHROPIC_URL; }
+  function bouwHeaders() {
+    const h = { 'content-type': 'application/json', 'anthropic-version': ANTHROPIC_VERSION };
+    if (instellingen.provider === 'foundry') {
+      const naam = (instellingen.authHeader || 'api-key').trim();
+      let waarde = instellingen.apiKey.trim();
+      if (naam.toLowerCase() === 'authorization' && !/^bearer\s/i.test(waarde)) waarde = 'Bearer ' + waarde;
+      h[naam] = waarde;
+    } else {
+      h['x-api-key'] = instellingen.apiKey.trim();
+      h['anthropic-dangerous-direct-browser-access'] = 'true';
+    }
+    return h;
+  }
+  function controleerInstellingen() {
+    if (mockActief()) return null;
+    if (!instellingen.apiKey) return 'Er is nog geen API-key ingesteld. Vul die in bij Instellingen, of zet Mock-modus aan.';
+    if (instellingen.provider === 'foundry' && !normaliseerEndpoint(instellingen.endpoint)) return 'Vul bij Instellingen de endpoint-URL van Microsoft Foundry in.';
+    return null;
+  }
+
+  function vulInstellingenIn() {
+    el.inst.provider.value = instellingen.provider;
+    el.inst.endpoint.value = instellingen.endpoint;
+    el.inst.authHeader.value = instellingen.authHeader;
+    el.inst.apiKey.value = instellingen.apiKey;
+    el.inst.model.value = instellingen.model;
+    el.inst.mock.checked = !!instellingen.mock;
+    updateProviderVelden();
+    updateMockBadge();
+  }
+  function leesInstellingenUit() {
+    instellingen.provider = el.inst.provider.value;
+    instellingen.endpoint = el.inst.endpoint.value.trim();
+    instellingen.authHeader = el.inst.authHeader.value.trim() || 'api-key';
+    instellingen.apiKey = el.inst.apiKey.value.trim();
+    instellingen.model = el.inst.model.value.trim() || STANDAARD_MODEL;
+    instellingen.mock = el.inst.mock.checked;
+    bewaarInstellingen();
+    updateProviderVelden();
+    updateMockBadge();
+    updateStartMelding();
+  }
+  function updateProviderVelden() {
+    const foundry = el.inst.provider.value === 'foundry';
+    $$('.foundry-only').forEach((v) => { v.hidden = !foundry; });
+    if (foundry) {
+      const url = normaliseerEndpoint(el.inst.endpoint.value);
+      el.endpointHulp.textContent = url
+        ? 'Aanroepen gaan naar: ' + url
+        : 'Vul de URL van je Foundry-resource in, bijvoorbeeld https://mijn-resource.services.ai.azure.com/anthropic (de “Target URI” in het Foundry-portaal).';
+    }
+  }
+  function updateMockBadge() { el.mockBadge.hidden = !mockActief(); }
+  function updateStartMelding() {
+    if (mockActief()) {
+      toonMelding(el.startMelding, 'Mock-modus', (urlMock ? 'Mock-modus is actief via ?mock=1 in de adresbalk. ' : '') +
+        'De tool geeft een vast voorbeeld terug en doet geen API-call.' + (urlMock ? '' : ' Zet Mock-modus uit bij Instellingen om het echte model te gebruiken.'));
+      return;
+    }
+    if (!instellingen.apiKey) {
+      toonMelding(el.startMelding, 'Aan de slag', 'Er is nog geen API-key ingesteld. Open Instellingen om een key in te vullen en de verbinding te testen, of zet daar Mock-modus aan om de tool zonder key uit te proberen.');
+      return;
+    }
+    if (instellingen.provider === 'foundry' && !normaliseerEndpoint(instellingen.endpoint)) {
+      toonMelding(el.startMelding, 'Aan de slag', 'Vul bij Instellingen de endpoint-URL van Microsoft Foundry in.');
+      return;
+    }
+    verbergMelding(el.startMelding);
+  }
+  function openInstellingen() {
+    verbergMelding(el.testResultaat);
+    el.testStatus.textContent = '';
+    if (typeof el.dialoog.showModal === 'function') { if (!el.dialoog.open) el.dialoog.showModal(); }
+    else el.dialoog.setAttribute('open', '');
+  }
+  function sluitInstellingen() {
+    if (typeof el.dialoog.close === 'function' && el.dialoog.open) el.dialoog.close();
+    else el.dialoog.removeAttribute('open');
+    updateStartMelding();
+  }
+
+  /* ---------- Bronnen: invoer, bestanden, drag-and-drop ---------- */
+  const ZONES = $$('.bron').map((kaart) => ({
+    kaart, naam: kaart.dataset.bron, accept: kaart.dataset.accept.split(','),
+    textarea: $('textarea', kaart), teller: $('.teller', kaart), bestandsnaam: $('.bestandsnaam', kaart),
+    dropzone: $('.dropzone', kaart), input: $('input[type=file]', kaart), wis: $('.wis', kaart),
+  }));
+
+  function leesInvoer() {
+    const per = {};
+    ZONES.forEach((z) => { per[z.naam] = z.textarea.value; });
+    return {
+      notities: per.notities || '', transcript: per.transcript || '', recap: per.recap || '',
+      titel: el.metaTitel.value.trim(), datum: el.metaDatum.value, aanwezigen: el.metaAanwezigen.value.trim(),
+    };
+  }
+  function updateTellers() {
+    let totaal = 0;
+    ZONES.forEach((z) => { const n = z.textarea.value.length; totaal += n; z.teller.textContent = tekens(n); });
+    el.totaal.textContent = 'Totaal: ' + tekens(totaal);
+    if (totaal > WAARSCHUWING_TEKENS) {
+      toonMelding(el.waarschuwing, 'Let op', 'De invoer is erg groot (' + tekens(totaal) + '). De tool blokkeert dit niet, maar het verzoek kan traag zijn of door het endpoint geweigerd worden. Overweeg het transcript in te korten.');
+    } else verbergMelding(el.waarschuwing);
+  }
+
+  async function laadBestand(file, zone) {
+    const naam = file.name || 'bestand';
+    const ext = (naam.split('.').pop() || '').toLowerCase();
+    if (!zone.accept.includes(ext)) {
+      toonMelding(el.invoerMelding, 'Bestand niet geladen', 'Bestandstype .' + ext + ' wordt in dit vak niet ondersteund. Gebruik ' + zone.accept.map((e) => '.' + e).join(', ') + '.');
+      return;
+    }
+    let tekst = '';
+    try {
+      if (ext === 'docx') {
+        if (!window.mammoth) throw new Error('De bibliotheek voor .docx-bestanden (mammoth) is niet geladen. Controleer de internetverbinding, of plak de tekst handmatig.');
+        const res = await window.mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+        tekst = res.value || '';
+      } else {
+        const buf = await file.arrayBuffer();
+        tekst = new TextDecoder('utf-8').decode(buf);
+        if (/\uFFFD/.test(tekst)) tekst = new TextDecoder('windows-1252').decode(buf); // oud Windows-tekstbestand
+        if (ext === 'vtt' || /^\uFEFF?WEBVTT/.test(tekst)) tekst = parseVtt(tekst);
+      }
+    } catch (e) {
+      toonMelding(el.invoerMelding, 'Bestand niet geladen', 'Het bestand “' + naam + '” kon niet gelezen worden. ' + (e && e.message ? e.message : ''));
+      return;
+    }
+    verbergMelding(el.invoerMelding);
+    zone.textarea.value = tekst.trim();
+    zone.bestandsnaam.textContent = 'Geladen: ' + naam;
+    updateTellers();
+  }
+
+  // Zet een WebVTT-transcript (Teams) om naar "Naam: tekst"-regels.
+  const VTAG_SPLIT = /(<v(?:\.[^\s>]*)*(?:\s+[^>]*)?>)/;
+  const VTAG_EXACT = /^<v(?:\.[^\s>]*)*(?:\s+([^>]*))?>$/;
+  function parseVtt(bron) {
+    const regels = String(bron).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').split('\n');
+    const items = [];
+    const decodeer = (s) => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, ' ');
+    const voegToe = (wie, tekst) => {
+      tekst = decodeer(tekst.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
+      if (!tekst) return;
+      const laatste = items[items.length - 1];
+      if (laatste && (wie === null || laatste.spreker === wie)) {
+        if (!laatste.tekst.endsWith(tekst)) laatste.tekst += ' ' + tekst;
+      } else items.push({ spreker: wie, tekst });
+    };
+    let spreker = null;
+    const verwerkRegel = (regel) => {
+      regel.split(VTAG_SPLIT).forEach((deel) => {
+        const tag = VTAG_EXACT.exec(deel);
+        if (tag) { spreker = (tag[1] || '').trim() || null; return; }
+        voegToe(spreker, deel);
+      });
+    };
+    let i = 0;
+    if (/^WEBVTT/.test((regels[0] || '').trim())) { while (i < regels.length && regels[i].trim() !== '') i++; }
+    let inCue = false, skipBlok = false;
+    for (; i < regels.length; i++) {
+      const regel = regels[i].trim();
+      if (regel === '') { inCue = false; skipBlok = false; spreker = null; continue; }
+      if (skipBlok) continue;
+      if (!inCue) {
+        if (/^(NOTE|STYLE|REGION)(\s|$)/.test(regel)) { skipBlok = true; continue; }
+        if (regel.includes('-->')) { inCue = true; continue; }
+        if (i + 1 < regels.length && regels[i + 1].includes('-->')) continue; // cue-identifier
+        inCue = true; // losse tekstregel zonder tijdcode
+      } else if (regel.includes('-->')) continue;
+      verwerkRegel(regel);
+    }
+    return items.map((it) => (it.spreker ? it.spreker + ': ' + it.tekst : it.tekst)).join('\n');
+  }
+
+  ZONES.forEach((z) => {
+    z.textarea.addEventListener('input', () => { z.bestandsnaam.textContent = ''; updateTellers(); });
+    z.input.addEventListener('change', () => { const f = z.input.files && z.input.files[0]; if (f) laadBestand(f, z); z.input.value = ''; });
+    z.wis.addEventListener('click', () => { z.textarea.value = ''; z.bestandsnaam.textContent = ''; updateTellers(); z.textarea.focus(); });
+    ['dragenter', 'dragover'].forEach((t) => z.kaart.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); z.dropzone.classList.add('actief'); }));
+    z.kaart.addEventListener('dragleave', (e) => { if (!z.kaart.contains(e.relatedTarget)) z.dropzone.classList.remove('actief'); });
+    z.kaart.addEventListener('drop', (e) => {
+      e.preventDefault(); e.stopPropagation(); z.dropzone.classList.remove('actief');
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) laadBestand(f, z);
+    });
+  });
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => e.preventDefault());
+
+  /* ---------- Prompt ---------- */
+  function bouwSysteemprompt() {
+    let s = SYSTEEMPROMPT.trim() + '\n\n## Vaste structuur (volg exact)\n\n' + STRUCTUUR.trim();
+    if (VOORBEELDEN.length) {
+      s += '\n\n## Voorbeelden van goede notulen\nDe voorbeelden tonen de gewenste stijl, toon en structuur. Neem de inhoud ervan niet over.';
+      VOORBEELDEN.forEach((v, i) => { s += '\n\n<voorbeeld nummer="' + (i + 1) + '">\n' + String(v).trim() + '\n</voorbeeld>'; });
+    }
+    return s;
+  }
+  function bouwGebruikersprompt(invoer) {
+    const onbekend = '[niet opgegeven, leid af uit de bronnen]';
+    let p = 'Maak notulen van onderstaande vergadering volgens de vaste structuur.\n\n## Metadata\n' +
+      'Vergadertitel: ' + (invoer.titel || onbekend) + '\n' +
+      'Datum: ' + (invoer.datum ? datumNL(invoer.datum) : onbekend) + '\n' +
+      'Aanwezigen: ' + (invoer.aanwezigen || onbekend) + '\n\n## Bronnen\n\n' +
+      '<notities>\n' + invoer.notities.trim() + '\n</notities>';
+    p += invoer.transcript.trim() ? '\n\n<transcript>\n' + invoer.transcript.trim() + '\n</transcript>' : '\n\n(Geen transcript aangeleverd.)';
+    p += invoer.recap.trim() ? '\n\n<copilot_recap>\n' + invoer.recap.trim() + '\n</copilot_recap>' : '\n\n(Geen Copilot-recap aangeleverd.)';
+    p += '\n\nLever nu alleen de notulen in markdown, volgens de vaste structuur.';
+    return p;
+  }
+
+  /* ---------- Model-aanroep (Messages API, streaming) ---------- */
+  function leesbareFout(f) {
+    if (!f) return 'Onbekende fout.';
+    if (f.geannuleerd) return 'De generatie is geannuleerd.';
+    if (f.netwerk || (f instanceof TypeError)) {
+      return 'De browser kon het endpoint niet bereiken. Meestal betekent dit dat het endpoint geen aanroepen vanuit de browser toestaat (CORS-blokkade), of dat een firewall, proxy of ontbrekende internetverbinding in de weg zit. Controleer de endpoint-URL bij Instellingen en lees in de README wat je bij een CORS-fout kunt doen.';
+    }
+    if (typeof f.status === 'number') {
+      const detail = f.detail ? ' Melding van het endpoint: ' + f.detail : '';
+      switch (f.status) {
+        case 400: return 'Het endpoint heeft het verzoek geweigerd (400). Controleer de modelnaam en de grootte van de invoer.' + detail;
+        case 401: return 'Niet geautoriseerd (401): de API-key is onjuist, verlopen of hoort niet bij dit endpoint. Controleer de key bij Instellingen.' + detail;
+        case 403: return 'Geen toegang (403): deze key of dit account heeft geen rechten voor dit model of deze resource.' + detail;
+        case 404: return 'Niet gevonden (404): controleer de endpoint-URL en de modelnaam (bij Foundry de deploymentnaam).' + detail;
+        case 413: return 'De invoer is te groot voor het endpoint (413). Kort het transcript in.' + detail;
+        case 429: return 'Te veel verzoeken (429): de limiet van de aanbieder is bereikt. Wacht een minuut en probeer het opnieuw.' + detail;
+        case 500: case 502: case 503: case 504: case 529:
+          return 'Storing bij de aanbieder (' + f.status + '). Probeer het over enkele minuten opnieuw.' + detail;
+        default: return 'Het endpoint gaf fout ' + f.status + '.' + detail;
+      }
+    }
+    if (f.detail) return String(f.detail);
+    if (f.message) return String(f.message);
+    return String(f);
+  }
+  async function httpFout(res) {
+    let detail = '', type = '';
+    try {
+      const t = await res.text();
+      try {
+        const j = JSON.parse(t);
+        detail = (j.error && (j.error.message || j.error.code)) || j.message || t;
+        type = (j.error && j.error.type) || '';
+      } catch (e) { detail = t; }
+    } catch (e) { /* geen body */ }
+    detail = String(detail || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+    return { status: res.status, type, detail };
+  }
+
+  async function roepModelAan(opts) {
+    if (mockActief()) return mockAanroep(opts);
+    const body = {
+      model: (instellingen.model || STANDAARD_MODEL).trim(), max_tokens: MAX_TOKENS, stream: true,
+      system: opts.system, messages: [{ role: 'user', content: opts.user }],
+    };
+    let res;
+    try {
+      res = await fetch(endpointUrl(), { method: 'POST', headers: bouwHeaders(), body: JSON.stringify(body), signal: opts.signal });
+    } catch (e) {
+      if (e && e.name === 'AbortError') throw { geannuleerd: true };
+      throw { netwerk: true, oorzaak: e };
+    }
+    if (!res.ok) throw await httpFout(res);
+    try { return await leesStream(res, opts.onTekst); }
+    catch (e) { if (e && e.name === 'AbortError') throw { geannuleerd: true }; throw e; }
+  }
+
+  async function leesStream(res, onTekst) {
+    const ct = res.headers.get('content-type') || '';
+    if (!res.body || !ct.includes('text/event-stream')) {
+      // Geen stream (bijvoorbeeld door een proxy): lees het antwoord in één keer.
+      const t = await res.text();
+      let j;
+      try { j = JSON.parse(t); } catch (e) { throw { status: res.status, detail: 'Onverwacht antwoord van het endpoint: ' + t.slice(0, 200) }; }
+      if (j.type === 'error') throw { status: res.status, type: j.error && j.error.type, detail: j.error && j.error.message };
+      const tekst = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+      onTekst(tekst);
+      return { tekst, stopReden: j.stop_reason, model: j.model };
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '', tekst = '', stopReden = null, model = null;
+    const verwerk = (data) => {
+      if (!data || data === '[DONE]') return;
+      let ev;
+      try { ev = JSON.parse(data); } catch (e) { return; }
+      switch (ev.type) {
+        case 'message_start': model = (ev.message && ev.message.model) || null; break;
+        case 'content_block_delta':
+          if (ev.delta && ev.delta.type === 'text_delta' && ev.delta.text) { tekst += ev.delta.text; onTekst(ev.delta.text); }
+          break;
+        case 'message_delta': if (ev.delta && ev.delta.stop_reason) stopReden = ev.delta.stop_reason; break;
+        case 'error': throw { status: res.status, type: ev.error && ev.error.type, detail: ev.error && ev.error.message };
+        default: break; // ping, content_block_start/stop, thinking-deltas, message_stop
+      }
+    };
+    const verwerkBlok = (blok) => {
+      const data = [];
+      blok.split('\n').forEach((regel) => { if (regel.startsWith('data:')) data.push(regel.slice(5).replace(/^ /, '')); });
+      if (data.length) verwerk(data.join('\n'));
+    };
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      buffer = buffer.replace(/\r\n?/g, '\n');
+      let sep;
+      while ((sep = buffer.indexOf('\n\n')) !== -1) { verwerkBlok(buffer.slice(0, sep)); buffer = buffer.slice(sep + 2); }
+    }
+    buffer += decoder.decode();
+    if (buffer.trim()) verwerkBlok(buffer);
+    return { tekst, stopReden, model };
+  }
+
+  // Mock-modus: na 1 seconde de vaste voorbeeldoutput, in stukjes zodat de weergave meestroomt.
+  function mockAanroep(opts) {
+    return new Promise((resolve, reject) => {
+      let timer = setTimeout(() => {
+        const delen = MOCK_OUTPUT.match(/[\s\S]{1,120}/g) || [];
+        let i = 0;
+        const tik = () => {
+          if (opts.signal && opts.signal.aborted) { reject({ geannuleerd: true }); return; }
+          if (i < delen.length) { opts.onTekst(delen[i++]); timer = setTimeout(tik, 20); }
+          else resolve({ tekst: MOCK_OUTPUT, stopReden: 'end_turn', model: 'mock' });
+        };
+        tik();
+      }, 1000);
+      if (opts.signal) opts.signal.addEventListener('abort', () => { clearTimeout(timer); reject({ geannuleerd: true }); }, { once: true });
+    });
+  }
+
+  /* ---------- Test verbinding ---------- */
+  function toonTestResultaat(ok, tekst) {
+    el.testResultaat.innerHTML = '';
+    const pil = document.createElement('span');
+    pil.className = 'pil' + (ok ? '' : ' pil-navy');
+    pil.textContent = ok ? 'OK' : 'Fout';
+    el.testResultaat.appendChild(pil);
+    el.testResultaat.appendChild(document.createTextNode(' ' + tekst));
+    el.testResultaat.hidden = false;
+    el.testStatus.textContent = '';
+  }
+  async function testVerbinding() {
+    leesInstellingenUit();
+    verbergMelding(el.testResultaat);
+    el.testStatus.textContent = 'Bezig met testen…';
+    if (mockActief()) { await wacht(1000); toonTestResultaat(true, 'Mock-modus is actief: er is geen echte aanroep gedaan. Zet Mock-modus uit om het echte endpoint te testen.'); return; }
+    const probleem = controleerInstellingen();
+    if (probleem) { toonTestResultaat(false, probleem); return; }
+    const url = endpointUrl();
+    const body = { model: (instellingen.model || STANDAARD_MODEL).trim(), max_tokens: 32, messages: [{ role: 'user', content: 'Antwoord met precies één woord: OK' }] };
+    try {
+      const res = await fetch(url, { method: 'POST', headers: bouwHeaders(), body: JSON.stringify(body) });
+      if (!res.ok) { toonTestResultaat(false, leesbareFout(await httpFout(res))); return; }
+      let j = null;
+      try { j = await res.json(); } catch (e) { /* leeg antwoord */ }
+      toonTestResultaat(true, 'Verbinding geslaagd. Het endpoint ' + url + ' antwoordde' + (j && j.model ? ' met model “' + j.model + '”' : '') + '. Browser-aanroepen (CORS) zijn toegestaan.');
+    } catch (e) {
+      console.error('Test verbinding mislukt', e);
+      toonTestResultaat(false, leesbareFout({ netwerk: true, oorzaak: e }));
+    }
+  }
+
+  /* ---------- Uitvoer: renderen, bewerken, kopiëren, downloaden ---------- */
+  let huidigeMarkdown = '', modus = 'weergave', bezig = false, controller = null, renderTimer = null, markedKlaar = false;
+
+  function initMarked() {
+    if (markedKlaar || !window.marked) return;
+    try {
+      window.marked.use({ gfm: true, breaks: true, renderer: { html(token) { return escapeHtml((token && token.text) || ''); } } });
+      markedKlaar = true;
+    } catch (e) { console.warn('marked kon niet ingesteld worden', e); }
+  }
+  function naarHtml(md) {
+    initMarked();
+    if (!markedKlaar) { wanneerGeladen('marked', () => render()); return '<pre class="ruwtekst">' + escapeHtml(md) + '</pre>'; }
+    try { return window.marked.parse(md); }
+    catch (e) { return '<pre class="ruwtekst">' + escapeHtml(md) + '</pre>'; }
+  }
+  function render() {
+    if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
+    if (modus === 'bewerken') el.ruw.value = huidigeMarkdown;
+    else el.gerenderd.innerHTML = naarHtml(huidigeMarkdown);
+  }
+  function planRender() { if (!renderTimer) renderTimer = setTimeout(() => { renderTimer = null; render(); }, 150); }
+  function opschonen(t) {
+    let s = String(t || '').trim();
+    const m = /^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/.exec(s);
+    if (m) s = m[1].trim();
+    return s;
+  }
+  function zetModus(m) {
+    if (m === 'bewerken') el.ruw.value = huidigeMarkdown;
+    else if (modus === 'bewerken') huidigeMarkdown = el.ruw.value;
+    modus = m;
+    el.tabWeergave.setAttribute('aria-pressed', String(m === 'weergave'));
+    el.tabBewerken.setAttribute('aria-pressed', String(m === 'bewerken'));
+    el.ruw.hidden = m !== 'bewerken';
+    el.gerenderd.hidden = m === 'bewerken';
+    if (m === 'weergave') el.gerenderd.innerHTML = naarHtml(huidigeMarkdown);
+  }
+  function zetBezig(b) {
+    bezig = b;
+    el.knopAnnuleer.hidden = !b;
+    el.knopGenereer.setAttribute('aria-disabled', String(b));
+    $$('#uitvoerKnoppen .knop').forEach((k) => k.setAttribute('aria-disabled', String(b)));
+    el.ruw.readOnly = b;
+  }
+
+  async function genereer() {
+    if (bezig) return;
+    const invoer = leesInvoer();
+    if (!invoer.notities.trim()) {
+      toonMelding(el.invoerMelding, 'Notities ontbreken', 'Notities zijn verplicht. Plak tekst in het vak “Notities” of laad daar een bestand.');
+      ZONES[0].textarea.focus();
+      return;
+    }
+    const probleem = controleerInstellingen();
+    if (probleem) { toonMelding(el.invoerMelding, 'Instellingen', probleem); openInstellingen(); return; }
+    verbergMelding(el.invoerMelding);
+    controller = new AbortController();
+    huidigeMarkdown = '';
+    zetModus('weergave');
+    el.gerenderd.innerHTML = '';
+    el.ruw.value = '';
+    el.uitvoer.hidden = false;
+    verbergMelding(el.melding);
+    zetStatus(mockActief() ? 'Voorbeeldnotulen worden gemaakt (mock-modus)…' : 'Notulen worden gemaakt… de tekst verschijnt terwijl het model schrijft.');
+    zetBezig(true);
+    el.uitvoer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try {
+      const r = await roepModelAan({
+        system: bouwSysteemprompt(), user: bouwGebruikersprompt(invoer),
+        onTekst: (d) => { huidigeMarkdown += d; planRender(); }, signal: controller.signal,
+      });
+      huidigeMarkdown = opschonen(r.tekst || huidigeMarkdown);
+      render();
+      let s = 'Klaar. Controleer de notulen en vul de punten met [NOG AAN TE VULLEN] aan.';
+      if (r.stopReden === 'max_tokens') s = 'Klaar, maar de notulen zijn mogelijk afgebroken omdat de maximale lengte is bereikt.';
+      if (r.stopReden === 'refusal') s = 'Het model heeft dit verzoek geweigerd (veiligheidsfilter). Controleer de invoer en probeer het opnieuw.';
+      if (mockActief()) s += ' Dit is de vaste voorbeeldoutput van de mock-modus.';
+      zetStatus(s);
+    } catch (e) {
+      if (e && e.geannuleerd) { zetStatus('Geannuleerd.' + (huidigeMarkdown ? ' De tekst tot nu toe staat hieronder.' : '')); render(); }
+      else {
+        console.error('Fout bij genereren', e);
+        zetStatus('Mislukt.');
+        toonMelding(el.melding, 'Er ging iets mis', leesbareFout(e));
+      }
+    } finally {
+      controller = null;
+      zetBezig(false);
+    }
+  }
+  function annuleer() { if (controller) controller.abort(); }
+
+  function fallbackKopieer(tekst) {
+    const ta = document.createElement('textarea');
+    ta.value = tekst; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select();
+    let ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    if (!ok) throw new Error('Kopiëren niet toegestaan');
+  }
+  async function kopieer(tekst, label) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(tekst);
+      else fallbackKopieer(tekst);
+      zetStatus(label + ' gekopieerd naar het klembord.');
+    } catch (e) {
+      try { fallbackKopieer(tekst); zetStatus(label + ' gekopieerd naar het klembord.'); }
+      catch (e2) { toonMelding(el.melding, 'Kopiëren mislukt', 'De browser staat kopiëren niet toe. Open “Bewerken”, selecteer de tekst en kopieer die handmatig.'); }
+    }
+  }
+
+  // Markdown naar platte tekst voor Teams of e-mail: koppen in hoofdletters, tabel als regels.
+  function inlinePlat(s) {
+    return String(s)
+      .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1 ($2)')
+      .replace(/(\*\*|__)(.+?)\1/g, '$2')
+      .replace(/(^|[^\w*])\*([^*\n]+)\*(?!\w)/g, '$1$2')
+      .replace(/(^|[^\w_])_([^_\n]+)_(?!\w)/g, '$1$2')
+      .replace(/`([^`]*)`/g, '$1')
+      .replace(/<br\s*\/?>/gi, ' ')
+      .replace(/\\([\\`*_{}\[\]()#+\-.!|>])/g, '$1')
+      .trim();
+  }
+  function naarPlatteTekst(md) {
+    const regels = String(md).replace(/\r\n?/g, '\n').split('\n');
+    const uit = [];
+    let tabelKop = null, inCode = false;
+    regels.forEach((r) => {
+      if (/^\s*```/.test(r)) { inCode = !inCode; return; }
+      if (inCode) { uit.push(r); return; }
+      const kop = /^(#{1,6})\s+(.*)$/.exec(r);
+      if (kop) { uit.push(''); uit.push(inlinePlat(kop[2]).toUpperCase()); return; }
+      if (/^\s*\|/.test(r)) {
+        const cellen = r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => inlinePlat(c));
+        if (cellen.every((c) => /^:?-+:?$/.test(c) || c === '')) return;
+        if (tabelKop === null) { tabelKop = cellen; return; }
+        const rest = cellen.slice(1).map((c, k) => (tabelKop[k + 1] ? tabelKop[k + 1] + ': ' : '') + c).filter((x) => x.trim() !== '');
+        uit.push('• ' + cellen[0] + (rest.length ? ' (' + rest.join(', ') + ')' : ''));
+        return;
+      }
+      tabelKop = null;
+      if (/^\s*([-*_])(\s*\1){2,}\s*$/.test(r)) { uit.push(''); return; }
+      const li = /^(\s*)[-*+]\s+(.*)$/.exec(r);
+      if (li) { uit.push(li[1] + '• ' + inlinePlat(li[2])); return; }
+      const ol = /^(\s*)(\d+)[.)]\s+(.*)$/.exec(r);
+      if (ol) { uit.push(ol[1] + ol[2] + '. ' + inlinePlat(ol[3])); return; }
+      uit.push(inlinePlat(r.replace(/^\s*>\s?/, '')));
+    });
+    return uit.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+
+  function download(naam, inhoud, mime) {
+    const blob = inhoud instanceof Blob ? inhoud : new Blob([inhoud], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = naam;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  function bestandsnaam(ext) {
+    const datum = el.metaDatum.value || vandaagISO();
+    let titel = el.metaTitel.value.trim();
+    if (!titel) { const m = /^#\s+(?:notulen\s*[:\-–]?\s*)?(.+)$/im.exec(huidigeMarkdown); if (m) titel = m[1]; }
+    return datum + '_' + (slug(titel) || 'vergadering') + '_notulen.' + ext;
+  }
+
+  // Word-export: eenvoudige mapping van koppen, alinea's, opsommingen en tabellen.
+  async function maakDocx(md) {
+    const D = window.docx;
+    if (!D) throw new Error('De bibliotheek voor Word-export (docx) is niet geladen. Controleer de internetverbinding en herlaad de pagina, of download de .md.');
+    if (!window.marked) throw new Error('De bibliotheek voor markdown (marked) is niet geladen. Controleer de internetverbinding en herlaad de pagina.');
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType } = D;
+    const KOPPEN = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3, HeadingLevel.HEADING_4, HeadingLevel.HEADING_5, HeadingLevel.HEADING_6];
+    const kinderen = [];
+    let lijstTeller = 0;
+
+    const inline = (toks, stijl) => {
+      const runs = [];
+      const loop = (ts, st) => (ts || []).forEach((t) => {
+        switch (t.type) {
+          case 'strong': loop(t.tokens, Object.assign({}, st, { bold: true })); break;
+          case 'em': loop(t.tokens, Object.assign({}, st, { italics: true })); break;
+          case 'del': loop(t.tokens, Object.assign({}, st, { strike: true })); break;
+          case 'codespan': runs.push(new TextRun(Object.assign({ text: t.text, font: 'Consolas' }, st))); break;
+          case 'br': runs.push(new TextRun({ break: 1 })); break;
+          case 'link': loop(t.tokens, st); if (t.href && t.href !== t.text) runs.push(new TextRun(Object.assign({ text: ' (' + t.href + ')' }, st))); break;
+          case 'image': runs.push(new TextRun(Object.assign({ text: t.text || '' }, st))); break;
+          case 'checkbox': runs.push(new TextRun(Object.assign({ text: t.checked ? '☑ ' : '☐ ' }, st))); break;
+          case 'escape': case 'html': case 'text':
+            if (t.tokens) loop(t.tokens, st); else runs.push(new TextRun(Object.assign({ text: t.text || '' }, st)));
+            break;
+          default:
+            if (t.tokens) loop(t.tokens, st); else if (t.text) runs.push(new TextRun(Object.assign({ text: t.text }, st)));
+        }
+      });
+      loop(toks, stijl || {});
+      return runs;
+    };
+    const lijstItem = (item, ordered, instantie, niveau) => {
+      let runs = []; const sub = [];
+      (item.tokens || []).forEach((t) => {
+        if (t.type === 'list') sub.push(t);
+        else if (t.type === 'text' || t.type === 'paragraph') runs = runs.concat(inline(t.tokens || [{ type: 'text', text: t.text || '' }]));
+        else if (t.text) runs.push(new TextRun({ text: t.text }));
+      });
+      const opties = { children: runs };
+      if (ordered) opties.numbering = { reference: 'genummerd', level: niveau, instance: instantie };
+      else opties.bullet = { level: niveau };
+      kinderen.push(new Paragraph(opties));
+      sub.forEach((s) => { const inst2 = s.ordered ? ++lijstTeller : 0; s.items.forEach((it) => lijstItem(it, s.ordered, inst2, Math.min(niveau + 1, 8))); });
+    };
+    const tabel = (t) => {
+      const cel = (toks, kop) => new TableCell({ children: [new Paragraph({ children: inline(toks, kop ? { bold: true } : {}) })] });
+      const rijen = [new TableRow({ tableHeader: true, children: t.header.map((h) => cel(h.tokens, true)) })]
+        .concat(t.rows.map((r) => new TableRow({ children: r.map((c) => cel(c.tokens, false)) })));
+      return new Table({ rows: rijen, width: { size: 100, type: WidthType.PERCENTAGE } });
+    };
+    const blok = (toks) => (toks || []).forEach((t) => {
+      switch (t.type) {
+        case 'heading': kinderen.push(new Paragraph({ heading: KOPPEN[Math.min(t.depth, 6) - 1], children: inline(t.tokens) })); break;
+        case 'paragraph': kinderen.push(new Paragraph({ children: inline(t.tokens), spacing: { after: 120 } })); break;
+        case 'text': kinderen.push(new Paragraph({ children: inline(t.tokens || [{ type: 'text', text: t.text || '' }]) })); break;
+        case 'list': { const inst = t.ordered ? ++lijstTeller : 0; t.items.forEach((it) => lijstItem(it, t.ordered, inst, 0)); break; }
+        case 'table': kinderen.push(tabel(t)); kinderen.push(new Paragraph({ text: '' })); break;
+        case 'blockquote': blok(t.tokens); break;
+        case 'code': String(t.text || '').split('\n').forEach((regel) => kinderen.push(new Paragraph({ children: [new TextRun({ text: regel, font: 'Consolas' })] }))); break;
+        case 'hr': kinderen.push(new Paragraph({ text: '' })); break;
+        case 'html': kinderen.push(new Paragraph({ text: String(t.text || '') })); break;
+        case 'space': case 'def': break;
+        default: if (t.tokens) blok(t.tokens); else if (t.text) kinderen.push(new Paragraph({ text: String(t.text) }));
+      }
+    });
+    blok(window.marked.lexer(md));
+
+    const titel = el.metaTitel.value.trim() || (/^#\s+(.+)$/m.exec(md) || [])[1] || 'Notulen';
+    const doc = new Document({
+      creator: 'SD Worx Notulentool', title: titel,
+      styles: {
+        default: {
+          document: { run: { font: 'Inter', size: 22 } },
+          heading1: { run: { font: 'Inter', size: 32, bold: true, color: '006DD8' }, paragraph: { spacing: { before: 240, after: 120 } } },
+          heading2: { run: { font: 'Inter', size: 28, bold: true, color: '006DD8' }, paragraph: { spacing: { before: 240, after: 120 } } },
+          heading3: { run: { font: 'Inter', size: 24, bold: true, color: '006DD8' }, paragraph: { spacing: { before: 200, after: 80 } } },
+        },
+      },
+      numbering: { config: [{ reference: 'genummerd', levels: [0, 1, 2].map((l) => ({
+        level: l, format: LevelFormat.DECIMAL, text: '%' + (l + 1) + '.', alignment: AlignmentType.START,
+        style: { paragraph: { indent: { left: 720 * (l + 1), hanging: 360 } } },
+      })) }] },
+      sections: [{ children: kinderen.length ? kinderen : [new Paragraph({ text: '' })] }],
+    });
+    return Packer.toBlob(doc);
+  }
+
+  function heeftNotulen() {
+    if (bezig) return false;
+    if (!huidigeMarkdown.trim()) { zetStatus('Er zijn nog geen notulen om te gebruiken.'); return false; }
+    return true;
+  }
+
+  /* ---------- Gebeurtenissen ---------- */
+  el.knopGenereer.addEventListener('click', genereer);
+  el.knopOpnieuw.addEventListener('click', () => { if (!bezig) genereer(); });
+  el.knopAnnuleer.addEventListener('click', annuleer);
+  el.tabWeergave.addEventListener('click', () => zetModus('weergave'));
+  el.tabBewerken.addEventListener('click', () => zetModus('bewerken'));
+  el.ruw.addEventListener('input', () => { huidigeMarkdown = el.ruw.value; });
+  el.knopKopieerMd.addEventListener('click', () => { if (heeftNotulen()) kopieer(huidigeMarkdown, 'Markdown'); });
+  el.knopKopieerTekst.addEventListener('click', () => { if (heeftNotulen()) kopieer(naarPlatteTekst(huidigeMarkdown), 'Platte tekst'); });
+  el.knopDownloadMd.addEventListener('click', () => { if (heeftNotulen()) { download(bestandsnaam('md'), huidigeMarkdown, 'text/markdown;charset=utf-8'); zetStatus('Markdown-bestand gedownload.'); } });
+  el.knopDownloadDocx.addEventListener('click', async () => {
+    if (!heeftNotulen()) return;
+    try {
+      zetStatus('Word-bestand wordt gemaakt…');
+      const blob = await maakDocx(huidigeMarkdown);
+      download(bestandsnaam('docx'), blob);
+      zetStatus('Word-bestand gedownload.');
+    } catch (e) {
+      console.error('Word-export mislukt', e);
+      zetStatus('');
+      toonMelding(el.melding, 'Word-export mislukt', (e && e.message) || String(e));
+    }
+  });
+  el.knopInstellingen.addEventListener('click', openInstellingen);
+  el.knopSluit.addEventListener('click', sluitInstellingen);
+  el.dialoog.addEventListener('close', updateStartMelding);
+  el.knopTest.addEventListener('click', testVerbinding);
+  el.knopToonKey.addEventListener('click', () => {
+    const toon = el.inst.apiKey.type === 'password';
+    el.inst.apiKey.type = toon ? 'text' : 'password';
+    el.knopToonKey.textContent = toon ? 'Verberg' : 'Toon';
+  });
+  el.knopWisInstellingen.addEventListener('click', () => {
+    if (!window.confirm('Alle opgeslagen instellingen (inclusief de API-key) uit deze browser verwijderen?')) return;
+    try { localStorage.removeItem(OPSLAG_SLEUTEL); } catch (e) { /* niets */ }
+    instellingen = Object.assign({}, STANDAARD);
+    vulInstellingenIn();
+    verbergMelding(el.testResultaat);
+    updateStartMelding();
+  });
+  Object.keys(el.inst).forEach((k) => ['input', 'change'].forEach((evt) => el.inst[k].addEventListener(evt, leesInstellingenUit)));
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !el.dialoog.open) { e.preventDefault(); genereer(); } });
+
+  /* ---------- Start ---------- */
+  vulInstellingenIn();
+  updateStartMelding();
+  updateTellers();
+  wanneerGeladen('marked', initMarked);
+
+  // Voor handmatige tests in de browserconsole.
+  window.notulentool = { parseVtt, naarPlatteTekst, normaliseerEndpoint, bouwSysteemprompt, bouwGebruikersprompt, slug };
+})();
+</script>
+</body>
+</html>

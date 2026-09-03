@@ -1,0 +1,23 @@
+Samenvatting van de vergadering (gegenereerd door Copilot)
+
+Projectoverleg implementatie People Hub, 1 september 2026
+Deelnemers: Sanne de Wit, Tom Peeters, Fatima El Amrani, Ruben Jansen, Els Vermeulen
+
+Belangrijkste punten
+- De datamigratie is voor 92% afgerond. Bij veertig dossiers ontbreken nog gegevens (BSN of geboortedatum); Fatima El Amrani zoekt dit uit met de salarisadministratie.
+- De acceptatietest start op 15 september en duurt twee weken. Twaalf testers uit vier afdelingen doen mee.
+- De koppeling met de Outlook-agenda is vertraagd omdat de leverancier het certificaat nog niet heeft geleverd; verwacht rond 20 september.
+- Tom Peeters verzorgt de communicatie naar medewerkers via e-mail en intranet.
+- Het team is akkoord met extra licentiekosten van 4.200 euro voor de testomgeving.
+- De go-live is gepland op 15 oktober.
+
+Actiepunten
+- Fatima El Amrani: ontbrekende gegevens van veertig dossiers aanvullen, voor 8 september.
+- Fatima El Amrani: testscripts afronden, voor 10 september.
+- Tom Peeters: namen van de testers bevestigen, voor 12 september.
+- Ruben Jansen: certificaat bij de leverancier opvolgen.
+- Els Vermeulen: twee inloopsessies plannen, voor 25 september.
+- Sanne de Wit: budget melden aan de stuurgroep, op 5 september.
+
+Open vragen
+- Wie beheert de FAQ na de go-live?
