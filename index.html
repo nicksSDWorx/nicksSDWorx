@@ -41,8 +41,6 @@ code { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size:
 .kop-binnen { max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; justify-content: space-between; }
 .kop h1 { color: var(--sdw-white); }
 .kop p { margin: 4px 0 0; font-size: 13px; }
-.kop .knop { background: var(--sdw-white); color: var(--sdw-black); border-color: var(--sdw-white); }
-.kop .knop:hover { background: var(--sdw-icy); border-color: var(--sdw-icy); }
 
 /* Lay-out */
 main { max-width: 1200px; margin: 0 auto; padding: var(--s4); display: grid; gap: var(--s3); }
@@ -78,7 +76,8 @@ input[type="text"], input[type="url"], input[type="password"], input[type="date"
   border-radius: 4px; padding: var(--s1) 12px; width: 100%; margin: 0;
 }
 textarea { border-radius: 8px; min-height: 220px; resize: vertical; display: block; }
-#ruw { min-height: 480px; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 14px; }
+#ruw { min-height: 400px; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 14px; }
+#prompt { min-height: 240px; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 13px; }
 ::placeholder { color: var(--sdw-blue); opacity: 1; }
 input[type="checkbox"] { accent-color: var(--sdw-blue); width: 16px; height: 16px; margin: 0; }
 :focus-visible { outline: 2px solid var(--sdw-blue); outline-offset: 2px; }
@@ -96,7 +95,6 @@ input[type="checkbox"] { accent-color: var(--sdw-blue); width: 16px; height: 16p
 
 /* Kleine elementen */
 .pil { display: inline-block; font-size: 13px; font-weight: 600; line-height: 1.5; padding: 0 var(--s1); border-radius: 4px; background: var(--sdw-icy); color: var(--sdw-black); text-transform: uppercase; letter-spacing: 0.02em; vertical-align: middle; }
-.pil-navy { background: var(--sdw-navy); color: var(--sdw-white); }
 .melding { border: 1px solid var(--sdw-black); border-left: var(--s1) solid var(--sdw-blue); border-radius: 8px; padding: var(--s2); background: var(--sdw-white); }
 .melding strong { color: var(--sdw-blue); }
 
@@ -126,10 +124,6 @@ input[type="checkbox"] { accent-color: var(--sdw-blue); width: 16px; height: 16p
 .notulen blockquote { margin: 0 0 var(--s2); padding-left: var(--s2); border-left: 4px solid var(--sdw-sky); }
 .notulen pre, .ruwtekst { white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size: 14px; margin: 0 0 var(--s2); }
 
-/* Instellingen */
-dialog { border: 1px solid var(--sdw-black); border-radius: 8px; padding: var(--s3); width: min(640px, calc(100% - 32px)); max-height: calc(100vh - 32px); overflow: auto; color: var(--sdw-black); background: var(--sdw-white); }
-dialog::backdrop { background: rgba(0, 28, 82, 0.6); }
-dialog h2 { margin-bottom: var(--s2); }
 </style>
 </head>
 <body>
@@ -137,17 +131,13 @@ dialog h2 { margin-bottom: var(--s2); }
   <div class="kop-binnen">
     <div>
       <h1>SD Worx · Notulentool</h1>
-      <p>Van notities, Teams-transcript en Copilot-recap naar notulen in de vaste structuur.</p>
-    </div>
-    <div class="rij">
-      <span id="mockBadge" class="pil pil-navy" hidden>Mock-modus</span>
-      <button id="knopInstellingen" class="knop knop-klein" type="button">Instellingen</button>
+      <p>Van notities, Teams-transcript en Copilot-recap naar notulen in het sjabloon Notulen MT, zonder AI-koppeling.</p>
     </div>
   </div>
 </header>
 
 <main>
-  <div id="startMelding" class="melding" hidden></div>
+  <div id="uitleg" class="melding"><strong>Zo werkt het:</strong> 1. Voer je notities in, met eventueel het Teams-transcript en de Copilot-recap. 2. Klik op “Maak notulen”: de tool haalt keypoints, besluiten en acties uit de bronnen en zet ze in de vaste structuur van het sjabloon Notulen MT. 3. Controleer de notulen, vul aan wat [NOG AAN TE VULLEN] is en download het Word-bestand.</div>
 
   <section class="raster" aria-label="Bronnen">
     <div class="kaart bron" data-bron="notities" data-accept="txt,md,docx">
@@ -196,81 +186,43 @@ dialog h2 { margin-bottom: var(--s2); }
       <div class="veld"><label for="metaAfwezig">Afwezig</label><input id="metaAfwezig" type="text" autocomplete="off"></div>
       <div class="veld"><label for="metaLink">Link MT Prep</label><input id="metaLink" type="text" autocomplete="off" placeholder="https://…"></div>
     </div>
-    <p class="hulp">Alles is optioneel. Wat je leeg laat, leidt het model af uit de bronnen; wat het niet kan afleiden, krijgt [NOG AAN TE VULLEN].</p>
+    <p class="hulp">Alles is optioneel. Wat je leeg laat, haalt de tool uit de kop van je notities (regels als “Aanwezig: …”, “Afwezig: …”, “Notulist: …”); wat het niet vindt, krijgt [NOG AAN TE VULLEN].</p>
   </section>
 
   <div id="invoerMelding" class="melding" hidden></div>
   <div id="waarschuwing" class="melding" hidden></div>
 
   <div class="rij">
-    <button id="knopGenereer" class="knop knop-accent" type="button">Genereer notulen</button>
-    <button id="knopAnnuleer" class="knop" type="button" hidden>Annuleren</button>
-    <span id="totaalTeller" class="hulp">Totaal: 0 tekens</span>
+    <button id="knopMaak" class="knop knop-accent" type="button">Maak notulen</button>
+    <span id="totaalTeller" class="hulp">Bronnen: 0 tekens</span>
+    <button id="knopVoorbeeld" class="tekstknop" type="button">Probeer met voorbeeldbronnen</button>
   </div>
 
-  <section id="uitvoer" class="kaart" aria-labelledby="uitvoerKop" hidden>
+  <section id="uitvoer" class="kaart" aria-labelledby="uitvoerKop">
     <div class="kaart-kop">
       <h2 id="uitvoerKop">Notulen</h2>
       <div class="schakel" role="group" aria-label="Weergave of bewerken">
-        <button id="tabWeergave" type="button" aria-pressed="true">Weergave</button>
-        <button id="tabBewerken" type="button" aria-pressed="false">Bewerken</button>
+        <button id="tabWeergave" type="button" aria-pressed="false">Weergave</button>
+        <button id="tabBewerken" type="button" aria-pressed="true">Bewerken</button>
       </div>
     </div>
+    <p>De tool herschrijft niets: de tekst komt letterlijk uit je bronnen. Controleer de notulen, pas ze aan via “Bewerken” en download ze daarna.</p>
     <p id="status" class="hulp" aria-live="polite"></p>
     <div id="melding" class="melding" hidden></div>
-    <div id="gerenderd" class="notulen"></div>
-    <textarea id="ruw" aria-label="Notulen in markdown, bewerkbaar" spellcheck="false" hidden></textarea>
+    <div id="gerenderd" class="notulen" hidden></div>
+    <textarea id="ruw" aria-label="Notulen in markdown, bewerkbaar" spellcheck="false" placeholder="Hier verschijnen de notulen in markdown. Je kunt ze hier aanpassen."></textarea>
     <div class="rij mt2" id="uitvoerKnoppen">
-      <button id="knopKopieerMd" class="knop knop-primair" type="button">Kopieer markdown</button>
-      <button id="knopKopieerTekst" class="knop" type="button">Kopieer als platte tekst</button>
+      <button id="knopDownloadDocx" class="knop knop-primair" type="button">Download .docx</button>
       <button id="knopDownloadMd" class="knop" type="button">Download .md</button>
-      <button id="knopDownloadDocx" class="knop" type="button">Download .docx</button>
-      <button id="knopOpnieuw" class="knop" type="button">Opnieuw genereren</button>
+      <button id="knopKopieerMd" class="knop" type="button">Kopieer markdown</button>
+      <button id="knopKopieerTekst" class="knop" type="button">Kopieer als platte tekst</button>
     </div>
   </section>
 </main>
 
 <footer class="voet">
-  <p>Je invoer wordt nergens opgeslagen en verlaat de browser alleen richting het gekozen model-endpoint. Alleen de instellingen blijven bewaard in deze browser.</p>
+  <p>Alles gebeurt in je browser: je invoer verlaat de laptop niet en wordt nergens opgeslagen.</p>
 </footer>
-
-<dialog id="instellingen" aria-labelledby="instellingenKop">
-  <h2 id="instellingenKop">Instellingen</h2>
-  <div class="veld">
-    <label for="instProvider">Provider</label>
-    <select id="instProvider">
-      <option value="anthropic">Anthropic API</option>
-      <option value="foundry">Microsoft Foundry</option>
-    </select>
-  </div>
-  <div class="veld foundry-only">
-    <label for="instEndpoint">Endpoint-URL</label>
-    <input id="instEndpoint" type="url" autocomplete="off" placeholder="https://mijn-resource.services.ai.azure.com/anthropic">
-    <p class="hulp" id="instEndpointHulp"></p>
-  </div>
-  <div class="veld foundry-only">
-    <label for="instAuthHeader">Naam van de auth-header</label>
-    <input id="instAuthHeader" type="text" autocomplete="off" list="authHeaderOpties">
-    <datalist id="authHeaderOpties"><option value="api-key"></option><option value="x-api-key"></option><option value="Authorization"></option></datalist>
-    <p class="hulp">Standaard <code>api-key</code>; Foundry accepteert ook <code>x-api-key</code>. Kies <code>Authorization</code> voor een Entra ID-token, “Bearer ” wordt dan automatisch toegevoegd.</p>
-  </div>
-  <div class="veld">
-    <label for="instApiKey">API-key</label>
-    <div class="rij"><input id="instApiKey" class="groei" type="password" autocomplete="off"><button id="knopToonKey" class="knop knop-klein" type="button">Toon</button></div>
-  </div>
-  <div class="veld">
-    <label for="instModel">Modelnaam</label>
-    <input id="instModel" type="text" autocomplete="off">
-    <p class="hulp">Standaard <code>claude-sonnet-5</code>. Bij Foundry vul je de naam van je deployment in.</p>
-  </div>
-  <div class="veld">
-    <label class="label-normaal" for="instMock"><input type="checkbox" id="instMock"> Mock-modus: vaste voorbeeldoutput, geen API-call</label>
-  </div>
-  <div class="rij"><button id="knopTest" class="knop knop-primair" type="button">Test verbinding</button><span id="testStatus" class="hulp" aria-live="polite"></span></div>
-  <div id="testResultaat" class="melding mt2" hidden></div>
-  <p class="hulp mt3">Instellingen worden automatisch bewaard in deze browser (localStorage), ook de API-key. <button id="knopWisInstellingen" class="tekstknop" type="button">Wis alle instellingen</button></p>
-  <div class="rij rij-eind mt2"><button id="knopSluit" class="knop" type="button">Sluiten</button></div>
-</dialog>
 
 <script>
   // Laadt een bibliotheek opnieuw vanaf een tweede CDN als het eerste niet bereikbaar is.
@@ -289,173 +241,202 @@ dialog h2 { margin-bottom: var(--s2); }
 <script>
 // === CONFIGURATIE ===
 // Dit blok mag de beheerder aanpassen. De rest van het script hoeft daarvoor niet gewijzigd te worden.
-// Let op: de teksten staan tussen backticks (`). Een backtick ín een tekst schrijf je als \` .
+// De tool gebruikt geen AI: hij herkent kopjes, opsommingen, namen, datums en signaalwoorden in de bronnen
+// en zet die in de vaste structuur van het sjabloon "Notulen MT".
 
-// 1. SYSTEEMPROMPT: de instructies voor het model.
-const SYSTEEMPROMPT = `Je bent een ervaren management assistent bij SD Worx Nederland. Je schrijft de notulen van het MT-overleg in het Nederlands, op basis van aangeleverde bronnen: vergadernotities (altijd aanwezig), eventueel een Teams-transcript en eventueel een Copilot-recap.
+// 1. Kop en agenda van het sjabloon.
+const STANDAARD_TITEL = 'SD Worx Nederland - Notulen MT';
+// Vaste agendapunten, in volgorde. 'herken' bepaalt welk kopje uit de notities (of de recap) bij welk agendapunt hoort.
+const AGENDA = [
+  { titel: 'Opening & doelstellingen', herken: /opening|doelstelling|welkom|\bdoelen\b|mededeling/i },
+  { titel: 'Prep MBR', herken: /\bmbr\b|\bprep\b|business review/i },
+  { titel: "KPI's", herken: /\bkpi|cijfers|\bnps\b|churn|deepdive|dashboard|resultaten/i },
+  { titel: 'Lunch', herken: /\blunch\b/i },
+  { titel: 'Strategische initiatieven', herken: /strategi|initiatie|roadmap|programma/i },
+  { titel: 'MT Topics & Besluitvorming', herken: /topic|besluit|beslis|budget|beleid/i },
+];
+const AGENDA_ACTIES = { titel: 'Openstaande acties', herken: /openstaand|actiepunt|actielijst|^\s*acties\b|afgerond/i };
+const AGENDA_AFSLUITING = { titel: 'Afsluiting', herken: /afsluit|rondvraag|sluiting|volgende\s+(mt|overleg|vergadering)|wvttk|w\.v\.t\.t\.k/i };
+const TITEL_OVERIG = 'Overige punten';   // agendapunt voor punten uit transcript of recap die nergens bij passen
 
-Regels:
-1. Volg de vaste structuur exact: dezelfde koppen, in dezelfde volgorde, met doorlopende nummering. De vaste agendapunten 1 tot en met 6 staan er altijd, ook als ze niet zijn besproken (schrijf dan onder de kop: "Niet besproken."). Onderwerpen uit de bronnen die niet onder een vast agendapunt vallen, krijgen elk een eigen genummerd agendapunt na punt 6; dat mogen er nul, één of meer zijn. "Openstaande acties" en "Afsluiting" zijn altijd de laatste twee agendapunten. Voeg verder geen koppen toe en laat geen koppen weg.
-2. Gebruik uitsluitend informatie uit de aangeleverde bronnen. Verzin niets en vul niets aan uit algemene kennis.
-3. De notities zijn leidend. Het transcript en de recap vullen aan en bevestigen.
-4. Spreken de bronnen elkaar tegen, benoem dat dan expliciet bij het betreffende agendapunt (bijvoorbeeld: "De notities noemen 1 oktober als go-live, de recap 15 oktober."). Kies niet stilzwijgend voor één versie.
-5. Acties die tijdens het overleg ontstaan, noteer je bij het agendapunt waar ze ontstaan, als opsommingsregel in de vorm: - **Actie:** [wat] – [eigenaar] – [deadline]. Besluiten noteer je bij het agendapunt als: - **Besluit:** [besluit]. Ontbreekt een eigenaar of deadline, schrijf dan [NOG AAN TE VULLEN]. Raad geen eigenaren of deadlines.
-6. Onder "Openstaande acties" komen alle acties uit dit overleg nog eens samen in een markdown-tabel met exact deze kolommen: Actie | Eigenaar | Deadline | Bron. In de kolom Bron staat uit welke bron de actie komt: notities, transcript en/of recap. Acties die volgens de bronnen zijn afgerond, zet je onder "Afgeronde actiepunten".
-7. Schrijf per agendapunt concreet en zelfstandig leesbaar voor iemand die niet bij het overleg was: wat is besproken, wat is de stand van zaken, wat is de conclusie. Gebruik korte alinea's of opsommingen, geen losse steekwoorden.
-8. Kopgegevens (titel, locatie, datum, aanwezig, gedeeltelijk aanwezig, afwezig, notulist, link): gebruik de opgegeven metadata. Ontbreekt die, leid ze dan af uit de bronnen. Blijkt iets niet uit de bronnen, schrijf dan [NOG AAN TE VULLEN]. Was er volgens de bronnen niemand gedeeltelijk aanwezig of afwezig, schrijf dan "geen". Houd de kopregels exact in de vorm **Naam:** waarde, één per regel.
-9. Je output bestaat alleen uit de notulen in markdown. Geen inleiding, geen afsluiting, geen uitleg over wat je hebt gedaan en geen codeblok om de notulen heen.`;
+// 2. Signaalwoorden (reguliere expressies, hoofdletterongevoelig).
+// Een regel is een ACTIE als er een naam (of groep) in staat plus een datum of een actiewoord, of als hij begint met "actie".
+const ACTIE_WOORDEN = /\b(actie|actiepunt|to-?do|zorgt|zorgen|regelt|regelen|levert|leveren|aanleveren|stuurt|sturen|versturen|verstuurt|plant|plannen|inplannen|maakt|maken|deelt|delen|checkt|checken|controleert|controleren|analyseert|analyseren|rondt|afronden|bevestigt|bevestigen|uitzoeken|zoekt uit|nalopen|loopt na|nagaan|gaat na|rapporteert|rapporteren|consolideert|consolideren|licht(?:\s+\w+)?\s+toe|toelichten|volgt op|opvolgen|werkt uit|uitwerken|bereidt voor|voorbereiden|organiseert|organiseren|stelt op|opstellen|oppakken|pakt op|terugkoppelen|koppelt terug|bespreekt|bespreken|bezoekt|bezoeken|klantbezoek|navragen|vraagt na|test|testen|schrijft|schrijven|belt|bellen|mailt|mailen|informeert|informeren|afstemmen|stemt af|verzamelt|verzamelen|inventariseert|inventariseren|beleggen|belegt|aanpassen|past aan|uitvoeren|voert uit|indienen|dient in|presenteert|presenteren|ophalen|haalt op|nakijken|kijkt na|uitnodigen|nodigt uit|terugkomen op|komt terug op)\b/i;
+// Een regel is een BESLUIT als er een besluitwoord in staat (en het geen vraag is). Een regel die met "Besluit:" begint, is ook een besluit.
+const BESLUIT_WOORDEN = /\b(akkoord|besloten|beslist|goedgekeurd|afgekeurd|uitgesteld|doorgeschoven|doorschuiven|aangenomen|afgewezen|vastgesteld|no-go|geaccordeerd|ingestemd|toegezegd)\b/i;
+// Een regel is een AFGEROND actiepunt als hij zo begint of een afrondingswoord bevat.
+const AFGEROND_WOORDEN = /^(afgerond|gedaan|klaar|afgehandeld)\b|\b(is|zijn|werd|werden)\s+(afgerond|getekend|ondertekend|afgehandeld|opgeleverd|geregeld|verstuurd|ingediend|uitgevoerd|gedaan|afgesloten)\b|\bafgerond\s+punt\b/i;
+// Zinnen uit het transcript met deze woorden horen bij de afsluiting.
+const AFSLUIT_WOORDEN = /\bvolgende?\s+(mt|overleg|vergadering|meeting)\b|\brondvraag\b|\bsluit\w*\s+(het\s+)?(overleg|de\s+vergadering)\b|\beinde?\s+(van\s+het\s+)?(overleg|vergadering)\b|\bwvttk\b/i;
+// Woorden die een deadline aankondigen.
+const DEADLINE_WOORDEN = /\b(uiterlijk|deadline|vóór|voor|op|vanaf|per|tot|t\/m|voor het einde van|eind|begin|half|medio|volgende|volgend)\b/i;
+// Groepen die als eigenaar van een actie kunnen optreden.
+const GROEPEN = [
+  { herken: /\b(alle\s+)?directors\b/i, naam: 'Alle directors' },
+  { herken: /\biedereen\b|\ballen\b|\balle\s+(mt-)?leden\b/i, naam: 'Iedereen' },
+];
 
-// 2. STRUCTUUR: de vaste opzet van de notulen als markdown-sjabloon, gelijk aan het Word-sjabloon "Notulen MT".
-//    Tekst tussen [ ] vult het model in. De kopregels (**Locatie:** enzovoort) en de koppen met ## worden ook
-//    door de Word-export gebruikt; verander je de namen, pas dan ook KOPVELDEN hieronder aan.
-const STRUCTUUR = `# [titel]
+// 3. VOORBEELD_BRONNEN: de fictieve bronnen achter “Probeer met voorbeeldbronnen” (ook via ?voorbeeld=1).
+const VOORBEELD_BRONNEN = {
+  notities: `MT SD Worx Nederland - 1 september 2026, 9:30-11:45, Utrecht zaal 3.02 + Teams
+Aanwezig: Marieke Jansen (MD), Pieter de Boer (Finance), Sanne de Wit (HR), Ruben Jansen (IT), Fatima El Amrani (Operations)
+Tom Peeters (Sales) tot 11:00
+Afwezig: Joost Bakker (Marketing), vakantie
+Notulist: Els Vermeulen
+MT Prep: https://sd.sharepoint.com/sites/NLTigerTeamPeopleSolutions/MT%20Prep/260901_MT%20Prep.pptx
 
-**Locatie:** [locatie]
-**Datum:** [datum]
-**Aanwezig:** [leden MT – aanwezig]
-**Gedeeltelijk aanwezig:** [leden MT – gedeeltelijk aanwezig, anders: geen]
-**Afwezig:** [leden MT – afwezig, anders: geen]
-**Notulist:** [notulist]
-**Link:** [link naar de MT Prep van deze datum]
+1. Opening
+- Marieke opent 9:30
+- doelen: MBR-prep afronden, KPI's augustus, besluit budget testomgeving People Hub, escalatie Van Rooij
+- Tom weg om 11:00 -> escalatie eerst
 
-## 1. Opening & doelstellingen
-[Wat bij de opening is gezegd en wat de doelstellingen van dit overleg zijn.]
+2. Prep MBR (10/9)
+- Pieter consolideert slides, deadline 5/9
+- directors leveren eigen slide aan uiterlijk 4/9
+- omzet aug +2% vs budget
+- IT-kosten 40k boven budget (licenties) -> Ruben licht toe in MBR, datum toelichting niet afgesproken
 
-## 2. Prep MBR
-[Bespreking van de voorbereiding van de MBR.]
-- **Actie:** [actie] – [eigenaar] – [deadline]
+3. KPI's augustus
+- NPS 42 (juli 38)
+- churn 1,8% (doel 1,5%)
+- ticketbacklog 320 (doel 250)
+- deepdive Fatima: backlog door vakantie, 2 extra medewerkers ingehuurd t/m eind oktober, eind sept weer op 250
 
-## 3. KPI's
-### [Subonderwerp]
-[Bespreking van de KPI's: cijfers, duiding, conclusie.]
-- **Actie:** [actie] – [eigenaar] – [deadline]
+4. Lunch - niets
 
-### Deepdive per Director
-[Wat elke director heeft toegelicht.]
+5. Strategische initiatieven
+- People Hub: migratie 92%, UAT start 15/9, go-live 1/10 (terugval 15/10)
+- AI-notulentool: Els test in september, terugkoppeling MT 29/9
+- actie Sanne: UAT-planning delen met MT, 12/9
 
-## 4. Lunch
-[Alleen als er tijdens de lunch iets inhoudelijks is besproken, anders: Niet besproken.]
+6. MT topics & besluiten
+- budget testomgeving People Hub 4.200 euro -> AKKOORD
+- hybride werken (voorstel Sanne, 2 kantoordagen): MT wil eerst FAQ -> besluit uitgesteld naar MT 15/9
+- actie Sanne: voorstel + FAQ uitwerken, 15/9
 
-## 5. Strategische initiatieven
-[Stand van zaken per initiatief.]
+Extra: klantescalatie Bakkerij Van Rooij (Tom)
+- klacht loonstroken juli, verkeerde toeslagen bij 14 medewerkers
+- Tom + Fatima op klantbezoek 9/9
+- Fatima analyseert oorzaak vooraf (8/9)
 
-## 6. MT Topics & Besluitvorming
-[Besproken topics.]
-- **Besluit:** [besluit]
-- **Actie:** [actie] – [eigenaar] – [deadline]
+Openstaande acties
+- afgerond: contract telefonieleverancier getekend (Ruben)
 
-## 7. [Agendapunt A]
-[Toelichting A]
+Afsluiting
+- geen rondvraag
+- volgende MT 15/9 9:30 Utrecht
+- einde 11:45`,
+  transcript: `WEBVTT
 
-## 8. [Agendapunt B]
-[Toelichting B]
+NOTE
+Transcript gegenereerd door Microsoft Teams (fictief testbestand).
 
-## 9. Openstaande acties
-**Lopende actiepunten:**
+7c1e2b90-3f4a-4d5e-8a6b-000000000001/1-0
+00:00:03.000 --> 00:00:09.500
+<v Marieke Jansen>Goedemorgen allemaal. We hebben vandaag vier doelen: de MBR-voorbereiding afronden, de KPI's van augustus, het budget voor de testomgeving van People Hub en de escalatie bij Van Rooij.</v>
 
-| Actie | Eigenaar | Deadline | Bron |
-|---|---|---|---|
-| [actie] | [naam of [NOG AAN TE VULLEN]] | [datum of [NOG AAN TE VULLEN]] | [notities / transcript / recap] |
+7c1e2b90-3f4a-4d5e-8a6b-000000000001/2-0
+00:00:09.800 --> 00:00:14.000
+<v Marieke Jansen>Tom moet om elf uur weg, dus we doen de escalatie als eerste extra punt.</v>
 
-**Afgeronde actiepunten:**
-- [afgerond actiepunt]
+3
+00:00:14.500 --> 00:00:22.000
+<v Pieter de Boer>De MBR is op 10 september. Ik consolideer de slides op 5 september, dus ik wil ieders slide uiterlijk 4 september hebben.</v>
 
-## 10. Afsluiting
-[Rondvraag en het volgende overleg.]`;
+4
+00:00:22.300 --> 00:00:28.000
+<v Pieter de Boer>Omzet augustus zit twee procent boven budget. IT zit veertigduizend boven budget door licenties.</v>
 
-// 3. VOORBEELDEN: array van teksten. Elk element is één compleet voorbeeld van goede notulen in de
-//    vaste structuur hierboven. Ze gaan als voorbeeld (few-shot) mee in de systeemprompt.
-//    Zo voeg je voorbeelden toe:
-//
-//    const VOORBEELDEN = [
-//    `# SD Worx Nederland - Notulen MT
-//
-//    **Locatie:** Utrecht
-//    ... (het volledige voorbeeld, in exact dezelfde structuur als STRUCTUUR) ...`,
-//
-//    `# SD Worx Nederland - Notulen MT
-//    ... (tweede voorbeeld) ...`,
-//    ];
-//
-//    Tips: gebruik echte maar geanonimiseerde notulen; één tot drie voorbeelden volstaan; houd ze in
-//    dezelfde structuur als STRUCTUUR, anders spreken sjabloon en voorbeelden elkaar tegen.
-const VOORBEELDEN = [];
+5
+00:00:28.200 --> 00:00:33.000 align:start position:0%
+<v Ruben Jansen>Dat klopt, dat zijn de extra licenties voor People Hub. Ik licht dat toe in de MBR.</v>
 
-// 4. MOCK_OUTPUT: de vaste output in mock-modus (zonder API-call).
-const MOCK_OUTPUT = `# SD Worx Nederland - Notulen MT
+6
+00:00:33.500 --> 00:00:41.000
+<v Fatima El Amrani>NPS is 42, vorige maand 38. Churn 1,8 procent tegen een doel van 1,5. De backlog staat op 320 tickets, doel is 250.</v>
 
-**Locatie:** Utrecht, vergaderzaal 3.02 (en Teams)
-**Datum:** 1 september 2026
-**Aanwezig:** Marieke Jansen (managing director), Pieter de Boer (finance director), Sanne de Wit (HR director), Ruben Jansen (IT director), Fatima El Amrani (operations director)
-**Gedeeltelijk aanwezig:** Tom Peeters (sales director, tot 11:00)
-**Afwezig:** Joost Bakker (marketing director)
-**Notulist:** Els Vermeulen
-**Link:** [MT Prep 1 september 2026](https://sd.sharepoint.com/sites/NLTigerTeamPeopleSolutions/MT%20Prep/260901_MT%20Prep.pptx)
+7
+00:00:41.200 --> 00:00:49.000
+<v Fatima El Amrani>De backlog is opgelopen door de vakantieperiode. We hebben twee extra mensen ingehuurd tot eind oktober. Eind september verwacht ik weer 250.</v>
 
-## 1. Opening & doelstellingen
-Marieke Jansen opent het overleg om 9:30. Doelstellingen van dit MT: de voorbereiding van de MBR van 10 september afronden, de KPI's van augustus doornemen, een besluit nemen over het budget voor de testomgeving van People Hub en de klantescalatie bij Bakkerij Van Rooij bespreken. Omdat Tom Peeters om 11:00 weg moet, wordt de klantescalatie als eerste extra agendapunt behandeld.
+8
+00:00:49.200 --> 00:00:53.000
+<v Marieke Jansen>Kun je de backlog wekelijks aan het MT rapporteren, vanaf 8 september?</v>
 
-## 2. Prep MBR
-De MBR staat gepland op 10 september. Pieter de Boer consolideert de slides; elke director levert de eigen slide uiterlijk 4 september aan. De omzet van augustus ligt 2% boven budget. De IT-kosten liggen 40.000 euro boven budget door licenties; Ruben Jansen licht dit toe in de MBR.
-- **Actie:** Eigen MBR-slide aanleveren bij Pieter de Boer – alle directors – 4 september 2026
-- **Actie:** MBR-slides consolideren – Pieter de Boer – 5 september 2026
-- **Actie:** Toelichting op de IT-kosten voorbereiden voor de MBR – Ruben Jansen – [NOG AAN TE VULLEN]
+9
+00:00:53.200 --> 00:00:55.000
+<v Fatima El Amrani>Ja, dat doe ik.</v>
 
-## 3. KPI's
-### KPI's augustus
-De NPS is gestegen naar 42 (juli: 38). De churn is 1,8% tegenover een doel van 1,5%. De ticketbacklog staat op 320 tickets tegenover een doel van 250. De notities noemen een NPS van 42, de Copilot-recap noemt 44; het MT hanteert de 42 uit de notities.
+10
+00:00:55.500 --> 00:01:04.000
+<v Sanne de Wit>People Hub: de migratie zit op 92 procent, de acceptatietest start 15 september en de go-live blijft 1 oktober met 15 oktober als terugvaloptie. Ik deel de UAT-planning uiterlijk 12 september.</v>
 
-### Deepdive per Director
-Fatima El Amrani (operations): de backlog is opgelopen door de vakantieperiode. Er zijn twee extra medewerkers ingehuurd tot eind oktober; de verwachting is dat de backlog eind september weer op 250 staat.
-- **Actie:** Wekelijkse rapportage van de ticketbacklog aan het MT – Fatima El Amrani – vanaf 8 september 2026
+11
+00:01:04.200 --> 00:01:10.000
+<v Els Vermeulen>De AI-notulentool test ik in september op de MT-notulen. Ik koppel terug in het MT van 29 september.</v>
 
-## 4. Lunch
-Niet besproken.
+12
+00:01:10.500 --> 00:01:16.000
+<v Marieke Jansen>Dan het budget voor de testomgeving: 4.200 euro extra licenties. Iedereen akkoord?</v>
 
-## 5. Strategische initiatieven
-People Hub: de datamigratie is voor 92% afgerond, de acceptatietest start op 15 september en de go-live blijft 1 oktober, met 15 oktober als terugvaloptie. AI-notulentool: Els Vermeulen test de tool in september op de MT-notulen en koppelt de ervaringen terug in het MT van 29 september.
-- **Actie:** UAT-planning People Hub delen met het MT – Sanne de Wit – 12 september 2026
+13
+00:01:16.200 --> 00:01:18.000
+<v Pieter de Boer>Akkoord.</v>
 
-## 6. MT Topics & Besluitvorming
-Budget testomgeving People Hub: de extra licenties kosten 4.200 euro. Hybride werken: Sanne de Wit presenteert het voorstel voor twee vaste kantoordagen; het MT wil eerst een FAQ voor medewerkers zien.
-- **Besluit:** Het budget van 4.200 euro voor de testomgeving van People Hub is akkoord.
-- **Besluit:** Het besluit over hybride werken wordt uitgesteld tot het MT van 15 september.
-- **Actie:** Voorstel hybride werken uitwerken met FAQ – Sanne de Wit – 15 september 2026
+14
+00:01:18.200 --> 00:01:25.000
+<v Sanne de Wit>Hybride werken: mijn voorstel is twee vaste kantoordagen. Ik hoor graag of we dat vandaag kunnen besluiten.</v>
 
-## 7. Klantescalatie Bakkerij Van Rooij
-Bakkerij Van Rooij heeft geklaagd over fouten in de loonstroken van juli (verkeerde toeslagen bij 14 medewerkers). Tom Peeters en Fatima El Amrani bezoeken de klant op 9 september. Fatima El Amrani analyseert vooraf de oorzaak.
-- **Actie:** Oorzaak van de fouten in de loonstroken analyseren – Fatima El Amrani – 8 september 2026
-- **Actie:** Klantbezoek Bakkerij Van Rooij – Tom Peeters – 9 september 2026
+15
+00:01:25.200 --> 00:01:31.000
+<v Marieke Jansen>Ik wil eerst een FAQ voor medewerkers zien. Laten we het besluit doorschuiven naar 15 september.</v>
 
-## 8. Openstaande acties
-**Lopende actiepunten:**
+16
+00:01:31.500 --> 00:01:40.000
+<v Tom Peeters>Bakkerij Van Rooij heeft geklaagd over de loonstroken van juli, verkeerde toeslagen bij veertien medewerkers. Fatima en ik gaan 9 september op bezoek.</v>
 
-| Actie | Eigenaar | Deadline | Bron |
-|---|---|---|---|
-| Eigen MBR-slide aanleveren bij Pieter de Boer | Alle directors | 4 september 2026 | notities |
-| MBR-slides consolideren | Pieter de Boer | 5 september 2026 | notities, transcript |
-| Toelichting op de IT-kosten voorbereiden voor de MBR | Ruben Jansen | [NOG AAN TE VULLEN] | notities |
-| Wekelijkse rapportage van de ticketbacklog aan het MT | Fatima El Amrani | Vanaf 8 september 2026 | transcript |
-| UAT-planning People Hub delen met het MT | Sanne de Wit | 12 september 2026 | notities |
-| Voorstel hybride werken uitwerken met FAQ | Sanne de Wit | 15 september 2026 | notities, recap |
-| Oorzaak van de fouten in de loonstroken analyseren | Fatima El Amrani | 8 september 2026 | transcript |
-| Klantbezoek Bakkerij Van Rooij | Tom Peeters | 9 september 2026 | notities |
+17
+00:01:40.200 --> 00:01:44.000
+<v Fatima El Amrani>Ik analyseer de oorzaak vóór 8 september, zodat we met een verklaring komen.</v>
 
-**Afgeronde actiepunten:**
-- Contract met de nieuwe telefonieleverancier is ondertekend (Ruben Jansen).
+18
+00:01:44.500 --> 00:01:49.000
+<v Ruben Jansen>Nog een afgerond punt: het contract met de nieuwe telefonieleverancier is getekend.</v>
 
-## 9. Afsluiting
-Geen punten voor de rondvraag. Het volgende MT is op 15 september 2026 om 9:30 in Utrecht. Marieke Jansen sluit het overleg om 11:45.`;
+19
+00:01:49.500 --> 00:01:55.000
+<v Marieke Jansen>Mooi. Geen rondvraag? Dan is het volgende MT op 15 september om half tien in Utrecht. Bedankt &amp; tot dan.</v>`,
+  recap: `Samenvatting van de vergadering (gegenereerd door Copilot)
 
-// 5. Overige instellingen.
-const STANDAARD_TITEL = 'SD Worx Nederland - Notulen MT';  // vooringevulde titel (kopregel van het sjabloon)
-const STANDAARD_MODEL = 'claude-sonnet-5';               // standaard modelnaam (in de UI aan te passen)
-const MAX_TOKENS = 16000;                                // maximale lengte van de output in tokens
-const WAARSCHUWING_TEKENS = 300000;                      // waarschuwing (niet blokkerend) boven dit aantal tekens
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const ANTHROPIC_VERSION = '2023-06-01';
+MT SD Worx Nederland, 1 september 2026
+Deelnemers: Marieke Jansen, Pieter de Boer, Sanne de Wit, Ruben Jansen, Fatima El Amrani, Tom Peeters (tot 11:00), Els Vermeulen
 
-// 6. Word-export. KOPVELDEN koppelt de kopregels in de markdown aan de plaatshouders in het Word-sjabloon.
+Belangrijkste punten
+- De MBR van 10 september wordt voorbereid; Pieter de Boer consolideert de slides en verwacht de bijdragen van de directors uiterlijk 4 september.
+- De omzet van augustus ligt 2% boven budget; de IT-kosten liggen 40.000 euro boven budget door licenties voor People Hub.
+- KPI's augustus: NPS 44, churn 1,8%, ticketbacklog 320. Operations heeft twee extra medewerkers ingehuurd tot eind oktober.
+- People Hub: migratie 92% gereed, acceptatietest vanaf 15 september, go-live 1 oktober.
+- Het MT is akkoord met 4.200 euro extra licentiekosten voor de testomgeving van People Hub.
+- Het besluit over hybride werken (twee vaste kantoordagen) is uitgesteld tot 15 september; er komt eerst een FAQ voor medewerkers.
+- Bakkerij Van Rooij heeft een klacht ingediend over de loonstroken van juli; Tom Peeters en Fatima El Amrani bezoeken de klant op 9 september.
+
+Actiepunten
+- Alle directors: MBR-slide aanleveren bij Pieter de Boer, voor 4 september.
+- Pieter de Boer: MBR-slides consolideren, 5 september.
+- Fatima El Amrani: wekelijkse rapportage van de ticketbacklog, vanaf 8 september.
+- Sanne de Wit: UAT-planning People Hub delen, 12 september.
+- Sanne de Wit: voorstel hybride werken met FAQ uitwerken, 15 september.
+- Fatima El Amrani: oorzaak fouten loonstroken Van Rooij analyseren, 8 september.
+- Tom Peeters: klantbezoek Bakkerij Van Rooij, 9 september.
+
+Afgerond
+- Ruben Jansen: contract nieuwe telefonieleverancier ondertekend.`,
+};
+
+// 4. Overige instellingen.
+const WAARSCHUWING_TEKENS = 300000;   // waarschuwing (niet blokkerend) boven dit aantal tekens invoer
+
+// 5. Word-export. KOPVELDEN koppelt de kopregels in de markdown aan de plaatshouders in het Word-sjabloon.
 //    SJABLOON_DOCX_BASE64 is het Word-sjabloon "Notulen MT" (met kop- en voettekst, stijlen en nummering) waarin
 //    de tekst is vervangen door plaatshouders: {{titel}}, {{subtitel}}, {{aanwezig}}, {{gedeeltelijk}}, {{afwezig}},
 //    {{notulist}}, {{link}}, {{inhoud}} en in de voettekst {{voetdatum}}. Het bestand is base64-gecodeerd; zie de README
@@ -473,9 +454,11 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   const nf = new Intl.NumberFormat('nl-NL');
   const tekens = (n) => nf.format(n) + (n === 1 ? ' teken' : ' tekens');
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-  const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+  const escapeRe = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
   const pad2 = (n) => String(n).padStart(2, '0');
+  const hoofdletter = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+  const uniek = (arr) => Array.from(new Set(arr));
 
   function vandaagISO() {
     const d = new Date();
@@ -484,7 +467,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   function datumNL(iso) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
     if (!m) return iso || '';
-    return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+    return (+m[3]) + ' ' + MAANDEN[+m[2] - 1] + ' ' + m[1];
   }
   // Herkent "2026-09-01", "1-9-2026", "01/09/2026" en "1 september 2026"; geeft [jjjj, mm, dd] of null.
   function ontleedDatum(tekst) {
@@ -518,8 +501,8 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
 
   /* ---------- Elementen ---------- */
   const el = {
-    startMelding: $('#startMelding'), invoerMelding: $('#invoerMelding'), waarschuwing: $('#waarschuwing'),
-    totaal: $('#totaalTeller'), knopGenereer: $('#knopGenereer'), knopAnnuleer: $('#knopAnnuleer'),
+    invoerMelding: $('#invoerMelding'), waarschuwing: $('#waarschuwing'), totaal: $('#totaalTeller'),
+    knopMaak: $('#knopMaak'), knopVoorbeeld: $('#knopVoorbeeld'),
     uitvoer: $('#uitvoer'), status: $('#status'), melding: $('#melding'), gerenderd: $('#gerenderd'), ruw: $('#ruw'),
     tabWeergave: $('#tabWeergave'), tabBewerken: $('#tabBewerken'),
     meta: {
@@ -527,15 +510,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
       aanwezig: $('#metaAanwezig'), gedeeltelijk: $('#metaGedeeltelijk'), afwezig: $('#metaAfwezig'), link: $('#metaLink'),
     },
     knopKopieerMd: $('#knopKopieerMd'), knopKopieerTekst: $('#knopKopieerTekst'), knopDownloadMd: $('#knopDownloadMd'),
-    knopDownloadDocx: $('#knopDownloadDocx'), knopOpnieuw: $('#knopOpnieuw'),
-    dialoog: $('#instellingen'), mockBadge: $('#mockBadge'), knopInstellingen: $('#knopInstellingen'), knopSluit: $('#knopSluit'),
-    knopTest: $('#knopTest'), testStatus: $('#testStatus'), testResultaat: $('#testResultaat'),
-    knopToonKey: $('#knopToonKey'), knopWisInstellingen: $('#knopWisInstellingen'),
-    inst: {
-      provider: $('#instProvider'), endpoint: $('#instEndpoint'), authHeader: $('#instAuthHeader'),
-      apiKey: $('#instApiKey'), model: $('#instModel'), mock: $('#instMock'),
-    },
-    endpointHulp: $('#instEndpointHulp'),
+    knopDownloadDocx: $('#knopDownloadDocx'),
   };
 
   function toonMelding(box, titel, tekst) {
@@ -546,121 +521,6 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   }
   function verbergMelding(box) { box.hidden = true; box.innerHTML = ''; }
   function zetStatus(tekst) { el.status.textContent = tekst || ''; }
-
-  /* ---------- Instellingen (localStorage) ---------- */
-  const OPSLAG_SLEUTEL = 'notulentool.instellingen';
-  const STANDAARD = { provider: 'anthropic', endpoint: '', authHeader: 'api-key', apiKey: '', model: STANDAARD_MODEL, mock: false };
-  const urlMock = new URLSearchParams(location.search).get('mock') === '1';
-  let instellingen = laadInstellingen();
-
-  function laadInstellingen() {
-    try {
-      const ruw = localStorage.getItem(OPSLAG_SLEUTEL);
-      return ruw ? Object.assign({}, STANDAARD, JSON.parse(ruw)) : Object.assign({}, STANDAARD);
-    } catch (e) { return Object.assign({}, STANDAARD); }
-  }
-  function bewaarInstellingen() {
-    try { localStorage.setItem(OPSLAG_SLEUTEL, JSON.stringify(instellingen)); }
-    catch (e) { console.warn('Instellingen konden niet bewaard worden', e); }
-  }
-  function mockActief() { return urlMock || !!instellingen.mock; }
-
-  // Maakt van wat de gebruiker invult een volledige Messages-URL voor Foundry.
-  function normaliseerEndpoint(raw) {
-    let u = String(raw || '').trim();
-    if (!u) return '';
-    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
-    u = u.replace(/\/+$/, '');
-    if (/\/v1\/messages$/i.test(u)) return u;
-    if (/\/v1$/i.test(u)) return u + '/messages';
-    if (/\/anthropic$/i.test(u)) return u + '/v1/messages';
-    try {
-      const p = new URL(u);
-      if (p.pathname === '' || p.pathname === '/') return u + '/anthropic/v1/messages';
-    } catch (e) { return ''; }
-    return u + '/v1/messages';
-  }
-  function endpointUrl() { return instellingen.provider === 'foundry' ? normaliseerEndpoint(instellingen.endpoint) : ANTHROPIC_URL; }
-  function bouwHeaders() {
-    const h = { 'content-type': 'application/json', 'anthropic-version': ANTHROPIC_VERSION };
-    if (instellingen.provider === 'foundry') {
-      const naam = (instellingen.authHeader || 'api-key').trim();
-      let waarde = instellingen.apiKey.trim();
-      if (naam.toLowerCase() === 'authorization' && !/^bearer\s/i.test(waarde)) waarde = 'Bearer ' + waarde;
-      h[naam] = waarde;
-    } else {
-      h['x-api-key'] = instellingen.apiKey.trim();
-      h['anthropic-dangerous-direct-browser-access'] = 'true';
-    }
-    return h;
-  }
-  function controleerInstellingen() {
-    if (mockActief()) return null;
-    if (!instellingen.apiKey) return 'Er is nog geen API-key ingesteld. Vul die in bij Instellingen, of zet Mock-modus aan.';
-    if (instellingen.provider === 'foundry' && !normaliseerEndpoint(instellingen.endpoint)) return 'Vul bij Instellingen de endpoint-URL van Microsoft Foundry in.';
-    return null;
-  }
-
-  function vulInstellingenIn() {
-    el.inst.provider.value = instellingen.provider;
-    el.inst.endpoint.value = instellingen.endpoint;
-    el.inst.authHeader.value = instellingen.authHeader;
-    el.inst.apiKey.value = instellingen.apiKey;
-    el.inst.model.value = instellingen.model;
-    el.inst.mock.checked = !!instellingen.mock;
-    updateProviderVelden();
-    updateMockBadge();
-  }
-  function leesInstellingenUit() {
-    instellingen.provider = el.inst.provider.value;
-    instellingen.endpoint = el.inst.endpoint.value.trim();
-    instellingen.authHeader = el.inst.authHeader.value.trim() || 'api-key';
-    instellingen.apiKey = el.inst.apiKey.value.trim();
-    instellingen.model = el.inst.model.value.trim() || STANDAARD_MODEL;
-    instellingen.mock = el.inst.mock.checked;
-    bewaarInstellingen();
-    updateProviderVelden();
-    updateMockBadge();
-    updateStartMelding();
-  }
-  function updateProviderVelden() {
-    const foundry = el.inst.provider.value === 'foundry';
-    $$('.foundry-only').forEach((v) => { v.hidden = !foundry; });
-    if (foundry) {
-      const url = normaliseerEndpoint(el.inst.endpoint.value);
-      el.endpointHulp.textContent = url
-        ? 'Aanroepen gaan naar: ' + url
-        : 'Vul de URL van je Foundry-resource in, bijvoorbeeld https://mijn-resource.services.ai.azure.com/anthropic (de “Target URI” in het Foundry-portaal).';
-    }
-  }
-  function updateMockBadge() { el.mockBadge.hidden = !mockActief(); }
-  function updateStartMelding() {
-    if (mockActief()) {
-      toonMelding(el.startMelding, 'Mock-modus', (urlMock ? 'Mock-modus is actief via ?mock=1 in de adresbalk. ' : '') +
-        'De tool geeft een vast voorbeeld terug en doet geen API-call.' + (urlMock ? '' : ' Zet Mock-modus uit bij Instellingen om het echte model te gebruiken.'));
-      return;
-    }
-    if (!instellingen.apiKey) {
-      toonMelding(el.startMelding, 'Aan de slag', 'Er is nog geen API-key ingesteld. Open Instellingen om een key in te vullen en de verbinding te testen, of zet daar Mock-modus aan om de tool zonder key uit te proberen.');
-      return;
-    }
-    if (instellingen.provider === 'foundry' && !normaliseerEndpoint(instellingen.endpoint)) {
-      toonMelding(el.startMelding, 'Aan de slag', 'Vul bij Instellingen de endpoint-URL van Microsoft Foundry in.');
-      return;
-    }
-    verbergMelding(el.startMelding);
-  }
-  function openInstellingen() {
-    verbergMelding(el.testResultaat);
-    el.testStatus.textContent = '';
-    if (typeof el.dialoog.showModal === 'function') { if (!el.dialoog.open) el.dialoog.showModal(); }
-    else el.dialoog.setAttribute('open', '');
-  }
-  function sluitInstellingen() {
-    if (typeof el.dialoog.close === 'function' && el.dialoog.open) el.dialoog.close();
-    else el.dialoog.removeAttribute('open');
-    updateStartMelding();
-  }
 
   /* ---------- Bronnen: invoer, bestanden, drag-and-drop ---------- */
   const ZONES = $$('.bron').map((kaart) => ({
@@ -679,9 +539,9 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   function updateTellers() {
     let totaal = 0;
     ZONES.forEach((z) => { const n = z.textarea.value.length; totaal += n; z.teller.textContent = tekens(n); });
-    el.totaal.textContent = 'Totaal: ' + tekens(totaal);
+    el.totaal.textContent = 'Bronnen: ' + tekens(totaal);
     if (totaal > WAARSCHUWING_TEKENS) {
-      toonMelding(el.waarschuwing, 'Let op', 'De invoer is erg groot (' + tekens(totaal) + '). De tool blokkeert dit niet, maar het verzoek kan traag zijn of door het endpoint geweigerd worden. Overweeg het transcript in te korten.');
+      toonMelding(el.waarschuwing, 'Let op', 'De invoer is erg groot (' + tekens(totaal) + '). De tool blokkeert dit niet, maar het verwerken kan even duren en de notulen worden lang. Overweeg het transcript in te korten.');
     } else verbergMelding(el.waarschuwing);
   }
 
@@ -770,192 +630,547 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   window.addEventListener('dragover', (e) => e.preventDefault());
   window.addEventListener('drop', (e) => e.preventDefault());
 
-  /* ---------- Prompt ---------- */
-  function bouwSysteemprompt() {
-    let s = SYSTEEMPROMPT.trim() + '\n\n## Vaste structuur (volg exact)\n\n' + STRUCTUUR.trim();
-    if (VOORBEELDEN.length) {
-      s += '\n\n## Voorbeelden van goede notulen\nDe voorbeelden tonen de gewenste stijl, toon en structuur. Neem de inhoud ervan niet over.';
-      VOORBEELDEN.forEach((v, i) => { s += '\n\n<voorbeeld nummer="' + (i + 1) + '">\n' + String(v).trim() + '\n</voorbeeld>'; });
+  /* ---------- Analyse: tekst, woorden, datums, namen ---------- */
+  const NOG = '[NOG AAN TE VULLEN]';
+  const MAAND_ALT = MAANDEN.join('|');
+  const STOP = new Set(('de het een en van in op is zijn met voor naar bij dat die dit er te om aan als ook nog niet wordt worden door over uit tot of we wij ik je ze hij zij hun ons onze mijn jouw maar dan dus wel al per ca circa etc deze was waren heeft hebben had kan kunnen moet moeten zal zullen gaat gaan komt komen wil willen zou zouden daar hier waar wat wie hoe nu toen steeds even weer geen alle alles iets niets meer minder zeer heel erg vandaag morgen gisteren volgende vorige ' + MAAND_ALT.replace(/\|/g, ' ') + ' maandag dinsdag woensdag donderdag vrijdag zaterdag zondag').split(/\s+/));
+  const woorden = (t) => String(t).toLowerCase().replace(/[^a-z0-9à-ÿ\s-]/g, ' ').split(/[\s-]+/).filter((w) => w.length >= 4 && !STOP.has(w) && !/^\d+$/.test(w));
+  function overlapWoorden(a, b) {
+    let n = 0;
+    a.forEach((x) => { if (b.some((y) => x === y || (x.length >= 5 && y.length >= 5 && (x.startsWith(y) || y.startsWith(x))))) n++; });
+    return n;
+  }
+  function gelijkenis(a, b) {
+    const ta = uniek(woorden(a)), tb = uniek(woorden(b));
+    if (!ta.length || !tb.length) return 0;
+    return overlapWoorden(ta, tb) / Math.min(ta.length, tb.length);
+  }
+  // Twee teksten zijn dubbel als ze minstens twee woorden delen en de kortste voor de helft in de andere zit.
+  function dubbel(a, b) {
+    const ta = uniek(woorden(a)), tb = uniek(woorden(b));
+    const n = overlapWoorden(ta, tb);
+    if (n >= 2 && n / Math.min(ta.length, tb.length) >= 0.5) return true;
+    const da = vindDatums(a).filter((d) => CONCREET[d.soort]).map((d) => d.tekst), db = vindDatums(b).filter((d) => CONCREET[d.soort]).map((d) => d.tekst);
+    return n >= 1 && da.length > 0 && da.some((d) => db.includes(d));
+  }
+  const zinEinde = (s) => { s = String(s).trim().replace(/\s+/g, ' '); if (!s) return s; s = hoofdletter(s); return /[.!?:]$/.test(s) ? s : s + '.'; };
+  const zonderPunt = (s) => hoofdletter(String(s).trim().replace(/\s+/g, ' ').replace(/[.;:,]+$/, ''));
+
+  let JAAR = new Date().getFullYear();
+  const DATUM_PATRONEN = [
+    { soort: 'iso', re: /\b(\d{4})-(\d{2})-(\d{2})\b/g },
+    { soort: 'ddmm', re: /(?<![\d:/-])(?<!\d[.,])(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?(?![\d/:-])(?![.,]\d)/g },
+    { soort: 'dmaand', re: new RegExp('\\b(\\d{1,2})\\s+(' + MAAND_ALT + ')(?:\\s+(\\d{4}))?\\b', 'gi') },
+    { soort: 'periode', re: new RegExp('\\b(eind|begin|half|medio)\\s+(' + MAAND_ALT + ')(?:\\s+(\\d{4}))?\\b', 'gi') },
+    { soort: 'relatief', re: /\bvolgende?\s+(week|maand|mt|overleg|vergadering)\b/gi },
+    { soort: 'kwartaal', re: /\b(q[1-4])\b|\bweek\s+(\d{1,2})\b/gi },
+  ];
+  function normaliseerDatum(m, soort) {
+    if (soort === 'iso') { const mo = +m[2]; return mo >= 1 && mo <= 12 ? (+m[3]) + ' ' + MAANDEN[mo - 1] + ' ' + m[1] : ''; }
+    if (soort === 'ddmm') {
+      const d = +m[1], mo = +m[2];
+      if (d < 1 || d > 31 || mo < 1 || mo > 12) return '';
+      const j = m[3] ? (m[3].length === 2 ? '20' + m[3] : m[3]) : String(JAAR);
+      return d + ' ' + MAANDEN[mo - 1] + ' ' + j;
     }
+    if (soort === 'dmaand') return (+m[1]) + ' ' + m[2].toLowerCase() + ' ' + (m[3] || JAAR);
+    if (soort === 'periode') return hoofdletter(m[1].toLowerCase()) + ' ' + m[2].toLowerCase() + (m[3] ? ' ' + m[3] : '');
+    if (soort === 'relatief') return hoofdletter(m[0].toLowerCase().replace(/\s+/g, ' ').replace(/\bmt\b/, 'MT'));
+    return m[0].replace(/^q/i, 'Q').replace(/^week/i, 'Week');
+  }
+  // Alle datums in een tekst, met positie en genormaliseerde tekst ("8 september 2026").
+  function vindDatums(tekst) {
+    const uit = [];
+    DATUM_PATRONEN.forEach((p) => {
+      p.re.lastIndex = 0;
+      let m;
+      while ((m = p.re.exec(tekst))) { const n = normaliseerDatum(m, p.soort); if (n) uit.push({ index: m.index, lengte: m[0].length, raw: m[0], tekst: n, soort: p.soort }); }
+    });
+    uit.sort((a, b) => a.index - b.index);
+    return uit.filter((d, i) => !uit.slice(0, i).some((e) => d.index < e.index + e.lengte));
+  }
+  const CONCREET = { iso: true, ddmm: true, dmaand: true };
+  // Vervangt "8/9" door "8 september 2026" in lopende tekst.
+  function vervangDatums(tekst) {
+    let uit = String(tekst);
+    vindDatums(uit).filter((d) => d.soort === 'ddmm' || d.soort === 'iso' || (d.soort === 'dmaand' && !/\d{4}$/.test(d.raw))).reverse().forEach((d) => { uit = uit.slice(0, d.index) + d.tekst + uit.slice(d.index + d.lengte); });
+    return uit;
+  }
+  // Kiest de deadline uit een tekst: bij voorkeur een datum na een deadline-woord, anders de laatste datum.
+  function vindDeadline(tekst) {
+    const ds = vindDatums(tekst);
+    if (!ds.length) return null;
+    let keuze = null;
+    ds.forEach((d) => { if (!keuze && DEADLINE_WOORDEN.test(tekst.slice(Math.max(0, d.index - 16), d.index))) keuze = d; });
+    if (!keuze) keuze = ds[ds.length - 1];
+    const voor = tekst.slice(Math.max(0, keuze.index - 16), keuze.index).toLowerCase();
+    let prefix = '';
+    if (/\bvanaf\s*$/.test(voor)) prefix = 'Vanaf ';
+    else if (/\bt\/m\s*$/.test(voor)) prefix = 'T/m ';
+    else if (/\btot\s*$/.test(voor)) prefix = 'Tot ';
+    const t = prefix ? prefix + keuze.tekst.charAt(0).toLowerCase() + keuze.tekst.slice(1) : hoofdletter(keuze.tekst);
+    return { tekst: t, index: keuze.index, lengte: keuze.lengte };
+  }
+  // Haalt de deadline (en het woord ervoor) uit de actietekst.
+  function zonderDeadline(tekst, dl) {
+    if (!dl) return tekst;
+    let voor = tekst.slice(0, dl.index), na = tekst.slice(dl.index + dl.lengte);
+    voor = voor.replace(/[,;(]?\s*(uiterlijk|deadline|vóór|voor|op|vanaf|per|tot|t\/m|voor het einde van)?\s*$/i, '');
+    na = na.replace(/^\)?\s*[,;]?/, '');
+    return (voor + ' ' + na).replace(/\s+/g, ' ').replace(/\s+([,;.)])/g, '$1').trim().replace(/[,;(\-–]+$/, '').trim();
+  }
+
+  let NAMEN = [];
+  const NAAM_RE = /^[A-ZÀ-Ý][\wà-ÿ'’.-]+(?:\s+(?:van|de|der|den|el|al|te|ten|von|du|le|la|di|da)\s+[\wÀ-ÿ'’.-]+|\s+[A-ZÀ-Ý][\wà-ÿ'’.-]+)*$/;
+  const GEEN_NAAM = /^(Aanwezig|Afwezig|Notulist|Notulen|Deelnemers|Link|Datum|Locatie|Actie|Acties|Besluit|Opening|Lunch|Prep|Extra|Openstaande|Afsluiting|Teams|Utrecht|Amsterdam|Antwerpen|Brussel|Vakantie|Ziek|Rondvraag|Einde|Geen|Alle|Iedereen)$/i;
+  function registreerNaam(raw) {
+    let n = String(raw || '').replace(/\(.*?\)/g, ' ').replace(/\b(tot|vanaf|t\/m|vanaf)\s+\d{1,2}[:.]\d{2}.*$/i, '').replace(/[,;:].*$/, '').replace(/\s+(-|–)\s+.*$/, '').replace(/\s+/g, ' ').trim();
+    if (!n || n.length > 40 || !NAAM_RE.test(n) || GEEN_NAAM.test(n.split(' ')[0])) return null;
+    const lower = n.toLowerCase();
+    const bestaand = NAMEN.find((x) => x.vol.toLowerCase() === lower || lower.startsWith(x.vol.toLowerCase() + ' ') || x.vol.toLowerCase().startsWith(lower + ' '));
+    if (bestaand) { if (n.split(' ').length > bestaand.vol.split(' ').length) { bestaand.vol = n; } return bestaand; }
+    const nieuw = { vol: n, voornaam: n.split(' ')[0] };
+    NAMEN.push(nieuw);
+    return nieuw;
+  }
+  function registreerNamenUitLijst(tekst) { String(tekst || '').split(/,|;|\/|\+|\ben\b|\bplus\b|\n/).forEach((d) => registreerNaam(d)); }
+  function vindNamen(tekst) {
+    const gevonden = [];
+    NAMEN.forEach((n) => {
+      const i = tekst.search(new RegExp('\\b' + escapeRe(n.vol) + '\\b'));
+      const j = i >= 0 ? i : tekst.search(new RegExp('\\b' + escapeRe(n.voornaam) + '\\b'));
+      if (j >= 0) gevonden.push({ naam: n.vol, index: j });
+    });
+    gevonden.sort((a, b) => a.index - b.index);
+    return uniek(gevonden.map((g) => g.naam));
+  }
+  function vindGroep(tekst) { const g = GROEPEN.find((x) => x.herken.test(tekst)); return g ? g.naam : ''; }
+  const eigenaarSet = (e) => new Set(String(e).split(/,\s*/).map((x) => x.trim()).filter(Boolean));
+  function zelfdeEigenaar(a, b) {
+    if (a === NOG || b === NOG) return true;
+    const sa = eigenaarSet(a), sb = eigenaarSet(b);
+    return Array.from(sa).every((x) => sb.has(x)) || Array.from(sb).every((x) => sa.has(x));
+  }
+
+  /* ---------- Analyse: bronnen in secties en regels ---------- */
+  const BULLET_RE = /^\s*(?:[-*•▪◦·–—]|o(?=\s)|\d{1,2}[.)]|[a-z][.)])\s+(.*)$/;
+  const herkenAgenda = (t) => AGENDA.some((a) => a.herken.test(t)) || AGENDA_ACTIES.herken.test(t) || AGENDA_AFSLUITING.herken.test(t);
+  function isKopregel(t, volgende, laatsteNummer) {
+    if (/^#{1,6}\s/.test(t)) return true;
+    const nummer = /^(\d{1,2})[.)]\s+(\S.*)$/.exec(t);
+    const kern = nummer ? nummer[2] : t;
+    const nWoorden = kern.split(/\s+/).length;
+    const bulletVolgt = !!volgende && BULLET_RE.test(volgende) && !/^\s*\d{1,2}[.)]\s/.test(volgende);
+    if (nummer) return nWoorden <= 8 && (bulletVolgt || +nummer[1] === laatsteNummer + 1 || herkenAgenda(kern));
+    if (BULLET_RE.test(t)) return false;
+    if (/^(extra|overig|bijlage|agendapunt)\s*:/i.test(t)) return true;
+    if (nWoorden <= 6 && /^[A-Z0-9][A-Z0-9 &'’\-/]{3,}$/.test(t)) return true;
+    if (nWoorden <= 6 && /:$/.test(t)) return true;
+    if (nWoorden <= 6 && !/[.!?,;]$/.test(t) && bulletVolgt) return true;
+    return false;
+  }
+  function typeSectie(titel) {
+    if (/^(aanwezig|afwezig|deelnemers|notulist|notulen|locatie|datum|aanwezigen|verontschuldigd)\b/i.test(titel)) return 'kop';
+    if (/afgerond|gedaan|klaar/i.test(titel)) return 'afgerond';
+    if (/open\s*(vragen|punten)|openstaande\s+vragen|^vragen$|parkeer/i.test(titel)) return 'open';
+    if (/actie|to-?do|actielijst/i.test(titel)) return 'acties';
+    if (AGENDA_AFSLUITING.herken.test(titel)) return 'afsluiting';
+    if (/samenvatting|belangrijkste|hoofdpunten|highlights|kernpunten|besproken/i.test(titel)) return 'samenvatting';
+    return 'agenda';
+  }
+  // Splitst een bron (notities of recap) in kopregels en secties met regels.
+  function ontleedBron(tekst, bron) {
+    const regels = String(tekst || '').replace(/\r\n?/g, '\n').split('\n');
+    const secties = [], kop = [];
+    let huidige = null, laatsteNummer = 0;
+    for (let i = 0; i < regels.length; i++) {
+      const raw = regels[i], t = raw.trim();
+      if (!t) continue;
+      let volgende = '';
+      for (let j = i + 1; j < regels.length; j++) { if (regels[j].trim()) { volgende = regels[j]; break; } }
+      if (isKopregel(t, volgende, laatsteNummer)) {
+        const nummer = /^(\d{1,2})[.)]\s+/.exec(t);
+        if (nummer) laatsteNummer = +nummer[1];
+        let titel = t.replace(/^#{1,6}\s*/, '').replace(/^\d{1,2}[.)]\s+/, '').replace(/^(extra|overig|agendapunt)\s*:\s*/i, '').replace(/:$/, '').trim();
+        let rest = '';
+        const split = /^(.+?)\s+[-–:]\s+(.+)$/.exec(titel);
+        if (split && herkenAgenda(split[1])) { titel = split[1]; rest = split[2]; }
+        huidige = { titel, type: typeSectie(titel), regels: [], bron };
+        secties.push(huidige);
+        if (rest) huidige.regels.push({ tekst: rest, bullet: false, niveau: 0 });
+        continue;
+      }
+      const inspring = raw.match(/^\s*/)[0].replace(/\t/g, '  ').length;
+      const b = BULLET_RE.exec(raw);
+      const item = { tekst: (b ? b[1] : t).trim(), bullet: !!b, niveau: b ? Math.min(Math.floor(inspring / 2), 2) : 0 };
+      if (huidige) huidige.regels.push(item);
+      else kop.push(item.tekst);
+    }
+    secties.filter((s) => s.type === 'kop').forEach((s) => s.regels.forEach((r) => kop.push(s.titel.replace(/:$/, '') + ': ' + r.tekst)));
+    const inhoud = secties.filter((s) => s.type !== 'kop');
+    if (!inhoud.length) {
+      // Geen kopjes gevonden: alle regels (behalve kopgegevens) als losse regels behandelen.
+      const KOPVELD = /^(aanwezig(?:en)?|afwezig|notulist|notulen|deelnemers|verontschuldigd|locatie|datum|link|mt prep)\s*:/i;
+      const los = { titel: '', type: 'los', regels: [], bron };
+      kop.slice().forEach((r) => { if (!KOPVELD.test(r) && !(r.length < 60 && vindDatums(r).some((d) => CONCREET[d.soort]))) zinnen(r).forEach((z) => los.regels.push({ tekst: z, bullet: false, niveau: 0 })); });
+      if (los.regels.length) inhoud.push(los);
+    }
+    return { kop, secties: inhoud, bron };
+  }
+  // Transcript: regels "Naam: tekst" naar uitingen.
+  function ontleedTranscript(tekst) {
+    const uitingen = [];
+    String(tekst || '').replace(/\r\n?/g, '\n').split('\n').forEach((r) => {
+      const t = r.trim();
+      if (!t) return;
+      const m = /^([A-ZÀ-Ý][^:]{1,40}?)\s*:\s+(.*)$/.exec(t);
+      if (m && !/^https?:/i.test(t) && !/\d/.test(m[1])) uitingen.push({ spreker: m[1].trim(), tekst: m[2].trim() });
+      else if (uitingen.length) uitingen[uitingen.length - 1].tekst += ' ' + t;
+      else uitingen.push({ spreker: '', tekst: t });
+    });
+    return uitingen;
+  }
+  const zinnen = (t) => String(t).split(/(?<=[.!?])\s+(?=[A-ZÀ-Ý0-9“"'])/).map((s) => s.trim()).filter(Boolean);
+
+  /* ---------- Analyse: classificatie ---------- */
+  const isVraag = (t) => /\?\s*$/.test(t);
+  const BESLUIT_START = /^\s*besluit\s*[:\-–]|^\s*besloten\b/i;
+  function classificeer(tekst, sectieType) {
+    if (sectieType === 'afgerond' || AFGEROND_WOORDEN.test(tekst)) return 'afgerond';
+    if (!isVraag(tekst) && (BESLUIT_WOORDEN.test(tekst) || BESLUIT_START.test(tekst)) && !/^\s*actie\b/i.test(tekst)) return 'besluit';
+    if (sectieType === 'acties') return 'actie';
+    if (/^\s*actie(punt)?\b/i.test(tekst)) return 'actie';
+    const naam = vindNamen(tekst).length > 0, groep = !!vindGroep(tekst), cue = ACTIE_WOORDEN.test(tekst);
+    const concreet = vindDatums(tekst).some((d) => CONCREET[d.soort]);
+    if ((naam || groep) && (concreet || cue) && !(sectieType === 'samenvatting' && !cue)) return 'actie';
+    if (sectieType === 'open') return 'open';
+    return 'keypoint';
+  }
+  function maakActie(tekst, bron, sprekerNaam) {
+    let t = String(tekst).replace(/^\s*actie(punt)?\s*[:\-–]?\s*/i, '').trim();
+    let eigenaar = '';
+    const m = /^([^:]{2,60}?)\s*:\s+(.+)$/.exec(t);
+    if (m) {
+      const namen = vindNamen(m[1]), groep = vindGroep(m[1]);
+      if (namen.length && woorden(m[1]).length <= namen.length * 3) { eigenaar = namen.join(', '); t = m[2]; }
+      else if (groep && woorden(m[1]).length <= 3) { eigenaar = groep; t = m[2]; }
+    }
+    const dl = vindDeadline(t);
+    if (!eigenaar) {
+      const namen = vindNamen(zonderDeadline(t, dl));
+      eigenaar = namen.length ? namen.join(', ') : (vindGroep(t) || sprekerNaam || '');
+    }
+    const actie = zonderPunt(vervangDatums(zonderDeadline(t, dl)));
+    return { actie: actie || zonderPunt(t), eigenaar: eigenaar || NOG, deadline: dl ? dl.tekst : NOG, bronnen: new Set([bron]), item: null };
+  }
+  // Voegt een actie toe aan de lijst, of voegt hem samen met een bestaande gelijkende actie.
+  function voegActieToe(lijst, nieuw) {
+    for (const a of lijst) {
+      if (!zelfdeEigenaar(a.eigenaar, nieuw.eigenaar)) continue;
+      const ov = overlapWoorden(uniek(woorden(a.actie)), uniek(woorden(nieuw.actie)));
+      const zelfdeDl = a.deadline === nieuw.deadline, dlOnbekend = a.deadline === NOG || nieuw.deadline === NOG;
+      if (ov >= 2 || (ov >= 1 && (zelfdeDl || dlOnbekend)) || gelijkenis(a.actie, nieuw.actie) >= 0.6) {
+        nieuw.bronnen.forEach((b) => a.bronnen.add(b));
+        if (a.eigenaar === NOG && nieuw.eigenaar !== NOG) a.eigenaar = nieuw.eigenaar;
+        if (a.deadline === NOG && nieuw.deadline !== NOG) a.deadline = nieuw.deadline;
+        return a;
+      }
+    }
+    lijst.push(nieuw);
+    return nieuw;
+  }
+  // Zet een uitspraak in de eerste persoon om naar de derde persoon ("Ik deel" -> "Sanne deelt").
+  const ONREGELMATIG = { ben: 'is', heb: 'heeft', kan: 'kan', zal: 'zal', wil: 'wil', mag: 'mag', moet: 'moet', ga: 'gaat', doe: 'doet', sta: 'staat', zie: 'ziet', sla: 'slaat', zou: 'zou', word: 'wordt', vind: 'vindt', houd: 'houdt', kom: 'komt', neem: 'neemt' };
+  function vervoeg(v) { const l = v.toLowerCase(); if (ONREGELMATIG[l]) return ONREGELMATIG[l]; return /t$/.test(l) ? l : l + 't'; }
+  function derdePersoon(zin, voornaam) {
+    if (!voornaam) return zin;
+    let s = zin.replace(/^\s*ik\s+(\w+)/i, (_, v) => voornaam + ' ' + vervoeg(v));
+    s = s.replace(/\bik\b/gi, voornaam).replace(/\bmij\b|\bme\b/gi, voornaam).replace(/\bmijn\b/gi, voornaam + "'s");
     return s;
   }
-  function bouwGebruikersprompt(invoer) {
-    const onbekend = '[niet opgegeven, leid af uit de bronnen]';
-    const m = invoer.meta || {};
-    const metadata = [
-      'Titel: ' + (m.titel || STANDAARD_TITEL),
-      'Locatie: ' + (m.locatie || onbekend),
-      'Datum: ' + (m.datum ? datumNL(m.datum) : onbekend),
-      'Aanwezig: ' + (m.aanwezig || onbekend),
-      'Gedeeltelijk aanwezig: ' + (m.gedeeltelijk || onbekend),
-      'Afwezig: ' + (m.afwezig || onbekend),
-      'Notulist: ' + (m.notulist || onbekend),
-      'Link MT Prep: ' + (m.link || '[niet opgegeven; gebruik een link uit de bronnen, anders [NOG AAN TE VULLEN]]'),
-    ].join('\n');
-    let p = 'Maak de notulen van onderstaand MT-overleg volgens de vaste structuur.\n\n## Metadata (opgegeven door de gebruiker)\n' + metadata +
-      '\n\nIs er een link, schrijf die in de kopregel Link als markdown-link, bijvoorbeeld [MT Prep 1 september 2026](https://...).' +
-      '\n\n## Bronnen\n\n<notities>\n' + invoer.notities.trim() + '\n</notities>';
-    p += invoer.transcript.trim() ? '\n\n<transcript>\n' + invoer.transcript.trim() + '\n</transcript>' : '\n\n(Geen transcript aangeleverd.)';
-    p += invoer.recap.trim() ? '\n\n<copilot_recap>\n' + invoer.recap.trim() + '\n</copilot_recap>' : '\n\n(Geen Copilot-recap aangeleverd.)';
-    p += '\n\nLever nu alleen de notulen in markdown, volgens de vaste structuur.';
-    return p;
+  const VERZOEK_RE = /^\s*(kun|kan|kunnen|wil|willen|zou|zouden)\s+(je|jij|jullie|u|iemand|iedereen)\s+/i;
+  // Toezegging: een actiewoord binnen drie woorden vóór of na "ik"/"we".
+  function toezegging(zin) {
+    const w = zin.split(/\s+/);
+    for (let i = 0; i < w.length; i++) {
+      if (!/^(ik|wij|we)$/i.test(w[i].replace(/[^\wà-ÿ]/g, ''))) continue;
+      if (ACTIE_WOORDEN.test(w.slice(Math.max(0, i - 3), i + 4).join(' '))) return true;
+    }
+    return false;
   }
 
-  /* ---------- Model-aanroep (Messages API, streaming) ---------- */
-  function leesbareFout(f) {
-    if (!f) return 'Onbekende fout.';
-    if (f.geannuleerd) return 'De generatie is geannuleerd.';
-    if (f.netwerk || (f instanceof TypeError)) {
-      return 'De browser kon het endpoint niet bereiken. Meestal betekent dit dat het endpoint geen aanroepen vanuit de browser toestaat (CORS-blokkade), of dat een firewall, proxy of ontbrekende internetverbinding in de weg zit. Controleer de endpoint-URL bij Instellingen en lees in de README wat je bij een CORS-fout kunt doen.';
+  /* ---------- Analyse: kopgegevens ---------- */
+  function bepaalKop(meta, kopRegels, secties) {
+    const vind = (re) => { for (const r of kopRegels) { const m = re.exec(r); if (m) return m[1].trim(); } return ''; };
+    const kop = {};
+    kop.titel = meta.titel || STANDAARD_TITEL;
+    kop.aanwezig = meta.aanwezig || vind(/^(?:aanwezig(?:en)?|deelnemers|present)\s*:\s*(.+)$/i);
+    kop.afwezig = meta.afwezig || vind(/^(?:afwezig|verontschuldigd|absent)\s*:\s*(.+)$/i);
+    kop.notulist = meta.notulist || vind(/^(?:notulist|notulen|verslag)\s*:\s*(.+)$/i);
+    kop.gedeeltelijk = meta.gedeeltelijk || kopRegels.filter((r) => !/^(aanwezig|afwezig|notulist|notulen|deelnemers)\b/i.test(r) && /\b(tot|vanaf)\s+\d{1,2}[:.]\d{2}|gedeeltelijk|later\s+aan|eerder\s+weg|deels\b/i.test(r)).join('; ');
+    if (!kop.gedeeltelijk && kop.aanwezig) {
+      const deel = kop.aanwezig.split(/,\s*/).filter((d) => /\b(tot|vanaf)\s+\d{1,2}[:.]\d{2}|gedeeltelijk/i.test(d));
+      if (deel.length) { kop.gedeeltelijk = deel.join(', '); kop.aanwezig = kop.aanwezig.split(/,\s*/).filter((d) => !deel.includes(d)).join(', '); }
     }
-    if (typeof f.status === 'number') {
-      const detail = f.detail ? ' Melding van het endpoint: ' + f.detail : '';
-      switch (f.status) {
-        case 400: return 'Het endpoint heeft het verzoek geweigerd (400). Controleer de modelnaam en de grootte van de invoer.' + detail;
-        case 401: return 'Niet geautoriseerd (401): de API-key is onjuist, verlopen of hoort niet bij dit endpoint. Controleer de key bij Instellingen.' + detail;
-        case 403: return 'Geen toegang (403): deze key of dit account heeft geen rechten voor dit model of deze resource.' + detail;
-        case 404: return 'Niet gevonden (404): controleer de endpoint-URL en de modelnaam (bij Foundry de deploymentnaam).' + detail;
-        case 413: return 'De invoer is te groot voor het endpoint (413). Kort het transcript in.' + detail;
-        case 429: return 'Te veel verzoeken (429): de limiet van de aanbieder is bereikt. Wacht een minuut en probeer het opnieuw.' + detail;
-        case 500: case 502: case 503: case 504: case 529:
-          return 'Storing bij de aanbieder (' + f.status + '). Probeer het over enkele minuten opnieuw.' + detail;
-        default: return 'Het endpoint gaf fout ' + f.status + '.' + detail;
+    let datumTekst = meta.datum ? datumNL(meta.datum) : '';
+    let datumRegel = '';
+    if (!datumTekst) {
+      for (const r of kopRegels) { if (r.length > 80) continue; const ds = vindDatums(r).filter((d) => CONCREET[d.soort]); if (ds.length) { datumTekst = ds[0].tekst; datumRegel = r; break; } }
+    }
+    kop.datum = datumTekst;
+    const jaar = /(\d{4})$/.exec(datumTekst || '');
+    if (jaar) JAAR = +jaar[1];
+    if (!meta.datum && datumTekst) kop.datum = vervangDatums(datumTekst);
+    kop.locatie = meta.locatie || vind(/^(?:locatie|plaats|waar)\s*:\s*(.+)$/i);
+    if (!kop.locatie && datumRegel) {
+      const delen = datumRegel.split(/,|\s+[-–]\s+|\|/).map((d) => d.trim()).filter((d) => d && !vindDatums(d).length && !/\d{1,2}:\d{2}/.test(d) && !/^(mt|notulen|overleg|vergadering)\b/i.test(d) && !/sd worx/i.test(d));
+      if (delen.length) kop.locatie = delen.join(', ');
+    }
+    let link = meta.link || '';
+    if (!link) {
+      for (const r of kopRegels) {
+        const u = /(https?:\/\/\S+)/.exec(r);
+        if (u) { const label = r.slice(0, u.index).replace(/[:\s]+$/, '').trim(); link = '[' + (label && !/^link$/i.test(label) ? label : 'MT Prep') + '](' + u[1].replace(/[.,;)]+$/, '') + ')'; break; }
       }
-    }
-    if (f.detail) return String(f.detail);
-    if (f.message) return String(f.message);
-    return String(f);
-  }
-  async function httpFout(res) {
-    let detail = '', type = '';
-    try {
-      const t = await res.text();
-      try {
-        const j = JSON.parse(t);
-        detail = (j.error && (j.error.message || j.error.code)) || j.message || t;
-        type = (j.error && j.error.type) || '';
-      } catch (e) { detail = t; }
-    } catch (e) { /* geen body */ }
-    detail = String(detail || '').replace(/\s+/g, ' ').trim().slice(0, 300);
-    return { status: res.status, type, detail };
+    } else if (/^https?:\/\/\S+$/i.test(link)) link = '[MT Prep' + (kop.datum ? ' ' + kop.datum : '') + '](' + link + ')';
+    kop.link = link;
+    const heeftAanwezig = !!kop.aanwezig;
+    ['locatie', 'datum', 'aanwezig', 'notulist', 'link'].forEach((k) => { if (!kop[k]) kop[k] = NOG; });
+    ['gedeeltelijk', 'afwezig'].forEach((k) => { if (!kop[k]) kop[k] = heeftAanwezig ? 'geen' : NOG; });
+    return kop;
   }
 
-  async function roepModelAan(opts) {
-    if (mockActief()) return mockAanroep(opts);
-    const body = {
-      model: (instellingen.model || STANDAARD_MODEL).trim(), max_tokens: MAX_TOKENS, stream: true,
-      system: opts.system, messages: [{ role: 'user', content: opts.user }],
-    };
-    let res;
-    try {
-      res = await fetch(endpointUrl(), { method: 'POST', headers: bouwHeaders(), body: JSON.stringify(body), signal: opts.signal });
-    } catch (e) {
-      if (e && e.name === 'AbortError') throw { geannuleerd: true };
-      throw { netwerk: true, oorzaak: e };
+  /* ---------- Analyse: getallen die tussen bronnen verschillen ---------- */
+  const TERM_STOP = new Set(['mt', 'week', 'punt', 'nummer', 'versie', 'zaal', 'uur', 'tot', 'circa', 'top', 'pagina', 'slide', 'agendapunt', 'item', 'stap', 'fase', 'ronde', 'kwartaal', 'level', 'niveau', 'nr', 'plus', 'min', 'maal', 'keer', 'lijn']);
+  function termGetallen(tekst) {
+    const uit = {};
+    const re = /\b([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ-]{2,})\b(?:\s+(?:is|op|staat op|van|naar|=|:))?\s*(\d+(?:[.,]\d+)?)\s*(%|procent|euro|k)?(?![\d/:.-])/g;
+    let m;
+    while ((m = re.exec(tekst))) {
+      const term = m[1].toLowerCase();
+      if (STOP.has(term) || TERM_STOP.has(term) || /^\d/.test(m[2] + '') === false) continue;
+      if (m[2].length < 2 && !/[.,]/.test(m[2])) continue;
+      if (!uit[term]) uit[term] = new Set();
+      uit[term].add(m[2].replace(',', '.'));
     }
-    if (!res.ok) throw await httpFout(res);
-    try { return await leesStream(res, opts.onTekst); }
-    catch (e) { if (e && e.name === 'AbortError') throw { geannuleerd: true }; throw e; }
+    return uit;
   }
-
-  async function leesStream(res, onTekst) {
-    const ct = res.headers.get('content-type') || '';
-    if (!res.body || !ct.includes('text/event-stream')) {
-      // Geen stream (bijvoorbeeld door een proxy): lees het antwoord in één keer.
-      const t = await res.text();
-      let j;
-      try { j = JSON.parse(t); } catch (e) { throw { status: res.status, detail: 'Onverwacht antwoord van het endpoint: ' + t.slice(0, 200) }; }
-      if (j.type === 'error') throw { status: res.status, type: j.error && j.error.type, detail: j.error && j.error.message };
-      const tekst = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-      onTekst(tekst);
-      return { tekst, stopReden: j.stop_reason, model: j.model };
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder('utf-8');
-    let buffer = '', tekst = '', stopReden = null, model = null;
-    const verwerk = (data) => {
-      if (!data || data === '[DONE]') return;
-      let ev;
-      try { ev = JSON.parse(data); } catch (e) { return; }
-      switch (ev.type) {
-        case 'message_start': model = (ev.message && ev.message.model) || null; break;
-        case 'content_block_delta':
-          if (ev.delta && ev.delta.type === 'text_delta' && ev.delta.text) { tekst += ev.delta.text; onTekst(ev.delta.text); }
-          break;
-        case 'message_delta': if (ev.delta && ev.delta.stop_reason) stopReden = ev.delta.stop_reason; break;
-        case 'error': throw { status: res.status, type: ev.error && ev.error.type, detail: ev.error && ev.error.message };
-        default: break; // ping, content_block_start/stop, thinking-deltas, message_stop
-      }
-    };
-    const verwerkBlok = (blok) => {
-      const data = [];
-      blok.split('\n').forEach((regel) => { if (regel.startsWith('data:')) data.push(regel.slice(5).replace(/^ /, '')); });
-      if (data.length) verwerk(data.join('\n'));
-    };
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      buffer = buffer.replace(/\r\n?/g, '\n');
-      let sep;
-      while ((sep = buffer.indexOf('\n\n')) !== -1) { verwerkBlok(buffer.slice(0, sep)); buffer = buffer.slice(sep + 2); }
-    }
-    buffer += decoder.decode();
-    if (buffer.trim()) verwerkBlok(buffer);
-    return { tekst, stopReden, model };
-  }
-
-  // Mock-modus: na 1 seconde de vaste voorbeeldoutput, in stukjes zodat de weergave meestroomt.
-  function mockAanroep(opts) {
-    return new Promise((resolve, reject) => {
-      let timer = setTimeout(() => {
-        const delen = MOCK_OUTPUT.match(/[\s\S]{1,120}/g) || [];
-        let i = 0;
-        const tik = () => {
-          if (opts.signal && opts.signal.aborted) { reject({ geannuleerd: true }); return; }
-          if (i < delen.length) { opts.onTekst(delen[i++]); timer = setTimeout(tik, 20); }
-          else resolve({ tekst: MOCK_OUTPUT, stopReden: 'end_turn', model: 'mock' });
-        };
-        tik();
-      }, 1000);
-      if (opts.signal) opts.signal.addEventListener('abort', () => { clearTimeout(timer); reject({ geannuleerd: true }); }, { once: true });
+  function vindTegenstrijdigheden(teksten) {
+    const per = {};
+    Object.keys(teksten).forEach((bron) => { if (teksten[bron]) per[bron] = termGetallen(teksten[bron]); });
+    const termen = new Set();
+    Object.values(per).forEach((t) => Object.keys(t).forEach((k) => termen.add(k)));
+    const uit = [];
+    termen.forEach((term) => {
+      const bronnen = Object.keys(per).filter((b) => per[b][term] && per[b][term].size === 1);
+      if (bronnen.length < 2) return;
+      const waarden = uniek(bronnen.map((b) => Array.from(per[b][term])[0]));
+      if (waarden.length < 2) return;
+      uit.push({ term, detail: bronnen.map((b) => b + ': ' + Array.from(per[b][term])[0]).join(', ') });
     });
+    return uit;
   }
 
-  /* ---------- Test verbinding ---------- */
-  function toonTestResultaat(ok, tekst) {
-    el.testResultaat.innerHTML = '';
-    const pil = document.createElement('span');
-    pil.className = 'pil' + (ok ? '' : ' pil-navy');
-    pil.textContent = ok ? 'OK' : 'Fout';
-    el.testResultaat.appendChild(pil);
-    el.testResultaat.appendChild(document.createTextNode(' ' + tekst));
-    el.testResultaat.hidden = false;
-    el.testStatus.textContent = '';
-  }
-  async function testVerbinding() {
-    leesInstellingenUit();
-    verbergMelding(el.testResultaat);
-    el.testStatus.textContent = 'Bezig met testen…';
-    if (mockActief()) { await wacht(1000); toonTestResultaat(true, 'Mock-modus is actief: er is geen echte aanroep gedaan. Zet Mock-modus uit om het echte endpoint te testen.'); return; }
-    const probleem = controleerInstellingen();
-    if (probleem) { toonTestResultaat(false, probleem); return; }
-    const url = endpointUrl();
-    const body = { model: (instellingen.model || STANDAARD_MODEL).trim(), max_tokens: 32, messages: [{ role: 'user', content: 'Antwoord met precies één woord: OK' }] };
-    try {
-      const res = await fetch(url, { method: 'POST', headers: bouwHeaders(), body: JSON.stringify(body) });
-      if (!res.ok) { toonTestResultaat(false, leesbareFout(await httpFout(res))); return; }
-      let j = null;
-      try { j = await res.json(); } catch (e) { /* leeg antwoord */ }
-      toonTestResultaat(true, 'Verbinding geslaagd. Het endpoint ' + url + ' antwoordde' + (j && j.model ? ' met model “' + j.model + '”' : '') + '. Browser-aanroepen (CORS) zijn toegestaan.');
-    } catch (e) {
-      console.error('Test verbinding mislukt', e);
-      toonTestResultaat(false, leesbareFout({ netwerk: true, oorzaak: e }));
+  /* ---------- Analyse: van bronnen naar notulen ---------- */
+  function maakNotulen(invoer) {
+    NAMEN = [];
+    JAAR = new Date().getFullYear();
+    const meta = invoer.meta || {};
+    const notities = ontleedBron(invoer.notities, 'notities');
+    const recap = invoer.recap.trim() ? ontleedBron(invoer.recap, 'recap') : null;
+    const transcript = invoer.transcript.trim() ? ontleedTranscript(invoer.transcript) : null;
+
+    // Namen verzamelen: kopvelden, kopregels, sprekers, deelnemerslijsten.
+    ['aanwezig', 'gedeeltelijk', 'afwezig', 'notulist'].forEach((k) => registreerNamenUitLijst(meta[k]));
+    const kopRegels = notities.kop.concat(recap ? recap.kop : []);
+    kopRegels.forEach((r) => { const m = /^(?:aanwezig(?:en)?|afwezig|notulist|notulen|deelnemers|verontschuldigd|present)\s*:\s*(.+)$/i.exec(r); if (m) registreerNamenUitLijst(m[1]); else if (/\b(tot|vanaf)\s+\d{1,2}[:.]\d{2}/i.test(r)) registreerNaam(r); });
+    if (transcript) transcript.forEach((u) => { if (u.spreker) registreerNaam(u.spreker); });
+    const kop = bepaalKop(meta, kopRegels, notities.secties);
+
+    // Agenda-items.
+    const items = AGENDA.map((a) => ({ titel: a.titel, herken: a.herken, keypoints: [], besluiten: [], acties: [], vast: true }));
+    const extra = [];
+    const afsluiting = { titel: AGENDA_AFSLUITING.titel, keypoints: [], besluiten: [], acties: [] };
+    let overig = null;
+    const acties = [], afgerond = [];
+    const vindItem = (titel) => items.find((it) => it.herken.test(titel)) || null;
+    const corpus = (it) => [it.titel].concat(it.keypoints.map((k) => k.tekst), it.besluiten, it.acties.map((a) => a.actie)).join(' ');
+    const besteItem = (tekst) => {
+      let beste = null, score = 0;
+      items.concat(extra).forEach((it) => { const s = overlapWoorden(uniek(woorden(tekst)), uniek(woorden(corpus(it)))) + (it.herken && it.herken.test(tekst) ? 2 : 0) + Math.min(0.5, (it.besluiten.length + it.acties.length) * 0.1); if (s > score) { score = s; beste = it; } });
+      return score >= 1 ? beste : null;
+    };
+    const zetOverig = () => { if (!overig) { overig = { titel: TITEL_OVERIG, keypoints: [], besluiten: [], acties: [] }; extra.push(overig); } return overig; };
+    const voegKeypoint = (it, tekst, niveau) => {
+      const t = zinEinde(vervangDatums(tekst.replace(/\s*(->|→|=>)\s*/g, ' – ')));
+      if (!it.keypoints.some((k) => dubbel(k.tekst, t))) it.keypoints.push({ tekst: t, niveau: niveau || 0 });
+    };
+    const voegBesluit = (it, tekst) => {
+      const t = zinEinde(vervangDatums(tekst.replace(/^\s*besluit\s*[:\-–]\s*/i, '')));
+      if (![].concat(...items.concat(extra).map((x) => x.besluiten)).some((b) => dubbel(b, t))) it.besluiten.push(t);
+    };
+    const voegAfgerond = (tekst) => {
+      const t = zinEinde(vervangDatums(tekst.replace(/^\s*(afgerond|gedaan|klaar|afgehandeld)\s*[:\-–]?\s*/i, '').replace(/^\s*nog een afgerond punt\s*:\s*/i, '')));
+      if (!afgerond.some((a) => dubbel(a, t))) afgerond.push(t);
+    };
+    const verwerkRegel = (regel, sectieType, it, bron) => {
+      let tekst = regel.tekst;
+      // "voor -> na": het deel na de pijl kan een actie of besluit zijn.
+      const pijl = /^(.*?)\s*(?:->|→|=>)\s*(.+)$/.exec(tekst);
+      if (pijl && pijl[1].trim()) {
+        const soortNa = classificeer(pijl[2], sectieType);
+        if (soortNa === 'actie') { if (it) voegKeypoint(it, pijl[1], regel.niveau); const a = voegActieToe(acties, maakActie(pijl[2], bron)); if (!a.item && it) { a.item = it; it.acties.push(a); } return; }
+        if (soortNa === 'besluit') { const na = pijl[2].trim(); const naTekst = na === na.toUpperCase() && na.length > 3 ? na.toLowerCase() : na; if (it) voegBesluit(it, pijl[1].trim() + (/:/.test(pijl[1]) ? ' – ' : ': ') + naTekst); return; }
+      }
+      const soort = classificeer(tekst, sectieType);
+      if (soort === 'afgerond') { voegAfgerond(tekst); return; }
+      if (soort === 'besluit') { voegBesluit(it || besteItem(tekst) || items[5] || zetOverig(), tekst); return; }
+      if (soort === 'actie') {
+        const a = voegActieToe(acties, maakActie(tekst, bron));
+        if (!a.item) { const doel = it || besteItem(a.actie); if (doel) { a.item = doel; doel.acties.push(a); } }
+        return;
+      }
+      if (soort === 'open') tekst = 'Open vraag: ' + tekst;
+      const doel = it || besteItem(tekst) || zetOverig();
+      voegKeypoint(doel, tekst, regel.niveau);
+    };
+
+    // 1. Notities zijn leidend: secties koppelen aan agendapunten.
+    notities.secties.forEach((sectie) => {
+      let it = null;
+      if (sectie.type === 'afsluiting') it = afsluiting;
+      else if (sectie.type === 'acties' || sectie.type === 'afgerond') it = null;
+      else {
+        it = vindItem(sectie.titel);
+        if (!it && (sectie.type === 'agenda' || sectie.type === 'samenvatting' || sectie.type === 'open')) {
+          let titel = sectie.titel.replace(/\s*\(([^)]*)\)\s*$/, (m0, binnen) => (vindNamen(binnen).length ? '' : m0)).trim();
+          it = { titel: hoofdletter(titel), keypoints: [], besluiten: [], acties: [] };
+          extra.push(it);
+        }
+        if (it && it.vast && /\d/.test(sectie.titel)) voegKeypoint(it, sectie.titel, 0);
+      }
+      sectie.regels.forEach((regel) => {
+        if (/^(niets|geen|n\.?v\.?t\.?|nvt|niet besproken|-)$/i.test(regel.tekst.trim())) return;
+        verwerkRegel(regel, sectie.type, it, 'notities');
+      });
+    });
+
+    // 2. Recap vult aan: alleen wat nog niet in de notities staat.
+    if (recap) {
+      recap.secties.forEach((sectie) => {
+        let it = null;
+        if (sectie.type === 'afsluiting') it = afsluiting;
+        else if (sectie.type === 'agenda') it = vindItem(sectie.titel);
+        sectie.regels.forEach((regel) => verwerkRegel(regel, sectie.type, it, 'recap'));
+      });
     }
+
+    // 3. Transcript: toezeggingen, besluiten, afgeronde punten en de afsluiting.
+    if (transcript) {
+      transcript.forEach((u, idx) => {
+        const spreker = u.spreker ? (registreerNaam(u.spreker) || { vol: u.spreker, voornaam: u.spreker.split(' ')[0] }) : null;
+        const volgende = transcript[idx + 1];
+        zinnen(u.tekst).forEach((zin) => {
+          const vraag = isVraag(zin);
+          const nWoorden = zin.split(/\s+/).length;
+          if (AFSLUIT_WOORDEN.test(zin) && !vraag) { voegKeypoint(afsluiting, derdePersoon(zin.replace(/^(dan|nou|goed|oké|ok)[,\s]+/i, '').replace(/^is\s+(het\s+\w+\s+\w+)\s+/i, (m0, s) => hoofdletter(s) + ' is '), spreker && spreker.voornaam), 0); return; }
+          if (AFGEROND_WOORDEN.test(zin) && !vraag) { voegAfgerond(derdePersoon(zin, spreker && spreker.voornaam)); return; }
+          if (!vraag && nWoorden >= 4 && (BESLUIT_WOORDEN.test(zin) || BESLUIT_START.test(zin))) {
+            const t = derdePersoon(zin.replace(/^\s*laten we\s+/i, ''), spreker && spreker.voornaam);
+            voegBesluit(besteItem(t) || items[5] || zetOverig(), t);
+            return;
+          }
+          let actieTekst = '', eigenaar = '';
+          if (VERZOEK_RE.test(zin) && vraag) {
+            const namen = vindNamen(zin);
+            if (namen.length) eigenaar = namen.join(', ');
+            else if (volgende && volgende.spreker && /^(ja|prima|oké|ok|goed|doe ik|zal ik|natuurlijk|tuurlijk|akkoord|is goed)\b/i.test(volgende.tekst)) { const n = registreerNaam(volgende.spreker); eigenaar = n ? n.vol : volgende.spreker; }
+            actieTekst = zin.replace(VERZOEK_RE, '').replace(/\?\s*$/, '').trim();
+          } else if (!vraag && /\b(ik|wij|we)\b/i.test(zin) && (toezegging(zin) || (/\bik\b/i.test(zin) && vindDatums(zin).some((d) => CONCREET[d.soort])))) {
+            const namen = vindNamen(zin).filter((n) => !spreker || n !== spreker.vol);
+            if (/\bik\b/i.test(zin) && spreker) namen.push(spreker.vol);
+            eigenaar = uniek(namen).join(', ');
+            actieTekst = derdePersoon(zin, spreker && spreker.voornaam);
+          } else if (!vraag && vindNamen(zin).length && vindDatums(zin).some((d) => CONCREET[d.soort]) && ACTIE_WOORDEN.test(zin)) {
+            eigenaar = vindNamen(zin).join(', ');
+            actieTekst = zin;
+          }
+          if (!actieTekst) return;
+          const nieuw = maakActie(actieTekst, 'transcript', eigenaar);
+          if (eigenaar) nieuw.eigenaar = eigenaar;
+          const a = voegActieToe(acties, nieuw);
+          if (!a.item) { const doel = besteItem(a.actie); if (doel) { a.item = doel; doel.acties.push(a); } }
+        });
+      });
+    }
+
+    // 4. Getallen die tussen de bronnen verschillen.
+    vindTegenstrijdigheden({ notities: invoer.notities, transcript: invoer.transcript, recap: invoer.recap }).forEach((c) => {
+      const doel = items.concat(extra).find((it) => corpus(it).toLowerCase().includes(c.term)) || items[0];
+      doel.keypoints.push({ tekst: 'Let op: de bronnen verschillen over ' + c.term.toUpperCase().replace(/^([A-Z])([A-Z]+)$/, (m0, a, b) => (c.term.length <= 4 ? m0 : a + b.toLowerCase())) + ' (' + c.detail + ').', niveau: 0 });
+    });
+
+    // 5. Markdown opbouwen.
+    const uit = [];
+    uit.push('# ' + kop.titel, '');
+    uit.push('**Locatie:** ' + kop.locatie, '**Datum:** ' + kop.datum, '**Aanwezig:** ' + kop.aanwezig, '**Gedeeltelijk aanwezig:** ' + kop.gedeeltelijk, '**Afwezig:** ' + kop.afwezig, '**Notulist:** ' + kop.notulist, '**Link:** ' + kop.link, '');
+    let nr = 0;
+    const schrijfItem = (it) => {
+      nr++;
+      uit.push('## ' + nr + '. ' + it.titel);
+      const regels = [];
+      it.keypoints.forEach((k) => regels.push('  '.repeat(k.niveau) + '- ' + k.tekst));
+      it.besluiten.forEach((b) => regels.push('- **Besluit:** ' + b));
+      it.acties.forEach((a) => regels.push('- **Actie:** ' + a.actie + ' – ' + a.eigenaar + ' – ' + a.deadline));
+      if (!regels.length) regels.push('Niet besproken.');
+      uit.push(...regels, '');
+    };
+    items.forEach(schrijfItem);
+    extra.filter((it) => it !== overig || it.keypoints.length || it.besluiten.length || it.acties.length).forEach(schrijfItem);
+    nr++;
+    uit.push('## ' + nr + '. ' + AGENDA_ACTIES.titel, '**Lopende actiepunten:**', '');
+    const cel = (s) => String(s).replace(/\|/g, '\\|');
+    if (acties.length) {
+      uit.push('| Actie | Eigenaar | Deadline | Bron |', '|---|---|---|---|');
+      acties.forEach((a) => uit.push('| ' + cel(a.actie) + ' | ' + cel(a.eigenaar) + ' | ' + cel(a.deadline) + ' | ' + Array.from(a.bronnen).join(', ') + ' |'));
+    } else uit.push('Geen acties gevonden in de bronnen.');
+    uit.push('', '**Afgeronde actiepunten:**');
+    if (afgerond.length) afgerond.forEach((a) => uit.push('- ' + a)); else uit.push('- Geen.');
+    uit.push('');
+    schrijfItem(afsluiting);
+    return uit.join('\n').trim() + '\n';
   }
 
-  /* ---------- Uitvoer: renderen, bewerken, kopiëren ---------- */
-  let huidigeMarkdown = '', modus = 'weergave', bezig = false, controller = null, renderTimer = null, markedKlaar = false;
+  /* ---------- Notulen maken ---------- */
+  function maakNotulenKlik() {
+    const invoer = leesInvoer();
+    if (!invoer.notities.trim()) {
+      toonMelding(el.invoerMelding, 'Notities ontbreken', 'Notities zijn verplicht. Plak tekst in het vak “Notities” of laad daar een bestand.');
+      ZONES[0].textarea.focus();
+      return;
+    }
+    verbergMelding(el.invoerMelding);
+    let md;
+    try { md = maakNotulen(invoer); }
+    catch (e) { console.error('Fout bij het maken van de notulen', e); toonMelding(el.melding, 'Er ging iets mis', 'De notulen konden niet gemaakt worden: ' + (e && e.message ? e.message : e)); return; }
+    const nAct = (md.match(/^\| (?!Actie \||-{3})/gm) || []).length;
+    const nNog = (md.match(/\[NOG AAN TE VULLEN\]/g) || []).length;
+    zetNotulen(md, 'Notulen gemaakt: ' + nAct + ' actie' + (nAct === 1 ? '' : 's') + ' gevonden' + (nNog ? ', ' + nNog + ' x [NOG AAN TE VULLEN] om zelf in te vullen' : '') + '. Controleer de tekst en download daarna het Word-bestand.');
+    el.uitvoer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function laadVoorbeeld() {
+    ZONES.forEach((z) => {
+      const bron = VOORBEELD_BRONNEN[z.naam] || '';
+      z.textarea.value = z.naam === 'transcript' && /^\uFEFF?WEBVTT/.test(bron) ? parseVtt(bron) : bron;
+      z.bestandsnaam.textContent = bron ? 'Voorbeeld' : '';
+    });
+    Object.keys(el.meta).forEach((k) => { el.meta[k].value = k === 'titel' ? STANDAARD_TITEL : ''; });
+    updateTellers();
+    maakNotulenKlik();
+  }
+
+  /* ---------- Notulen: renderen, bewerken ---------- */
+  let huidigeMarkdown = '', modus = 'bewerken', markedKlaar = false;
 
   function initMarked() {
     if (markedKlaar || !window.marked) return;
@@ -971,15 +1186,13 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     catch (e) { return '<pre class="ruwtekst">' + escapeHtml(md) + '</pre>'; }
   }
   function render() {
-    if (renderTimer) { clearTimeout(renderTimer); renderTimer = null; }
     if (modus === 'bewerken') el.ruw.value = huidigeMarkdown;
     else el.gerenderd.innerHTML = naarHtml(huidigeMarkdown);
   }
-  function planRender() { if (!renderTimer) renderTimer = setTimeout(() => { renderTimer = null; render(); }, 150); }
   function opschonen(t) {
-    let s = String(t || '').trim();
-    const m = /^```(?:markdown|md)?\s*\n([\s\S]*?)\n```\s*$/.exec(s);
-    if (m) s = m[1].trim();
+    let s = String(t || '').replace(/\r\n?/g, '\n').trim();
+    const blok = /```(?:markdown|md)?[ \t]*\n([\s\S]*?)\n[ \t]*```/.exec(s);
+    if (blok && /^#/m.test(blok[1])) s = blok[1].trim();
     return s;
   }
   function zetModus(m) {
@@ -992,60 +1205,93 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     el.gerenderd.hidden = m === 'bewerken';
     if (m === 'weergave') el.gerenderd.innerHTML = naarHtml(huidigeMarkdown);
   }
-  function zetBezig(b) {
-    bezig = b;
-    el.knopAnnuleer.hidden = !b;
-    el.knopGenereer.setAttribute('aria-disabled', String(b));
-    $$('#uitvoerKnoppen .knop').forEach((k) => k.setAttribute('aria-disabled', String(b)));
-    el.ruw.readOnly = b;
+  function zetNotulen(md, statusTekst) {
+    huidigeMarkdown = opschonen(md);
+    el.ruw.value = huidigeMarkdown;
+    verbergMelding(el.melding);
+    zetModus(huidigeMarkdown ? 'weergave' : 'bewerken');
+    if (statusTekst) zetStatus(statusTekst);
   }
 
-  async function genereer() {
-    if (bezig) return;
-    const invoer = leesInvoer();
-    if (!invoer.notities.trim()) {
-      toonMelding(el.invoerMelding, 'Notities ontbreken', 'Notities zijn verplicht. Plak tekst in het vak “Notities” of laad daar een bestand.');
-      ZONES[0].textarea.focus();
-      return;
-    }
-    const probleem = controleerInstellingen();
-    if (probleem) { toonMelding(el.invoerMelding, 'Instellingen', probleem); openInstellingen(); return; }
-    verbergMelding(el.invoerMelding);
-    controller = new AbortController();
-    huidigeMarkdown = '';
-    zetModus('weergave');
-    el.gerenderd.innerHTML = '';
-    el.ruw.value = '';
-    el.uitvoer.hidden = false;
-    verbergMelding(el.melding);
-    zetStatus(mockActief() ? 'Voorbeeldnotulen worden gemaakt (mock-modus)…' : 'Notulen worden gemaakt… de tekst verschijnt terwijl het model schrijft.');
-    zetBezig(true);
-    el.uitvoer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    try {
-      const r = await roepModelAan({
-        system: bouwSysteemprompt(), user: bouwGebruikersprompt(invoer),
-        onTekst: (d) => { huidigeMarkdown += d; planRender(); }, signal: controller.signal,
+  // Zet opgemaakte tekst (HTML van het klembord) om naar markdown: koppen, vet, opsommingen, tabellen.
+  function htmlNaarMarkdown(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const uit = [];
+    const BLOK = /^(h[1-6]|p|ul|ol|table|pre|div|blockquote|hr|section|article|main|header|footer|li)$/i;
+    const inlineNode = (n) => {
+      if (n.nodeType === 3) return n.nodeValue.replace(/\s+/g, ' ');
+      if (n.nodeType !== 1) return '';
+      const tag = n.tagName.toLowerCase();
+      if (tag === 'br') return '\n';
+      if (tag === 'strong' || tag === 'b') { const t = inlineVan(n).trim(); return t ? '**' + t + '**' : ''; }
+      if (tag === 'em' || tag === 'i') { const t = inlineVan(n).trim(); return t ? '*' + t + '*' : ''; }
+      if (tag === 'code') return '`' + n.textContent + '`';
+      if (tag === 'a') { const t = inlineVan(n).trim(); const href = n.getAttribute('href'); return href && t && /^https?:/i.test(href) ? '[' + t + '](' + href + ')' : t; }
+      if (tag === 'img' || tag === 'script' || tag === 'style') return '';
+      return inlineVan(n);
+    };
+    const inlineVan = (node) => Array.from(node.childNodes).map(inlineNode).join('');
+    const alinea = (t) => { t = t.replace(/[ \t]+\n/g, '\n').replace(/\n[ \t]+/g, '\n').trim(); if (t) { uit.push(t); uit.push(''); } };
+    const lijst = (ul, diepte) => {
+      const ordered = ul.tagName.toLowerCase() === 'ol';
+      let i = 0;
+      Array.from(ul.children).forEach((li) => {
+        if (li.tagName.toLowerCase() !== 'li') return;
+        i++;
+        let tekst = ''; const subs = [];
+        Array.from(li.childNodes).forEach((c) => { if (c.nodeType === 1 && /^(ul|ol)$/i.test(c.tagName)) subs.push(c); else tekst += inlineNode(c); });
+        uit.push('  '.repeat(diepte) + (ordered ? i + '. ' : '- ') + tekst.replace(/\s+/g, ' ').trim());
+        subs.forEach((s) => lijst(s, diepte + 1));
       });
-      huidigeMarkdown = opschonen(r.tekst || huidigeMarkdown);
-      render();
-      let s = 'Klaar. Controleer de notulen en vul de punten met [NOG AAN TE VULLEN] aan.';
-      if (r.stopReden === 'max_tokens') s = 'Klaar, maar de notulen zijn mogelijk afgebroken omdat de maximale lengte is bereikt.';
-      if (r.stopReden === 'refusal') s = 'Het model heeft dit verzoek geweigerd (veiligheidsfilter). Controleer de invoer en probeer het opnieuw.';
-      if (mockActief()) s += ' Dit is de vaste voorbeeldoutput van de mock-modus.';
-      zetStatus(s);
-    } catch (e) {
-      if (e && e.geannuleerd) { zetStatus('Geannuleerd.' + (huidigeMarkdown ? ' De tekst tot nu toe staat hieronder.' : '')); render(); }
-      else {
-        console.error('Fout bij genereren', e);
-        zetStatus('Mislukt.');
-        toonMelding(el.melding, 'Er ging iets mis', leesbareFout(e));
-      }
-    } finally {
-      controller = null;
-      zetBezig(false);
-    }
+    };
+    const tabel = (t) => {
+      const rijen = Array.from(t.querySelectorAll('tr')).map((tr) => Array.from(tr.children).map((c) => inlineVan(c).replace(/\s+/g, ' ').replace(/\|/g, '\\|').trim()));
+      if (!rijen.length) return;
+      uit.push('| ' + rijen[0].join(' | ') + ' |');
+      uit.push('|' + rijen[0].map(() => '---').join('|') + '|');
+      rijen.slice(1).forEach((r) => uit.push('| ' + r.join(' | ') + ' |'));
+    };
+    const blok = (node) => {
+      Array.from(node.childNodes).forEach((n) => {
+        if (n.nodeType === 3) { alinea(n.nodeValue); return; }
+        if (n.nodeType !== 1) return;
+        const tag = n.tagName.toLowerCase();
+        if (/^h[1-6]$/.test(tag)) { uit.push('#'.repeat(+tag[1]) + ' ' + inlineVan(n).replace(/\s+/g, ' ').trim()); uit.push(''); return; }
+        if (tag === 'p') { alinea(inlineVan(n)); return; }
+        if (tag === 'ul' || tag === 'ol') { lijst(n, 0); uit.push(''); return; }
+        if (tag === 'table') { tabel(n); uit.push(''); return; }
+        if (tag === 'pre') { uit.push('```'); uit.push(n.textContent.replace(/\n$/, '')); uit.push('```'); uit.push(''); return; }
+        if (tag === 'hr') { uit.push('---'); uit.push(''); return; }
+        if (tag === 'blockquote') { const t = inlineVan(n).trim(); if (t) { uit.push('> ' + t.replace(/\n/g, '\n> ')); uit.push(''); } return; }
+        if (tag === 'script' || tag === 'style' || tag === 'meta' || tag === 'link') return;
+        if (Array.from(n.children).some((c) => BLOK.test(c.tagName))) blok(n);
+        else alinea(inlineVan(n));
+      });
+    };
+    blok(doc.body);
+    return uit.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
-  function annuleer() { if (controller) controller.abort(); }
+  const lijktMarkdown = (t) => /^#{1,6}\s|\*\*[^*\n]+\*\*|^\|.*\|\s*$|^```/m.test(t);
+  el.ruw.addEventListener('paste', (e) => {
+    const cd = e.clipboardData;
+    if (!cd) return;
+    const plain = cd.getData('text/plain') || '';
+    const html = cd.getData('text/html') || '';
+    if (lijktMarkdown(plain) || !html || !/<(h[1-6]|p|ul|ol|table|strong|b)\b/i.test(html)) return;
+    const md = htmlNaarMarkdown(html);
+    if (!md.trim()) return;
+    e.preventDefault();
+    const ta = el.ruw;
+    const alles = ta.value.trim() === '' || (ta.selectionStart === 0 && ta.selectionEnd === ta.value.length);
+    if (alles) zetNotulen(md, 'Opgemaakte tekst geplakt en omgezet naar markdown.');
+    else {
+      const start = ta.selectionStart, end = ta.selectionEnd;
+      ta.value = ta.value.slice(0, start) + md + ta.value.slice(end);
+      ta.selectionStart = ta.selectionEnd = start + md.length;
+      huidigeMarkdown = ta.value;
+    }
+  });
+  el.ruw.addEventListener('input', () => { huidigeMarkdown = el.ruw.value; });
 
   function fallbackKopieer(tekst) {
     const ta = document.createElement('textarea');
@@ -1056,15 +1302,15 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     document.body.removeChild(ta);
     if (!ok) throw new Error('Kopiëren niet toegestaan');
   }
-  async function kopieer(tekst, label) {
+  async function kopieerNaarKlembord(tekst) {
     try {
       if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(tekst);
       else fallbackKopieer(tekst);
-      zetStatus(label + ' gekopieerd naar het klembord.');
-    } catch (e) {
-      try { fallbackKopieer(tekst); zetStatus(label + ' gekopieerd naar het klembord.'); }
-      catch (e2) { toonMelding(el.melding, 'Kopiëren mislukt', 'De browser staat kopiëren niet toe. Open “Bewerken”, selecteer de tekst en kopieer die handmatig.'); }
-    }
+    } catch (e) { fallbackKopieer(tekst); }
+  }
+  async function kopieer(tekst, label) {
+    try { await kopieerNaarKlembord(tekst); zetStatus(label + ' gekopieerd naar het klembord.'); }
+    catch (e) { toonMelding(el.melding, 'Kopiëren mislukt', 'De browser staat kopiëren niet toe. Open “Bewerken”, selecteer de tekst en kopieer die handmatig.'); }
   }
 
   // Markdown naar platte tekst voor Teams of e-mail: koppen in hoofdletters, tabel als regels.
@@ -1396,18 +1642,16 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   }
 
   function heeftNotulen() {
-    if (bezig) return false;
-    if (!huidigeMarkdown.trim()) { zetStatus('Er zijn nog geen notulen om te gebruiken.'); return false; }
+    if (modus === 'bewerken') huidigeMarkdown = el.ruw.value;
+    if (!huidigeMarkdown.trim()) { zetStatus('Er zijn nog geen notulen. Klik eerst op “Maak notulen”.'); return false; }
     return true;
   }
 
   /* ---------- Gebeurtenissen ---------- */
-  el.knopGenereer.addEventListener('click', genereer);
-  el.knopOpnieuw.addEventListener('click', () => { if (!bezig) genereer(); });
-  el.knopAnnuleer.addEventListener('click', annuleer);
+  el.knopMaak.addEventListener('click', maakNotulenKlik);
+  el.knopVoorbeeld.addEventListener('click', laadVoorbeeld);
   el.tabWeergave.addEventListener('click', () => zetModus('weergave'));
   el.tabBewerken.addEventListener('click', () => zetModus('bewerken'));
-  el.ruw.addEventListener('input', () => { huidigeMarkdown = el.ruw.value; });
   el.knopKopieerMd.addEventListener('click', () => { if (heeftNotulen()) kopieer(huidigeMarkdown, 'Markdown'); });
   el.knopKopieerTekst.addEventListener('click', () => { if (heeftNotulen()) kopieer(naarPlatteTekst(huidigeMarkdown), 'Platte tekst'); });
   el.knopDownloadMd.addEventListener('click', () => { if (heeftNotulen()) { download(bestandsnaam('md'), huidigeMarkdown, 'text/markdown;charset=utf-8'); zetStatus('Markdown-bestand gedownload.'); } });
@@ -1424,35 +1668,17 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
       toonMelding(el.melding, 'Word-export mislukt', (e && e.message) || String(e));
     }
   });
-  el.knopInstellingen.addEventListener('click', openInstellingen);
-  el.knopSluit.addEventListener('click', sluitInstellingen);
-  el.dialoog.addEventListener('close', updateStartMelding);
-  el.knopTest.addEventListener('click', testVerbinding);
-  el.knopToonKey.addEventListener('click', () => {
-    const toon = el.inst.apiKey.type === 'password';
-    el.inst.apiKey.type = toon ? 'text' : 'password';
-    el.knopToonKey.textContent = toon ? 'Verberg' : 'Toon';
-  });
-  el.knopWisInstellingen.addEventListener('click', () => {
-    if (!window.confirm('Alle opgeslagen instellingen (inclusief de API-key) uit deze browser verwijderen?')) return;
-    try { localStorage.removeItem(OPSLAG_SLEUTEL); } catch (e) { /* niets */ }
-    instellingen = Object.assign({}, STANDAARD);
-    vulInstellingenIn();
-    verbergMelding(el.testResultaat);
-    updateStartMelding();
-  });
-  Object.keys(el.inst).forEach((k) => ['input', 'change'].forEach((evt) => el.inst[k].addEventListener(evt, leesInstellingenUit)));
-  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !el.dialoog.open) { e.preventDefault(); genereer(); } });
+  document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); maakNotulenKlik(); } });
 
   /* ---------- Start ---------- */
   if (!el.meta.titel.value) el.meta.titel.value = STANDAARD_TITEL;
-  vulInstellingenIn();
-  updateStartMelding();
   updateTellers();
+  zetModus('bewerken');
   wanneerGeladen('marked', initMarked);
+  if (new URLSearchParams(location.search).get('voorbeeld') === '1') laadVoorbeeld();
 
   // Voor handmatige tests in de browserconsole.
-  window.notulentool = { parseVtt, naarPlatteTekst, normaliseerEndpoint, bouwSysteemprompt, bouwGebruikersprompt, slug, leesKopblok, markdownNaarWordXml, naarDDMMJJJJ, naarISO };
+  window.notulentool = { maakNotulen, parseVtt, naarPlatteTekst, slug, leesKopblok, markdownNaarWordXml, naarDDMMJJJJ, naarISO, htmlNaarMarkdown, opschonen, vindDatums, ontleedBron };
 })();
 </script>
 </body>
