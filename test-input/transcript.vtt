@@ -3,70 +3,78 @@ WEBVTT
 NOTE
 Transcript gegenereerd door Microsoft Teams (fictief testbestand).
 
-0f2a9c1e-5b3d-4c8e-9a1f-000000000001/1-0
-00:00:02.000 --> 00:00:06.500
-<v Sanne de Wit>Goedemorgen allemaal, fijn dat jullie er zijn. Laten we beginnen met de datamigratie. Fatima?</v>
+7c1e2b90-3f4a-4d5e-8a6b-000000000001/1-0
+00:00:03.000 --> 00:00:09.500
+<v Marieke Jansen>Goedemorgen allemaal. We hebben vandaag vier doelen: de MBR-voorbereiding afronden, de KPI's van augustus, het budget voor de testomgeving van People Hub en de escalatie bij Van Rooij.</v>
 
-0f2a9c1e-5b3d-4c8e-9a1f-000000000001/2-0
-00:00:06.800 --> 00:00:13.000
-<v Fatima El Amrani>We zitten nu op 92 procent. Er zijn nog veertig dossiers waar het BSN of de geboortedatum ontbreekt.</v>
-
-0f2a9c1e-5b3d-4c8e-9a1f-000000000001/2-1
-00:00:13.200 --> 00:00:18.000
-<v Fatima El Amrani>Die ga ik samen met de salarisadministratie nalopen, dat lukt voor 8 september.</v>
+7c1e2b90-3f4a-4d5e-8a6b-000000000001/2-0
+00:00:09.800 --> 00:00:14.000
+<v Marieke Jansen>Tom moet om elf uur weg, dus we doen de escalatie als eerste extra punt.</v>
 
 3
-00:00:18.500 --> 00:00:22.000 align:start position:0%
-<v Sanne de Wit>Prima. Dan de acceptatietest. We starten 15 september en trekken er twee weken voor uit.</v>
+00:00:14.500 --> 00:00:22.000
+<v Pieter de Boer>De MBR is op 10 september. Ik consolideer de slides op 5 september, dus ik wil ieders slide uiterlijk 4 september hebben.</v>
 
 4
 00:00:22.300 --> 00:00:28.000
-<v Tom Peeters>Ik heb twaalf testers uit vier afdelingen op het oog. De definitieve namen bevestig ik uiterlijk 12 september.</v>
+<v Pieter de Boer>Omzet augustus zit twee procent boven budget. IT zit veertigduizend boven budget door licenties.</v>
 
 5
-00:00:28.200 --> 00:00:33.000
-<v Fatima El Amrani>De testscripts zijn nog niet af, ik rond ze af voor 10 september zodat de testers ze op tijd hebben.</v>
+00:00:28.200 --> 00:00:33.000 align:start position:0%
+<v Ruben Jansen>Dat klopt, dat zijn de extra licenties voor People Hub. Ik licht dat toe in de MBR.</v>
 
 6
 00:00:33.500 --> 00:00:41.000
-<v Ruben Jansen>Over de Outlook-koppeling: de leverancier heeft het certificaat nog steeds niet geleverd. Zonder dat certificaat kunnen we de koppeling niet testen.</v>
+<v Fatima El Amrani>NPS is 42, vorige maand 38. Churn 1,8 procent tegen een doel van 1,5. De backlog staat op 320 tickets, doel is 250.</v>
 
 7
-00:00:41.200 --> 00:00:45.000
-<v Ruben Jansen>Ze verwachten het rond 20 september, dan valt het nog binnen de testfase.</v>
+00:00:41.200 --> 00:00:49.000
+<v Fatima El Amrani>De backlog is opgelopen door de vakantieperiode. We hebben twee extra mensen ingehuurd tot eind oktober. Eind september verwacht ik weer 250.</v>
 
 8
-00:00:45.500 --> 00:00:52.000
-<v Tom Peeters>Voor de communicatie stel ik een e-mail en een intranetbericht op. Wanneer dat klaar moet zijn, hebben we nog niet afgesproken.</v>
+00:00:49.200 --> 00:00:53.000
+<v Marieke Jansen>Kun je de backlog wekelijks aan het MT rapporteren, vanaf 8 september?</v>
 
 9
-00:00:52.200 --> 00:00:57.000
-<v Els Vermeulen>Ik plan twee inloopsessies waar medewerkers vragen kunnen stellen, ik kijk of dat eind september lukt.</v>
+00:00:53.200 --> 00:00:55.000
+<v Fatima El Amrani>Ja, dat doe ik.</v>
 
 10
-00:00:57.300 --> 00:01:01.000
-<v Tom Peeters>Wie beheert eigenlijk de FAQ na de go-live? Dat is nog niet belegd.</v>
+00:00:55.500 --> 00:01:04.000
+<v Sanne de Wit>People Hub: de migratie zit op 92 procent, de acceptatietest start 15 september en de go-live blijft 1 oktober met 15 oktober als terugvaloptie. Ik deel de UAT-planning uiterlijk 12 september.</v>
 
 11
-00:01:01.200 --> 00:01:05.000
-<v Sanne de Wit>Goede vraag, dat parkeren we als open punt en komen we op terug.</v>
+00:01:04.200 --> 00:01:10.000
+<v Els Vermeulen>De AI-notulentool test ik in september op de MT-notulen. Ik koppel terug in het MT van 29 september.</v>
 
 12
-00:01:05.500 --> 00:01:12.000
-<v Sanne de Wit>Dan de go-live: die blijft staan op 1 oktober. Als de acceptatietest uitloopt, is 15 oktober onze terugvaloptie.</v>
+00:01:10.500 --> 00:01:16.000
+<v Marieke Jansen>Dan het budget voor de testomgeving: 4.200 euro extra licenties. Iedereen akkoord?</v>
 
 13
-00:01:12.500 --> 00:01:18.000
-<v Sanne de Wit>Tot slot het budget. Voor de testomgeving hebben we extra licenties nodig, 4.200 euro. Kunnen jullie daarmee akkoord gaan?</v>
+00:01:16.200 --> 00:01:18.000
+<v Pieter de Boer>Akkoord.</v>
 
 14
-00:01:18.200 --> 00:01:20.000
-<v Tom Peeters>Ja, akkoord.</v>
+00:01:18.200 --> 00:01:25.000
+<v Sanne de Wit>Hybride werken: mijn voorstel is twee vaste kantoordagen. Ik hoor graag of we dat vandaag kunnen besluiten.</v>
 
 15
-00:01:20.200 --> 00:01:22.000
-<v Ruben Jansen>Akkoord.</v>
+00:01:25.200 --> 00:01:31.000
+<v Marieke Jansen>Ik wil eerst een FAQ voor medewerkers zien. Laten we het besluit doorschuiven naar 15 september.</v>
 
 16
-00:01:22.500 --> 00:01:27.000
-<v Sanne de Wit>Dan meld ik dat vrijdag 5 september aan de stuurgroep. Bedankt allemaal &amp; tot volgende week.</v>
+00:01:31.500 --> 00:01:40.000
+<v Tom Peeters>Bakkerij Van Rooij heeft geklaagd over de loonstroken van juli, verkeerde toeslagen bij veertien medewerkers. Fatima en ik gaan 9 september op bezoek.</v>
+
+17
+00:01:40.200 --> 00:01:44.000
+<v Fatima El Amrani>Ik analyseer de oorzaak vóór 8 september, zodat we met een verklaring komen.</v>
+
+18
+00:01:44.500 --> 00:01:49.000
+<v Ruben Jansen>Nog een afgerond punt: het contract met de nieuwe telefonieleverancier is getekend.</v>
+
+19
+00:01:49.500 --> 00:01:55.000
+<v Marieke Jansen>Mooi. Geen rondvraag? Dan is het volgende MT op 15 september om half tien in Utrecht. Bedankt &amp; tot dan.</v>

@@ -48,6 +48,7 @@ code { font-family: ui-monospace, Consolas, 'Courier New', monospace; font-size:
 main { max-width: 1200px; margin: 0 auto; padding: var(--s4); display: grid; gap: var(--s3); }
 .kaart { background: var(--sdw-white); border: 1px solid var(--sdw-black); border-radius: 8px; padding: var(--s3); }
 .raster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); }
+.raster-4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s1) var(--s3); }
 .kaart-kop { display: flex; align-items: center; justify-content: space-between; gap: var(--s1); flex-wrap: wrap; margin-bottom: var(--s2); }
 .rij { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; }
 .rij-eind { justify-content: flex-end; }
@@ -58,9 +59,14 @@ main { max-width: 1200px; margin: 0 auto; padding: var(--s4); display: grid; gap
 .voet { max-width: 1200px; margin: 0 auto; padding: var(--s3) var(--s4) var(--s6); font-size: 13px; }
 @media (max-width: 960px) {
   .raster { grid-template-columns: 1fr; }
+  .raster-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   main { padding: var(--s2); }
   .kop { padding: var(--s2); }
   .voet { padding: var(--s2) var(--s2) var(--s4); }
+}
+
+@media (max-width: 600px) {
+  .raster-4 { grid-template-columns: 1fr; }
 }
 
 /* Formulieren */
@@ -179,13 +185,18 @@ dialog h2 { margin-bottom: var(--s2); }
   </section>
 
   <section class="kaart" aria-labelledby="metaKop">
-    <div class="kaart-kop"><h2 id="metaKop">Gegevens van de vergadering</h2><span class="pil">Optioneel</span></div>
-    <div class="raster">
-      <div class="veld"><label for="metaTitel">Vergadertitel</label><input id="metaTitel" type="text" autocomplete="off"></div>
+    <div class="kaart-kop"><h2 id="metaKop">Gegevens van het overleg</h2><span class="pil">Optioneel</span></div>
+    <div class="raster-4">
+      <div class="veld"><label for="metaTitel">Titel</label><input id="metaTitel" type="text" autocomplete="off"></div>
+      <div class="veld"><label for="metaLocatie">Locatie</label><input id="metaLocatie" type="text" autocomplete="off"></div>
       <div class="veld"><label for="metaDatum">Datum</label><input id="metaDatum" type="date"></div>
-      <div class="veld"><label for="metaAanwezigen">Aanwezigen</label><input id="metaAanwezigen" type="text" autocomplete="off" placeholder="Namen, gescheiden door komma's"></div>
+      <div class="veld"><label for="metaNotulist">Notulist</label><input id="metaNotulist" type="text" autocomplete="off"></div>
+      <div class="veld"><label for="metaAanwezig">Aanwezig</label><input id="metaAanwezig" type="text" autocomplete="off" placeholder="Leden MT, gescheiden door komma's"></div>
+      <div class="veld"><label for="metaGedeeltelijk">Gedeeltelijk aanwezig</label><input id="metaGedeeltelijk" type="text" autocomplete="off"></div>
+      <div class="veld"><label for="metaAfwezig">Afwezig</label><input id="metaAfwezig" type="text" autocomplete="off"></div>
+      <div class="veld"><label for="metaLink">Link MT Prep</label><input id="metaLink" type="text" autocomplete="off" placeholder="https://…"></div>
     </div>
-    <p class="hulp">Laat je een veld leeg, dan leidt het model de gegevens af uit de bronnen.</p>
+    <p class="hulp">Alles is optioneel. Wat je leeg laat, leidt het model af uit de bronnen; wat het niet kan afleiden, krijgt [NOG AAN TE VULLEN].</p>
   </section>
 
   <div id="invoerMelding" class="melding" hidden></div>
@@ -281,57 +292,88 @@ dialog h2 { margin-bottom: var(--s2); }
 // Let op: de teksten staan tussen backticks (`). Een backtick ín een tekst schrijf je als \` .
 
 // 1. SYSTEEMPROMPT: de instructies voor het model.
-const SYSTEEMPROMPT = `Je bent een ervaren management assistent bij SD Worx. Je schrijft notulen in het Nederlands op basis van aangeleverde bronnen: vergadernotities (altijd aanwezig), eventueel een Teams-transcript en eventueel een Copilot-recap.
+const SYSTEEMPROMPT = `Je bent een ervaren management assistent bij SD Worx Nederland. Je schrijft de notulen van het MT-overleg in het Nederlands, op basis van aangeleverde bronnen: vergadernotities (altijd aanwezig), eventueel een Teams-transcript en eventueel een Copilot-recap.
 
 Regels:
-1. Volg de vaste structuur exact. Laat geen kop weg en voeg geen kop toe. Gebruik precies de koppen uit de structuur, in dezelfde volgorde en op hetzelfde niveau.
-2. Gebruik uitsluitend informatie uit de aangeleverde bronnen. Verzin niets en vul niets aan uit algemene kennis. Is er voor een onderdeel geen informatie, schrijf dan onder die kop: "Geen."
+1. Volg de vaste structuur exact: dezelfde koppen, in dezelfde volgorde, met doorlopende nummering. De vaste agendapunten 1 tot en met 6 staan er altijd, ook als ze niet zijn besproken (schrijf dan onder de kop: "Niet besproken."). Onderwerpen uit de bronnen die niet onder een vast agendapunt vallen, krijgen elk een eigen genummerd agendapunt na punt 6; dat mogen er nul, één of meer zijn. "Openstaande acties" en "Afsluiting" zijn altijd de laatste twee agendapunten. Voeg verder geen koppen toe en laat geen koppen weg.
+2. Gebruik uitsluitend informatie uit de aangeleverde bronnen. Verzin niets en vul niets aan uit algemene kennis.
 3. De notities zijn leidend. Het transcript en de recap vullen aan en bevestigen.
-4. Spreken de bronnen elkaar tegen, benoem dat dan expliciet in de notulen (bijvoorbeeld: "De notities noemen 1 oktober als go-live, de recap 15 oktober."). Kies niet stilzwijgend voor één versie.
-5. Acties staan altijd in een markdown-tabel met exact deze kolommen: Actie | Eigenaar | Deadline | Bron. Ontbreekt een eigenaar of deadline, schrijf dan [NOG AAN TE VULLEN]. Raad geen eigenaren of deadlines. In de kolom Bron staat uit welke bron de actie komt: notities, transcript of recap (meerdere mag).
-6. Keypoints zijn concreet en zelfstandig leesbaar voor iemand die niet bij de vergadering was: wat is besproken, wat is de stand van zaken, wat is de conclusie. Geen losse steekwoorden.
-7. Vergadertitel, datum en aanwezigen: gebruik de opgegeven metadata. Ontbreekt die, leid ze dan af uit de bronnen. Lukt dat niet, schrijf dan [NOG AAN TE VULLEN].
-8. Je output bestaat alleen uit de notulen in markdown. Geen inleiding, geen afsluiting, geen uitleg over wat je hebt gedaan en geen codeblok om de notulen heen.`;
+4. Spreken de bronnen elkaar tegen, benoem dat dan expliciet bij het betreffende agendapunt (bijvoorbeeld: "De notities noemen 1 oktober als go-live, de recap 15 oktober."). Kies niet stilzwijgend voor één versie.
+5. Acties die tijdens het overleg ontstaan, noteer je bij het agendapunt waar ze ontstaan, als opsommingsregel in de vorm: - **Actie:** [wat] – [eigenaar] – [deadline]. Besluiten noteer je bij het agendapunt als: - **Besluit:** [besluit]. Ontbreekt een eigenaar of deadline, schrijf dan [NOG AAN TE VULLEN]. Raad geen eigenaren of deadlines.
+6. Onder "Openstaande acties" komen alle acties uit dit overleg nog eens samen in een markdown-tabel met exact deze kolommen: Actie | Eigenaar | Deadline | Bron. In de kolom Bron staat uit welke bron de actie komt: notities, transcript en/of recap. Acties die volgens de bronnen zijn afgerond, zet je onder "Afgeronde actiepunten".
+7. Schrijf per agendapunt concreet en zelfstandig leesbaar voor iemand die niet bij het overleg was: wat is besproken, wat is de stand van zaken, wat is de conclusie. Gebruik korte alinea's of opsommingen, geen losse steekwoorden.
+8. Kopgegevens (titel, locatie, datum, aanwezig, gedeeltelijk aanwezig, afwezig, notulist, link): gebruik de opgegeven metadata. Ontbreekt die, leid ze dan af uit de bronnen. Blijkt iets niet uit de bronnen, schrijf dan [NOG AAN TE VULLEN]. Was er volgens de bronnen niemand gedeeltelijk aanwezig of afwezig, schrijf dan "geen". Houd de kopregels exact in de vorm **Naam:** waarde, één per regel.
+9. Je output bestaat alleen uit de notulen in markdown. Geen inleiding, geen afsluiting, geen uitleg over wat je hebt gedaan en geen codeblok om de notulen heen.`;
 
-// 2. STRUCTUUR: de vaste opzet van de notulen als markdown-sjabloon. Tekst tussen [ ] vult het model in.
-const STRUCTUUR = `# Notulen: [vergadertitel]
+// 2. STRUCTUUR: de vaste opzet van de notulen als markdown-sjabloon, gelijk aan het Word-sjabloon "Notulen MT".
+//    Tekst tussen [ ] vult het model in. De kopregels (**Locatie:** enzovoort) en de koppen met ## worden ook
+//    door de Word-export gebruikt; verander je de namen, pas dan ook KOPVELDEN hieronder aan.
+const STRUCTUUR = `# [titel]
 
+**Locatie:** [locatie]
 **Datum:** [datum]
-**Aanwezigen:** [namen]
+**Aanwezig:** [leden MT – aanwezig]
+**Gedeeltelijk aanwezig:** [leden MT – gedeeltelijk aanwezig, anders: geen]
+**Afwezig:** [leden MT – afwezig, anders: geen]
+**Notulist:** [notulist]
+**Link:** [link naar de MT Prep van deze datum]
 
-## Samenvatting
-[Maximaal 5 zinnen.]
+## 1. Opening & doelstellingen
+[Wat bij de opening is gezegd en wat de doelstellingen van dit overleg zijn.]
 
-## Keypoints per onderwerp
-### [Onderwerp 1]
-- [keypoint]
-- [keypoint]
+## 2. Prep MBR
+[Bespreking van de voorbereiding van de MBR.]
+- **Actie:** [actie] – [eigenaar] – [deadline]
 
-### [Onderwerp 2]
-- [keypoint]
+## 3. KPI's
+### [Subonderwerp]
+[Bespreking van de KPI's: cijfers, duiding, conclusie.]
+- **Actie:** [actie] – [eigenaar] – [deadline]
 
-## Besluiten
-- [besluit]
+### Deepdive per Director
+[Wat elke director heeft toegelicht.]
 
-## Acties
+## 4. Lunch
+[Alleen als er tijdens de lunch iets inhoudelijks is besproken, anders: Niet besproken.]
+
+## 5. Strategische initiatieven
+[Stand van zaken per initiatief.]
+
+## 6. MT Topics & Besluitvorming
+[Besproken topics.]
+- **Besluit:** [besluit]
+- **Actie:** [actie] – [eigenaar] – [deadline]
+
+## 7. [Agendapunt A]
+[Toelichting A]
+
+## 8. [Agendapunt B]
+[Toelichting B]
+
+## 9. Openstaande acties
+**Lopende actiepunten:**
+
 | Actie | Eigenaar | Deadline | Bron |
 |---|---|---|---|
 | [actie] | [naam of [NOG AAN TE VULLEN]] | [datum of [NOG AAN TE VULLEN]] | [notities / transcript / recap] |
 
-## Open punten
-- [open punt]`;
+**Afgeronde actiepunten:**
+- [afgerond actiepunt]
+
+## 10. Afsluiting
+[Rondvraag en het volgende overleg.]`;
 
 // 3. VOORBEELDEN: array van teksten. Elk element is één compleet voorbeeld van goede notulen in de
 //    vaste structuur hierboven. Ze gaan als voorbeeld (few-shot) mee in de systeemprompt.
 //    Zo voeg je voorbeelden toe:
 //
 //    const VOORBEELDEN = [
-//    `# Notulen: Weekoverleg HR-team
+//    `# SD Worx Nederland - Notulen MT
 //
-//    **Datum:** 12 mei 2026
+//    **Locatie:** Utrecht
 //    ... (het volledige voorbeeld, in exact dezelfde structuur als STRUCTUUR) ...`,
 //
-//    `# Notulen: Stuurgroep payroll
+//    `# SD Worx Nederland - Notulen MT
 //    ... (tweede voorbeeld) ...`,
 //    ];
 //
@@ -340,65 +382,86 @@ const STRUCTUUR = `# Notulen: [vergadertitel]
 const VOORBEELDEN = [];
 
 // 4. MOCK_OUTPUT: de vaste output in mock-modus (zonder API-call).
-const MOCK_OUTPUT = `# Notulen: Projectoverleg implementatie People Hub
+const MOCK_OUTPUT = `# SD Worx Nederland - Notulen MT
 
+**Locatie:** Utrecht, vergaderzaal 3.02 (en Teams)
 **Datum:** 1 september 2026
-**Aanwezigen:** Sanne de Wit (projectleider), Tom Peeters (HR-manager), Fatima El Amrani (functioneel beheerder), Ruben Jansen (IT), Els Vermeulen (management assistent, notulist)
+**Aanwezig:** Marieke Jansen (managing director), Pieter de Boer (finance director), Sanne de Wit (HR director), Ruben Jansen (IT director), Fatima El Amrani (operations director)
+**Gedeeltelijk aanwezig:** Tom Peeters (sales director, tot 11:00)
+**Afwezig:** Joost Bakker (marketing director)
+**Notulist:** Els Vermeulen
+**Link:** [MT Prep 1 september 2026](https://sd.sharepoint.com/sites/NLTigerTeamPeopleSolutions/MT%20Prep/260901_MT%20Prep.pptx)
 
-## Samenvatting
-Het projectteam besprak de voortgang van de implementatie van People Hub. De datamigratie is voor 92% afgerond; veertig dossiers missen nog gegevens. De acceptatietest start op 15 september met twaalf testers uit vier afdelingen. De koppeling met de Outlook-agenda loopt vertraging op door een ontbrekend certificaat bij de leverancier. De go-live blijft gepland op 1 oktober, met 15 oktober als terugvaloptie als de testfase uitloopt.
+## 1. Opening & doelstellingen
+Marieke Jansen opent het overleg om 9:30. Doelstellingen van dit MT: de voorbereiding van de MBR van 10 september afronden, de KPI's van augustus doornemen, een besluit nemen over het budget voor de testomgeving van People Hub en de klantescalatie bij Bakkerij Van Rooij bespreken. Omdat Tom Peeters om 11:00 weg moet, wordt de klantescalatie als eerste extra agendapunt behandeld.
 
-## Keypoints per onderwerp
-### Datamigratie
-- 92% van de personeelsdossiers is gemigreerd naar People Hub.
-- Bij veertig dossiers ontbreekt het BSN of de geboortedatum. Fatima El Amrani zoekt dit uit met de salarisadministratie.
-- De resterende migratie kan pas worden afgerond als deze gegevens compleet zijn.
+## 2. Prep MBR
+De MBR staat gepland op 10 september. Pieter de Boer consolideert de slides; elke director levert de eigen slide uiterlijk 4 september aan. De omzet van augustus ligt 2% boven budget. De IT-kosten liggen 40.000 euro boven budget door licenties; Ruben Jansen licht dit toe in de MBR.
+- **Actie:** Eigen MBR-slide aanleveren bij Pieter de Boer – alle directors – 4 september 2026
+- **Actie:** MBR-slides consolideren – Pieter de Boer – 5 september 2026
+- **Actie:** Toelichting op de IT-kosten voorbereiden voor de MBR – Ruben Jansen – [NOG AAN TE VULLEN]
 
-### Acceptatietest (UAT)
-- De acceptatietest start op 15 september en duurt twee weken.
-- Er doen twaalf testers mee uit vier afdelingen; Tom Peeters bevestigt de namen.
-- De testscripts zijn nog niet af; Fatima El Amrani rondt ze af vóór 10 september.
+## 3. KPI's
+### KPI's augustus
+De NPS is gestegen naar 42 (juli: 38). De churn is 1,8% tegenover een doel van 1,5%. De ticketbacklog staat op 320 tickets tegenover een doel van 250. De notities noemen een NPS van 42, de Copilot-recap noemt 44; het MT hanteert de 42 uit de notities.
 
-### Koppeling Outlook-agenda
-- De leverancier heeft het benodigde certificaat nog niet geleverd, waardoor de koppeling niet getest kan worden.
-- Ruben Jansen verwacht het certificaat rond 20 september; de koppeling kan dan nog binnen de testfase worden meegenomen.
+### Deepdive per Director
+Fatima El Amrani (operations): de backlog is opgelopen door de vakantieperiode. Er zijn twee extra medewerkers ingehuurd tot eind oktober; de verwachting is dat de backlog eind september weer op 250 staat.
+- **Actie:** Wekelijkse rapportage van de ticketbacklog aan het MT – Fatima El Amrani – vanaf 8 september 2026
 
-### Communicatie naar medewerkers
-- Tom Peeters stelt een e-mail en een intranetbericht op voor alle medewerkers.
-- Els Vermeulen plant twee inloopsessies waarin medewerkers vragen kunnen stellen.
-- Er is nog niet besloten wie na de go-live de veelgestelde vragen (FAQ) beheert.
+## 4. Lunch
+Niet besproken.
 
-### Go-live en budget
-- De go-live staat gepland op 1 oktober. De Copilot-recap noemt 15 oktober als go-livedatum; volgens de notities en het transcript is 15 oktober alleen de terugvaloptie als de testfase uitloopt.
-- Voor de testomgeving zijn extra licentiekosten nodig van 4.200 euro; het team gaat hiermee akkoord.
+## 5. Strategische initiatieven
+People Hub: de datamigratie is voor 92% afgerond, de acceptatietest start op 15 september en de go-live blijft 1 oktober, met 15 oktober als terugvaloptie. AI-notulentool: Els Vermeulen test de tool in september op de MT-notulen en koppelt de ervaringen terug in het MT van 29 september.
+- **Actie:** UAT-planning People Hub delen met het MT – Sanne de Wit – 12 september 2026
 
-## Besluiten
-- De acceptatietest start op 15 september.
-- De extra licentiekosten van 4.200 euro voor de testomgeving zijn akkoord; Sanne de Wit meldt dit aan de stuurgroep.
-- De go-live blijft 1 oktober, met 15 oktober als terugvaloptie.
+## 6. MT Topics & Besluitvorming
+Budget testomgeving People Hub: de extra licenties kosten 4.200 euro. Hybride werken: Sanne de Wit presenteert het voorstel voor twee vaste kantoordagen; het MT wil eerst een FAQ voor medewerkers zien.
+- **Besluit:** Het budget van 4.200 euro voor de testomgeving van People Hub is akkoord.
+- **Besluit:** Het besluit over hybride werken wordt uitgesteld tot het MT van 15 september.
+- **Actie:** Voorstel hybride werken uitwerken met FAQ – Sanne de Wit – 15 september 2026
 
-## Acties
+## 7. Klantescalatie Bakkerij Van Rooij
+Bakkerij Van Rooij heeft geklaagd over fouten in de loonstroken van juli (verkeerde toeslagen bij 14 medewerkers). Tom Peeters en Fatima El Amrani bezoeken de klant op 9 september. Fatima El Amrani analyseert vooraf de oorzaak.
+- **Actie:** Oorzaak van de fouten in de loonstroken analyseren – Fatima El Amrani – 8 september 2026
+- **Actie:** Klantbezoek Bakkerij Van Rooij – Tom Peeters – 9 september 2026
+
+## 8. Openstaande acties
+**Lopende actiepunten:**
+
 | Actie | Eigenaar | Deadline | Bron |
 |---|---|---|---|
-| Ontbrekende gegevens van veertig dossiers uitzoeken met de salarisadministratie | Fatima El Amrani | 8 september 2026 | notities |
-| Testscripts voor de acceptatietest afronden | Fatima El Amrani | 10 september 2026 | notities, transcript |
-| Namen van de twaalf testers bevestigen | Tom Peeters | 12 september 2026 | notities |
-| Certificaat bij de leverancier opvolgen | Ruben Jansen | 20 september 2026 | transcript |
-| E-mail en intranetbericht voor medewerkers opstellen | Tom Peeters | [NOG AAN TE VULLEN] | notities |
-| Twee inloopsessies plannen | Els Vermeulen | 25 september 2026 | recap |
-| Extra licentiekosten melden aan de stuurgroep | Sanne de Wit | 5 september 2026 | notities |
-| Beheer van de FAQ na go-live beleggen | [NOG AAN TE VULLEN] | [NOG AAN TE VULLEN] | transcript |
+| Eigen MBR-slide aanleveren bij Pieter de Boer | Alle directors | 4 september 2026 | notities |
+| MBR-slides consolideren | Pieter de Boer | 5 september 2026 | notities, transcript |
+| Toelichting op de IT-kosten voorbereiden voor de MBR | Ruben Jansen | [NOG AAN TE VULLEN] | notities |
+| Wekelijkse rapportage van de ticketbacklog aan het MT | Fatima El Amrani | Vanaf 8 september 2026 | transcript |
+| UAT-planning People Hub delen met het MT | Sanne de Wit | 12 september 2026 | notities |
+| Voorstel hybride werken uitwerken met FAQ | Sanne de Wit | 15 september 2026 | notities, recap |
+| Oorzaak van de fouten in de loonstroken analyseren | Fatima El Amrani | 8 september 2026 | transcript |
+| Klantbezoek Bakkerij Van Rooij | Tom Peeters | 9 september 2026 | notities |
 
-## Open punten
-- Wie beheert de FAQ na de go-live?
-- Levert de leverancier het certificaat op tijd, zodat de Outlook-koppeling nog binnen de testfase valt?`;
+**Afgeronde actiepunten:**
+- Contract met de nieuwe telefonieleverancier is ondertekend (Ruben Jansen).
+
+## 9. Afsluiting
+Geen punten voor de rondvraag. Het volgende MT is op 15 september 2026 om 9:30 in Utrecht. Marieke Jansen sluit het overleg om 11:45.`;
 
 // 5. Overige instellingen.
+const STANDAARD_TITEL = 'SD Worx Nederland - Notulen MT';  // vooringevulde titel (kopregel van het sjabloon)
 const STANDAARD_MODEL = 'claude-sonnet-5';               // standaard modelnaam (in de UI aan te passen)
 const MAX_TOKENS = 16000;                                // maximale lengte van de output in tokens
 const WAARSCHUWING_TEKENS = 300000;                      // waarschuwing (niet blokkerend) boven dit aantal tekens
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
+
+// 6. Word-export. KOPVELDEN koppelt de kopregels in de markdown aan de plaatshouders in het Word-sjabloon.
+//    SJABLOON_DOCX_BASE64 is het Word-sjabloon "Notulen MT" (met kop- en voettekst, stijlen en nummering) waarin
+//    de tekst is vervangen door plaatshouders: {{titel}}, {{subtitel}}, {{aanwezig}}, {{gedeeltelijk}}, {{afwezig}},
+//    {{notulist}}, {{link}}, {{inhoud}} en in de voettekst {{voetdatum}}. Het bestand is base64-gecodeerd; zie de README
+//    voor het vervangen van het sjabloon. Laat je de string leeg, dan maakt de tool een eenvoudig Word-bestand zonder sjabloon.
+const KOPVELDEN = { locatie: 'Locatie', datum: 'Datum', aanwezig: 'Aanwezig', gedeeltelijk: 'Gedeeltelijk aanwezig', afwezig: 'Afwezig', notulist: 'Notulist', link: 'Link' };
+const SJABLOON_DOCX_BASE64 = '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';
 // === EINDE CONFIGURATIE ===
 
 (function () {
@@ -411,16 +474,31 @@ const ANTHROPIC_VERSION = '2023-06-01';
   const tekens = (n) => nf.format(n) + (n === 1 ? ' teken' : ' tekens');
   const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   const wacht = (ms) => new Promise((r) => setTimeout(r, ms));
+  const MAANDEN = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
+  const pad2 = (n) => String(n).padStart(2, '0');
 
   function vandaagISO() {
     const d = new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
   function datumNL(iso) {
     const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
     if (!m) return iso || '';
     return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
   }
+  // Herkent "2026-09-01", "1-9-2026", "01/09/2026" en "1 september 2026"; geeft [jjjj, mm, dd] of null.
+  function ontleedDatum(tekst) {
+    const s = String(tekst || '').trim();
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+    if (m) return [m[1], pad2(m[2]), pad2(m[3])];
+    m = /(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/.exec(s);
+    if (m) return [m[3], pad2(m[2]), pad2(m[1])];
+    m = /(\d{1,2})\s+([a-zA-Z]+)\s+(\d{4})/.exec(s);
+    if (m) { const mi = MAANDEN.indexOf(m[2].toLowerCase()); if (mi >= 0) return [m[3], pad2(mi + 1), pad2(m[1])]; }
+    return null;
+  }
+  const naarISO = (tekst) => { const d = ontleedDatum(tekst); return d ? d[0] + '-' + d[1] + '-' + d[2] : ''; };
+  const naarDDMMJJJJ = (tekst) => { const d = ontleedDatum(tekst); return d ? d[2] + '/' + d[1] + '/' + d[0] : ''; };
   function slug(s) {
     return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
       .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
@@ -444,7 +522,10 @@ const ANTHROPIC_VERSION = '2023-06-01';
     totaal: $('#totaalTeller'), knopGenereer: $('#knopGenereer'), knopAnnuleer: $('#knopAnnuleer'),
     uitvoer: $('#uitvoer'), status: $('#status'), melding: $('#melding'), gerenderd: $('#gerenderd'), ruw: $('#ruw'),
     tabWeergave: $('#tabWeergave'), tabBewerken: $('#tabBewerken'),
-    metaTitel: $('#metaTitel'), metaDatum: $('#metaDatum'), metaAanwezigen: $('#metaAanwezigen'),
+    meta: {
+      titel: $('#metaTitel'), locatie: $('#metaLocatie'), datum: $('#metaDatum'), notulist: $('#metaNotulist'),
+      aanwezig: $('#metaAanwezig'), gedeeltelijk: $('#metaGedeeltelijk'), afwezig: $('#metaAfwezig'), link: $('#metaLink'),
+    },
     knopKopieerMd: $('#knopKopieerMd'), knopKopieerTekst: $('#knopKopieerTekst'), knopDownloadMd: $('#knopDownloadMd'),
     knopDownloadDocx: $('#knopDownloadDocx'), knopOpnieuw: $('#knopOpnieuw'),
     dialoog: $('#instellingen'), mockBadge: $('#mockBadge'), knopInstellingen: $('#knopInstellingen'), knopSluit: $('#knopSluit'),
@@ -591,10 +672,9 @@ const ANTHROPIC_VERSION = '2023-06-01';
   function leesInvoer() {
     const per = {};
     ZONES.forEach((z) => { per[z.naam] = z.textarea.value; });
-    return {
-      notities: per.notities || '', transcript: per.transcript || '', recap: per.recap || '',
-      titel: el.metaTitel.value.trim(), datum: el.metaDatum.value, aanwezigen: el.metaAanwezigen.value.trim(),
-    };
+    const meta = {};
+    Object.keys(el.meta).forEach((k) => { meta[k] = el.meta[k].value.trim(); });
+    return { notities: per.notities || '', transcript: per.transcript || '', recap: per.recap || '', meta };
   }
   function updateTellers() {
     let totaal = 0;
@@ -701,11 +781,20 @@ const ANTHROPIC_VERSION = '2023-06-01';
   }
   function bouwGebruikersprompt(invoer) {
     const onbekend = '[niet opgegeven, leid af uit de bronnen]';
-    let p = 'Maak notulen van onderstaande vergadering volgens de vaste structuur.\n\n## Metadata\n' +
-      'Vergadertitel: ' + (invoer.titel || onbekend) + '\n' +
-      'Datum: ' + (invoer.datum ? datumNL(invoer.datum) : onbekend) + '\n' +
-      'Aanwezigen: ' + (invoer.aanwezigen || onbekend) + '\n\n## Bronnen\n\n' +
-      '<notities>\n' + invoer.notities.trim() + '\n</notities>';
+    const m = invoer.meta || {};
+    const metadata = [
+      'Titel: ' + (m.titel || STANDAARD_TITEL),
+      'Locatie: ' + (m.locatie || onbekend),
+      'Datum: ' + (m.datum ? datumNL(m.datum) : onbekend),
+      'Aanwezig: ' + (m.aanwezig || onbekend),
+      'Gedeeltelijk aanwezig: ' + (m.gedeeltelijk || onbekend),
+      'Afwezig: ' + (m.afwezig || onbekend),
+      'Notulist: ' + (m.notulist || onbekend),
+      'Link MT Prep: ' + (m.link || '[niet opgegeven; gebruik een link uit de bronnen, anders [NOG AAN TE VULLEN]]'),
+    ].join('\n');
+    let p = 'Maak de notulen van onderstaand MT-overleg volgens de vaste structuur.\n\n## Metadata (opgegeven door de gebruiker)\n' + metadata +
+      '\n\nIs er een link, schrijf die in de kopregel Link als markdown-link, bijvoorbeeld [MT Prep 1 september 2026](https://...).' +
+      '\n\n## Bronnen\n\n<notities>\n' + invoer.notities.trim() + '\n</notities>';
     p += invoer.transcript.trim() ? '\n\n<transcript>\n' + invoer.transcript.trim() + '\n</transcript>' : '\n\n(Geen transcript aangeleverd.)';
     p += invoer.recap.trim() ? '\n\n<copilot_recap>\n' + invoer.recap.trim() + '\n</copilot_recap>' : '\n\n(Geen Copilot-recap aangeleverd.)';
     p += '\n\nLever nu alleen de notulen in markdown, volgens de vaste structuur.';
@@ -865,7 +954,7 @@ const ANTHROPIC_VERSION = '2023-06-01';
     }
   }
 
-  /* ---------- Uitvoer: renderen, bewerken, kopiëren, downloaden ---------- */
+  /* ---------- Uitvoer: renderen, bewerken, kopiëren ---------- */
   let huidigeMarkdown = '', modus = 'weergave', bezig = false, controller = null, renderTimer = null, markedKlaar = false;
 
   function initMarked() {
@@ -1019,6 +1108,7 @@ const ANTHROPIC_VERSION = '2023-06-01';
     return uit.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
   }
 
+  /* ---------- Downloads ---------- */
   function download(naam, inhoud, mime) {
     const blob = inhoud instanceof Blob ? inhoud : new Blob([inhoud], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -1027,23 +1117,195 @@ const ANTHROPIC_VERSION = '2023-06-01';
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
+  // Leest de kop van de notulen: de titel (#) en de kopregels (**Naam:** waarde) vóór het eerste agendapunt.
+  function leesKopblok(md) {
+    const regels = String(md || '').replace(/\r\n?/g, '\n').split('\n');
+    const sleutels = {};
+    Object.keys(KOPVELDEN).forEach((k) => { sleutels[KOPVELDEN[k].toLowerCase()] = k; });
+    const velden = {}, rest = [];
+    let titel = '', inKop = true;
+    regels.forEach((regel) => {
+      if (inKop) {
+        const h1 = /^#\s+(.+?)\s*#*\s*$/.exec(regel);
+        if (h1 && !titel) { titel = inlinePlat(h1[1]); return; }
+        const veld = /^\s*\*\*([^*]+?)\s*:\s*\*\*\s*(.*)$/.exec(regel) || /^\s*\*\*([^*]+?)\*\*\s*:\s*(.*)$/.exec(regel);
+        if (veld) {
+          const k = sleutels[veld[1].trim().toLowerCase()];
+          if (k) { velden[k] = veld[2].trim(); return; }
+          rest.push(regel); return;
+        }
+        if (regel.trim() === '') return;
+        inKop = false;
+      }
+      rest.push(regel);
+    });
+    return { titel, velden, body: rest.join('\n').trim() };
+  }
   function bestandsnaam(ext) {
-    const datum = el.metaDatum.value || vandaagISO();
-    let titel = el.metaTitel.value.trim();
-    if (!titel) { const m = /^#\s+(?:notulen\s*[:\-–]?\s*)?(.+)$/im.exec(huidigeMarkdown); if (m) titel = m[1]; }
-    return datum + '_' + (slug(titel) || 'vergadering') + '_notulen.' + ext;
+    const kop = leesKopblok(huidigeMarkdown);
+    const datum = el.meta.datum.value || naarISO(inlinePlat(kop.velden.datum || '')) || vandaagISO();
+    const titel = (el.meta.titel.value.trim() || kop.titel || '').replace(/notulen/ig, ' ');
+    return datum + '_' + (slug(titel) || 'mt') + '_notulen.' + ext;
   }
 
-  // Word-export: eenvoudige mapping van koppen, alinea's, opsommingen en tabellen.
-  async function maakDocx(md) {
+  /* ---------- Word-export via het ingebedde sjabloon ---------- */
+  const XML_ESC = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const HTML_UNESC = (s) => String(s).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  const BREEDTE_TWIPS = 9354; // tekstbreedte van het sjabloon (A4 met de marges uit het sjabloon)
+  const NUM_AGENDA = 9, NUM_BULLET = 21, NUM_ACTIE = 23, NUM_AFGEROND = 24; // nummeringen uit het sjabloon
+
+  function wordRun(tekst, st) {
+    if (!tekst) return '';
+    st = st || {};
+    let rpr = '';
+    if (st.bold) rpr += '<w:b/><w:bCs/>';
+    if (st.italic) rpr += '<w:i/><w:iCs/>';
+    if (st.strike) rpr += '<w:strike/>';
+    if (st.code) rpr += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas" w:cs="Consolas"/>';
+    return String(tekst).split('\n').map((deel, i) => (i ? '<w:r><w:br/></w:r>' : '') +
+      '<w:r>' + (rpr ? '<w:rPr>' + rpr + '</w:rPr>' : '') + '<w:t xml:space="preserve">' + XML_ESC(HTML_UNESC(deel)) + '</w:t></w:r>').join('');
+  }
+  function wordRuns(toks, stijl) {
+    let xml = '';
+    const loop = (ts, st) => (ts || []).forEach((t) => {
+      switch (t.type) {
+        case 'strong': loop(t.tokens, Object.assign({}, st, { bold: true })); break;
+        case 'em': loop(t.tokens, Object.assign({}, st, { italic: true })); break;
+        case 'del': loop(t.tokens, Object.assign({}, st, { strike: true })); break;
+        case 'codespan': xml += wordRun(t.text, Object.assign({}, st, { code: true })); break;
+        case 'br': xml += '<w:r><w:br/></w:r>'; break;
+        case 'link': loop(t.tokens, st); if (t.href && t.href !== t.text) xml += wordRun(' (' + t.href + ')', st); break;
+        case 'image': xml += wordRun(t.text || '', st); break;
+        case 'checkbox': xml += wordRun(t.checked ? '☑ ' : '☐ ', st); break;
+        case 'escape': case 'html': case 'text':
+          if (t.tokens) loop(t.tokens, st); else xml += wordRun(t.text || '', st);
+          break;
+        default: if (t.tokens) loop(t.tokens, st); else if (t.text) xml += wordRun(t.text, st);
+      }
+    });
+    loop(toks, stijl || {});
+    return xml;
+  }
+  const wordP = (ppr, runs) => '<w:p>' + (ppr ? '<w:pPr>' + ppr + '</w:pPr>' : '') + (runs || '') + '</w:p>';
+  function inlineTokens(tekst) {
+    const L = window.marked && window.marked.Lexer;
+    try { if (L && typeof L.lexInline === 'function') return L.lexInline(tekst); } catch (e) { /* val terug op platte tekst */ }
+    return [{ type: 'text', text: tekst }];
+  }
+  function platteTekstVan(toks) {
+    let s = '';
+    (toks || []).forEach((t) => { if (t.tokens) s += platteTekstVan(t.tokens); else if (t.text) s += t.text; });
+    return HTML_UNESC(s);
+  }
+  // Zet de markdown-inhoud (vanaf het eerste agendapunt) om naar WordprocessingML met de stijlen van het sjabloon.
+  function markdownNaarWordXml(md) {
+    const uit = [];
+    let nummerTeller = 0, vorigeTekst = '';
+    const lijst = (t, niveau, numId) => {
+      const eigenNum = t.ordered ? 901 + (nummerTeller++ % 5) : null;
+      t.items.forEach((item) => {
+        let runs = ''; const sub = [];
+        (item.tokens || []).forEach((k) => {
+          if (k.type === 'list') sub.push(k);
+          else if (k.type === 'text' || k.type === 'paragraph') runs += wordRuns(k.tokens || [{ type: 'text', text: k.text || '' }]);
+          else if (k.text) runs += wordRun(k.text);
+        });
+        let nid = eigenNum || numId;
+        if (!t.ordered && /^\s*(actie|besluit)\s*:/i.test(platteTekstVan(item.tokens))) nid = NUM_ACTIE;
+        uit.push(wordP('<w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="' + niveau + '"/><w:numId w:val="' + nid + '"/></w:numPr><w:spacing w:after="60"/>', runs));
+        sub.forEach((s) => lijst(s, Math.min(niveau + 1, 8), numId));
+      });
+    };
+    const tabel = (t) => {
+      const n = t.header.length || 1;
+      let pct = t.header.map(() => 100 / n);
+      const koppen = t.header.map((h) => platteTekstVan(h.tokens).trim().toLowerCase());
+      if (n === 4 && koppen[0] === 'actie') pct = [45, 20, 18, 17];
+      const grid = pct.map((p) => '<w:gridCol w:w="' + Math.round(BREEDTE_TWIPS * p / 100) + '"/>').join('');
+      const cel = (toks, kop, k) => '<w:tc><w:tcPr><w:tcW w:w="' + Math.round(pct[k] * 50) + '" w:type="pct"/></w:tcPr>' +
+        wordP('<w:spacing w:after="0"/>', wordRuns(toks, kop ? { bold: true } : {})) + '</w:tc>';
+      let rijen = '<w:tr><w:trPr><w:tblHeader/></w:trPr>' + t.header.map((h, k) => cel(h.tokens, true, k)).join('') + '</w:tr>';
+      t.rows.forEach((r) => { rijen += '<w:tr>' + r.map((c, k) => cel(c.tokens, false, k)).join('') + '</w:tr>'; });
+      return '<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="5000" w:type="pct"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>' + grid + '</w:tblGrid>' + rijen + '</w:tbl>';
+    };
+    const blok = (toks) => (toks || []).forEach((t) => {
+      switch (t.type) {
+        case 'heading':
+          if (t.depth <= 2) {
+            const tekst = String(t.text || '').replace(/^\s*\d+[.)]\s+/, '');
+            uit.push(wordP('<w:pStyle w:val="Heading3"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="' + NUM_AGENDA + '"/></w:numPr>', wordRuns(inlineTokens(tekst))));
+          } else {
+            uit.push(wordP('<w:pStyle w:val="Subheading3"/><w:spacing w:before="120" w:after="60"/>', wordRuns(t.tokens, { bold: true })));
+          }
+          vorigeTekst = '';
+          break;
+        case 'paragraph': case 'text': {
+          const inl = t.tokens || [{ type: 'text', text: t.text || '' }];
+          uit.push(wordP('<w:spacing w:after="120"/>', wordRuns(inl)));
+          vorigeTekst = platteTekstVan(inl);
+          break;
+        }
+        case 'list':
+          lijst(t, 0, /^afgeronde actiepunten/i.test(vorigeTekst.trim()) ? NUM_AFGEROND : NUM_BULLET);
+          break;
+        case 'table': uit.push(tabel(t)); uit.push(wordP('', '')); vorigeTekst = ''; break;
+        case 'blockquote':
+          (t.tokens || []).forEach((k) => {
+            if (k.type === 'paragraph' || k.type === 'text') uit.push(wordP('<w:ind w:left="720"/><w:spacing w:after="120"/>', wordRuns(k.tokens, { italic: true })));
+            else blok([k]);
+          });
+          break;
+        case 'code':
+          String(t.text || '').split('\n').forEach((regel) => uit.push(wordP('<w:spacing w:after="0"/>', wordRun(regel, { code: true }))));
+          uit.push(wordP('', ''));
+          break;
+        case 'hr': uit.push(wordP('<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="000000"/></w:pBdr>', '')); break;
+        case 'html': uit.push(wordP('<w:spacing w:after="120"/>', wordRun(String(t.text || '').replace(/<[^>]*>/g, '')))); break;
+        case 'space': case 'def': break;
+        default: if (t.tokens) blok(t.tokens); else if (t.text) uit.push(wordP('', wordRun(t.text)));
+      }
+    });
+    blok(window.marked.lexer(md));
+    return uit;
+  }
+
+  async function maakDocxSjabloon(md) {
     const D = window.docx;
-    if (!D) throw new Error('De bibliotheek voor Word-export (docx) is niet geladen. Controleer de internetverbinding en herlaad de pagina, of download de .md.');
-    if (!window.marked) throw new Error('De bibliotheek voor markdown (marked) is niet geladen. Controleer de internetverbinding en herlaad de pagina.');
-    const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType } = D;
+    const { patchDocument, PatchType, TextRun, ExternalHyperlink, ImportedXmlComponent } = D;
+    const kop = leesKopblok(md);
+    const v = kop.velden;
+    const plat = (s) => inlinePlat(s || '');
+    const tekst = (s) => ({ type: PatchType.PARAGRAPH, children: [new TextRun(String(s))] });
+    const datumTekst = plat(v.datum);
+    const subtitel = [plat(v.locatie), datumTekst].filter(Boolean).join(', ');
+    const linkRuw = String(v.link || '').trim();
+    const mdLink = /^\[([^\]]*)\]\(([^)\s]+)\)/.exec(linkRuw);
+    const url = mdLink ? mdLink[2] : (/^https?:\/\/\S+$/i.test(linkRuw) ? linkRuw : '');
+    const linkTekst = mdLink ? (mdLink[1] || mdLink[2]) : (plat(linkRuw) || '–');
+    const linkRun = new TextRun(Object.assign({ text: linkTekst, font: 'SD Worx Office', size: 24 }, url ? { style: 'Hyperlink' } : {}));
+    const voetdatum = naarDDMMJJJJ(el.meta.datum.value) || naarDDMMJJJJ(datumTekst) || naarDDMMJJJJ(vandaagISO());
+    const xmlComponent = (x) => { const c = ImportedXmlComponent.fromXmlString(x); return (c.rootKey === undefined && c.root && c.root.length) ? c.root[0] : c; };
+    const patches = {
+      titel: tekst(kop.titel || el.meta.titel.value.trim() || STANDAARD_TITEL),
+      subtitel: tekst(subtitel),
+      aanwezig: tekst(plat(v.aanwezig) || '–'),
+      gedeeltelijk: tekst(plat(v.gedeeltelijk) || '–'),
+      afwezig: tekst(plat(v.afwezig) || '–'),
+      notulist: tekst(plat(v.notulist) || '–'),
+      link: { type: PatchType.PARAGRAPH, children: [url ? new ExternalHyperlink({ children: [linkRun], link: url }) : linkRun] },
+      voetdatum: tekst(voetdatum),
+      inhoud: { type: PatchType.DOCUMENT, children: markdownNaarWordXml(kop.body).map(xmlComponent) },
+    };
+    const bytes = Uint8Array.from(atob(SJABLOON_DOCX_BASE64.replace(/\s+/g, '')), (c) => c.charCodeAt(0));
+    return patchDocument({ outputType: 'blob', data: bytes, patches, keepOriginalStyles: true });
+  }
+
+  // Terugval zonder sjabloon: eenvoudige mapping van koppen, alinea's, opsommingen en tabellen.
+  async function maakDocxGeneriek(md) {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, LevelFormat, AlignmentType } = window.docx;
     const KOPPEN = [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3, HeadingLevel.HEADING_4, HeadingLevel.HEADING_5, HeadingLevel.HEADING_6];
     const kinderen = [];
     let lijstTeller = 0;
-
     const inline = (toks, stijl) => {
       const runs = [];
       const loop = (ts, st) => (ts || []).forEach((t) => {
@@ -1051,16 +1313,16 @@ const ANTHROPIC_VERSION = '2023-06-01';
           case 'strong': loop(t.tokens, Object.assign({}, st, { bold: true })); break;
           case 'em': loop(t.tokens, Object.assign({}, st, { italics: true })); break;
           case 'del': loop(t.tokens, Object.assign({}, st, { strike: true })); break;
-          case 'codespan': runs.push(new TextRun(Object.assign({ text: t.text, font: 'Consolas' }, st))); break;
+          case 'codespan': runs.push(new TextRun(Object.assign({ text: HTML_UNESC(t.text), font: 'Consolas' }, st))); break;
           case 'br': runs.push(new TextRun({ break: 1 })); break;
           case 'link': loop(t.tokens, st); if (t.href && t.href !== t.text) runs.push(new TextRun(Object.assign({ text: ' (' + t.href + ')' }, st))); break;
           case 'image': runs.push(new TextRun(Object.assign({ text: t.text || '' }, st))); break;
           case 'checkbox': runs.push(new TextRun(Object.assign({ text: t.checked ? '☑ ' : '☐ ' }, st))); break;
           case 'escape': case 'html': case 'text':
-            if (t.tokens) loop(t.tokens, st); else runs.push(new TextRun(Object.assign({ text: t.text || '' }, st)));
+            if (t.tokens) loop(t.tokens, st); else runs.push(new TextRun(Object.assign({ text: HTML_UNESC(t.text || '') }, st)));
             break;
           default:
-            if (t.tokens) loop(t.tokens, st); else if (t.text) runs.push(new TextRun(Object.assign({ text: t.text }, st)));
+            if (t.tokens) loop(t.tokens, st); else if (t.text) runs.push(new TextRun(Object.assign({ text: HTML_UNESC(t.text) }, st)));
         }
       });
       loop(toks, stijl || {});
@@ -1101,8 +1363,7 @@ const ANTHROPIC_VERSION = '2023-06-01';
       }
     });
     blok(window.marked.lexer(md));
-
-    const titel = el.metaTitel.value.trim() || (/^#\s+(.+)$/m.exec(md) || [])[1] || 'Notulen';
+    const titel = el.meta.titel.value.trim() || (/^#\s+(.+)$/m.exec(md) || [])[1] || 'Notulen';
     const doc = new Document({
       creator: 'SD Worx Notulentool', title: titel,
       styles: {
@@ -1120,6 +1381,18 @@ const ANTHROPIC_VERSION = '2023-06-01';
       sections: [{ children: kinderen.length ? kinderen : [new Paragraph({ text: '' })] }],
     });
     return Packer.toBlob(doc);
+  }
+
+  // Kiest de export via het sjabloon; lukt dat niet, dan de eenvoudige export.
+  async function maakDocx(md) {
+    const D = window.docx;
+    if (!D) throw new Error('De bibliotheek voor Word-export (docx) is niet geladen. Controleer de internetverbinding en herlaad de pagina, of download de .md.');
+    if (!window.marked) throw new Error('De bibliotheek voor markdown (marked) is niet geladen. Controleer de internetverbinding en herlaad de pagina.');
+    if (SJABLOON_DOCX_BASE64 && D.patchDocument && D.ImportedXmlComponent) {
+      try { return { blob: await maakDocxSjabloon(md), sjabloon: true }; }
+      catch (e) { console.warn('Export via het sjabloon mislukt; eenvoudige export gebruikt.', e); }
+    }
+    return { blob: await maakDocxGeneriek(md), sjabloon: false };
   }
 
   function heeftNotulen() {
@@ -1142,9 +1415,9 @@ const ANTHROPIC_VERSION = '2023-06-01';
     if (!heeftNotulen()) return;
     try {
       zetStatus('Word-bestand wordt gemaakt…');
-      const blob = await maakDocx(huidigeMarkdown);
-      download(bestandsnaam('docx'), blob);
-      zetStatus('Word-bestand gedownload.');
+      const r = await maakDocx(huidigeMarkdown);
+      download(bestandsnaam('docx'), r.blob);
+      zetStatus(r.sjabloon ? 'Word-bestand gedownload in het sjabloon Notulen MT.' : 'Word-bestand gedownload met eenvoudige opmaak (het sjabloon kon niet gebruikt worden).');
     } catch (e) {
       console.error('Word-export mislukt', e);
       zetStatus('');
@@ -1172,13 +1445,14 @@ const ANTHROPIC_VERSION = '2023-06-01';
   document.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !el.dialoog.open) { e.preventDefault(); genereer(); } });
 
   /* ---------- Start ---------- */
+  if (!el.meta.titel.value) el.meta.titel.value = STANDAARD_TITEL;
   vulInstellingenIn();
   updateStartMelding();
   updateTellers();
   wanneerGeladen('marked', initMarked);
 
   // Voor handmatige tests in de browserconsole.
-  window.notulentool = { parseVtt, naarPlatteTekst, normaliseerEndpoint, bouwSysteemprompt, bouwGebruikersprompt, slug };
+  window.notulentool = { parseVtt, naarPlatteTekst, normaliseerEndpoint, bouwSysteemprompt, bouwGebruikersprompt, slug, leesKopblok, markdownNaarWordXml, naarDDMMJJJJ, naarISO };
 })();
 </script>
 </body>

@@ -5,11 +5,26 @@ Een hulpmiddel voor management assistenten dat vergadernotities, een Teams-trans
 ## Wat de tool doet
 
 1. Je plakt of sleept je bronnen in drie vakken: **Notities** (verplicht), **Transcript** (optioneel) en **Copilot-recap** (optioneel). Ondersteunde bestanden: `.txt`, `.md`, `.docx` en voor het transcript ook `.vtt` (Teams-transcript).
-2. Optioneel vul je vergadertitel, datum en aanwezigen in. Laat je die leeg, dan leidt het model ze af uit de bronnen.
+2. Optioneel vul je de kopgegevens van het overleg in: titel, locatie, datum, notulist, aanwezig, gedeeltelijk aanwezig, afwezig en de link naar de MT Prep. Wat je leeg laat, leidt het model af uit de bronnen; wat het niet kan afleiden, krijgt `[NOG AAN TE VULLEN]`.
 3. Je klikt op **Genereer notulen**. De tool stuurt de bronnen in één aanroep naar het model en toont de notulen terwijl ze binnenkomen.
-4. Je controleert de notulen, past ze zo nodig aan via **Bewerken** en kopieert of downloadt ze: als markdown, als platte tekst (voor Teams of e-mail), als `.md` of als Word-bestand (`.docx`).
+4. Je controleert de notulen, past ze zo nodig aan via **Bewerken** en kopieert of downloadt ze: als markdown, als platte tekst (voor Teams of e-mail), als `.md` of als Word-bestand in het sjabloon **Notulen MT**.
 
-Regels die het model meekrijgt: de vaste structuur wordt exact gevolgd, er wordt niets verzonnen, de notities zijn leidend, tegenstrijdigheden tussen bronnen worden benoemd, en ontbrekende eigenaren of deadlines krijgen de tekst `[NOG AAN TE VULLEN]`. Controleer de notulen altijd zelf; het model kan fouten maken.
+De output volgt de structuur van het Word-sjabloon `Notulensjabloon_1.docx` (SD Worx Nederland - Notulen MT):
+
+| Onderdeel | Inhoud |
+|---|---|
+| Kopblok | Titel, locatie en datum, aanwezig / gedeeltelijk aanwezig / afwezig, notulist, link naar de MT Prep |
+| 1. Opening & doelstellingen | Vast agendapunt |
+| 2. Prep MBR | Vast agendapunt |
+| 3. KPI's | Vast agendapunt, met subonderwerpen en "Deepdive per Director" |
+| 4. Lunch | Vast agendapunt ("Niet besproken." als er niets inhoudelijks was) |
+| 5. Strategische initiatieven | Vast agendapunt |
+| 6. MT Topics & Besluitvorming | Vast agendapunt, met besluiten |
+| 7, 8, … | Extra agendapunten uit de bronnen (nul of meer) |
+| Openstaande acties | Tabel van alle acties uit dit overleg (Actie, Eigenaar, Deadline, Bron) en de afgeronde actiepunten |
+| Afsluiting | Altijd het laatste agendapunt |
+
+Acties die tijdens het overleg ontstaan, staan bij het agendapunt zelf als `**Actie:** wat – eigenaar – deadline` en komen daarna samen in de tabel onder "Openstaande acties". Besluiten staan bij het agendapunt als `**Besluit:** …`. Regels die het model meekrijgt: de vaste agendapunten blijven altijd staan, er wordt niets verzonnen, de notities zijn leidend, tegenstrijdigheden tussen bronnen worden benoemd, en ontbrekende eigenaren of deadlines krijgen `[NOG AAN TE VULLEN]`. Controleer de notulen altijd zelf; het model kan fouten maken.
 
 ## De tool openen
 
@@ -66,31 +81,54 @@ Een browser mag alleen met een ander adres praten als dat adres dat expliciet to
 
 Fouten tijdens het genereren worden op dezelfde manier leesbaar in het scherm getoond, met de melding van het endpoint erbij.
 
-## STRUCTUUR en VOORBEELDEN invullen (beheerder)
+## STRUCTUUR, VOORBEELDEN en het Word-sjabloon (beheerder)
 
 Bovenaan het script in `index.html` staat een blok dat begint met `// === CONFIGURATIE ===` en eindigt met `// === EINDE CONFIGURATIE ===`. Alles wat je aan de notulen wilt veranderen, staat daar; de rest van de code hoef je niet aan te raken. Open het bestand in Kladblok, Notepad++ of VS Code.
 
 - **`SYSTEEMPROMPT`**: de instructies voor het model (Nederlands). Pas regels aan of voeg ze toe.
-- **`STRUCTUUR`**: het vaste sjabloon in markdown. Vervang de default door de echte opzet van SD Worx. Houd de kolommen van de actietabel (`Actie | Eigenaar | Deadline | Bron`) intact, want de systeemprompt verwijst ernaar. Tekst tussen `[ ]` is een invulplek.
+- **`STRUCTUUR`**: het vaste sjabloon in markdown, de tegenhanger van het Word-sjabloon. De kopregels (`**Locatie:**`, `**Datum:**`, `**Aanwezig:**`, `**Gedeeltelijk aanwezig:**`, `**Afwezig:**`, `**Notulist:**`, `**Link:**`) en de agendapunten (`## 1. …`) worden ook door de Word-export gebruikt. Verander je de naam van een kopregel, pas die dan ook aan in `KOPVELDEN`. Houd de kolommen van de actietabel (`Actie | Eigenaar | Deadline | Bron`) intact; de systeemprompt verwijst ernaar.
 - **`VOORBEELDEN`**: een lijst van complete voorbeeldnotulen die als few-shot meegaan. Standaard leeg. Zo vul je hem:
 
   ```js
   const VOORBEELDEN = [
-  `# Notulen: Weekoverleg HR-team
+  `# SD Worx Nederland - Notulen MT
 
-  **Datum:** 12 mei 2026
+  **Locatie:** Utrecht
   ... (het volledige voorbeeld, in exact dezelfde structuur als STRUCTUUR) ...`,
 
-  `# Notulen: Stuurgroep payroll
+  `# SD Worx Nederland - Notulen MT
   ... (tweede voorbeeld) ...`,
   ];
   ```
 
   Gebruik geanonimiseerde, echte notulen van goede kwaliteit. Eén tot drie voorbeelden volstaan. Houd ze in dezelfde structuur als `STRUCTUUR`, anders spreken sjabloon en voorbeelden elkaar tegen.
-- **`MOCK_OUTPUT`**: het vaste voorbeeld dat in mock-modus wordt getoond. Vervang dit door notulen in jullie structuur, zodat de demo klopt.
-- Verder staan er constanten voor het standaardmodel, de maximale outputlengte (`MAX_TOKENS`) en de waarschuwingsgrens voor grote invoer.
+- **`MOCK_OUTPUT`**: het vaste voorbeeld dat in mock-modus wordt getoond.
+- **`STANDAARD_TITEL`**, **`STANDAARD_MODEL`**, **`MAX_TOKENS`** en de waarschuwingsgrens voor grote invoer.
+- **`SJABLOON_DOCX_BASE64`**: het Word-sjabloon voor de export, zie hieronder.
 
-Let op: de teksten staan tussen backticks (`` ` ``). Een backtick ín een tekst schrijf je als `` \` ``. Sla het bestand op als UTF-8, herlaad de pagina en test eerst in mock-modus (laadt het bestand nog?) en daarna met een echte aanroep.
+Let op: de teksten staan tussen backticks (`` ` ``). Een backtick ín een tekst schrijf je als `` \` ``. Sla het bestand op als UTF-8, herlaad de pagina en test eerst in mock-modus en daarna met een echte aanroep.
+
+### Hoe de Word-export werkt
+
+De knop **Download .docx** vult het echte Word-sjabloon (kop- en voettekst met logo, stijlen en nummering van `Notulensjabloon_1.docx`). Het sjabloon zit als base64-tekst in `index.html`, met plaatshouders op de plekken waar tekst komt:
+
+| Plaatshouder | Wordt gevuld met |
+|---|---|
+| `{{titel}}` | De titel (kop `#` van de notulen) |
+| `{{subtitel}}` | Locatie en datum uit de kopregels |
+| `{{aanwezig}}`, `{{gedeeltelijk}}`, `{{afwezig}}` | De drie regels achter "Aan:" |
+| `{{notulist}}` | De regel "Van:" |
+| `{{link}}` | De regel "Link:", als klikbare hyperlink wanneer er een URL is |
+| `{{inhoud}}` | Alles vanaf het eerste agendapunt |
+| `{{voetdatum}}` (voettekst) | De datum als dd/mm/jjjj |
+
+Bij het vullen van `{{inhoud}}` gebruikt de tool de stijlen van het sjabloon: agendapunten (`##`) worden genummerde koppen (stijl Heading 3), subonderwerpen (`###`) worden Subheading 3, opsommingen krijgen de opsommingstekens van het sjabloon (het pijltje voor `Actie:` en `Besluit:`), en de actietabel wordt een Word-tabel. Lukt het vullen niet (bijvoorbeeld omdat de bibliotheek niet geladen is), dan maakt de tool een eenvoudig Word-bestand zonder sjabloon en meldt dat in de statusregel.
+
+Een ander of aangepast sjabloon gebruiken:
+
+1. Haal het huidige sjabloon uit `index.html`: kopieer de tekst tussen de aanhalingstekens van `SJABLOON_DOCX_BASE64` naar een bestand `sjabloon.b64` en voer in PowerShell uit: `[IO.File]::WriteAllBytes("sjabloon.docx", [Convert]::FromBase64String((Get-Content sjabloon.b64 -Raw)))`.
+2. Open `sjabloon.docx` in Word en pas de opmaak aan. Laat de plaatshouders staan (elke plaatshouder in één stuk tekst, dus niet half vet of half in een ander lettertype) en houd de stijlen Heading 3, Subheading 3 en List Paragraph en de nummeringen van het sjabloon in stand.
+3. Codeer het bestand opnieuw: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("sjabloon.docx")) | Set-Content sjabloon.b64` en plak de inhoud in `SJABLOON_DOCX_BASE64`.
 
 ## Privacy
 
@@ -102,22 +140,24 @@ Let op: de teksten staan tussen backticks (`` ` ``). Een backtick ín een tekst 
 
 ## Handmatig testen
 
-In de map `test-input/` staan fictieve bronnen van een korte HR-implementatievergadering: `notities.txt`, `transcript.vtt` (Teams-formaat) en `recap.txt`. De recap bevat bewust een afwijkende go-livedatum, zodat je kunt zien of het model de tegenstrijdigheid benoemt. Gebruik ze zo:
+In de map `test-input/` staan fictieve bronnen van een MT-overleg van SD Worx Nederland: `notities.txt`, `transcript.vtt` (Teams-formaat) en `recap.txt`. De recap noemt bewust een andere NPS dan de notities, zodat je kunt zien of het model de tegenstrijdigheid benoemt. Gebruik ze zo:
 
 1. Open `index.html?mock=1` (of zet Mock-modus aan) en sleep de drie bestanden in de vakken. Controleer dat het transcript is omgezet naar regels `Naam: tekst`.
-2. Klik op **Genereer notulen** en probeer bewerken, kopiëren en beide downloads.
+2. Klik op **Genereer notulen** en probeer bewerken, kopiëren en beide downloads. Open het Word-bestand en controleer dat kopblok, nummering en actietabel in het sjabloon staan.
 3. Zet Mock-modus uit, vul een key in, klik op **Test verbinding** en genereer opnieuw.
 
 ## Gemaakte aannames
 
 - Standaardmodel is `claude-sonnet-5`, zoals gevraagd; de naam is vrij aan te passen. De tool stuurt geen extra parameters mee (geen thinking-, effort- of temperature-instellingen), zodat elke modelnaam werkt. Maximale outputlengte is 16.000 tokens (`MAX_TOKENS`).
+- De structuur is afgeleid van `Notulensjabloon_1.docx`: de agendapunten 1 tot en met 6 zijn vast, extra onderwerpen uit de bronnen worden eigen agendapunten, en "Openstaande acties" en "Afsluiting" sluiten af. Omdat het sjabloon acties bij het onderwerp zelf noteert én een actielijst kent, staan acties zowel bij het agendapunt als in de tabel onder "Openstaande acties". De kolom "Bron" in die tabel is toegevoegd om te kunnen zien uit welke bron een actie komt.
+- De link naar de MT Prep kan het model niet weten; die komt uit het kopveld of uit de bronnen, anders `[NOG AAN TE VULLEN]`. Bij "gedeeltelijk aanwezig" en "afwezig" schrijft het model "geen" als er volgens de bronnen niemand was.
+- De Word-export vult het originele sjabloon via plaatshouders (bibliotheek `docx`, functie `patchDocument`). De hyperlinks naar SharePoint uit het originele sjabloon zijn vervangen door de link uit de kopregel. De datum in de voettekst komt uit het datumveld, anders uit de kopregel "Datum", anders is het vandaag. Het logo in de koptekst (EMF) blijft ongewijzigd.
 - Foundry: het endpointformaat `https://<resource>.services.ai.azure.com/anthropic/v1/messages`, de auth-headers `api-key`/`x-api-key`/`Authorization: Bearer` en het gebruik van de deploymentnaam als model komen uit de documentatie "Claude in Microsoft Foundry" van Anthropic, geraadpleegd op 3 september 2026. Of een Foundry-resource browser-aanroepen (CORS) toestaat, is niet geverifieerd; daarom is Test verbinding de eerste stap.
 - Entra ID-tokens worden ondersteund door ze handmatig te plakken; er zit geen aanmeldflow (MSAL) in deze versie. Zo'n token verloopt na ongeveer een uur.
 - Bibliotheken: `mammoth` 1.12.2 en `marked` 18.0.11 via cdnjs (met unpkg als reserve), `docx` 9.7.1 via unpkg (niet beschikbaar op cdnjs). De bibliotheken laden asynchroon; als een CDN niet bereikbaar is, blijft de rest van de tool werken. Inter komt van Google Fonts, met Segoe UI als fallback.
 - Het model-antwoord wordt als SSE-stream gelezen. Geeft een proxy geen stream door, dan wordt het antwoord in één keer verwerkt.
 - Een bestand dat je in een vak laadt, vervangt de tekst die er al stond. Een `.txt` in het transcriptvak dat met `WEBVTT` begint, wordt ook als VTT verwerkt. In de VTT-verwerking worden opeenvolgende cues van dezelfde spreker samengevoegd en wordt een cue zonder sprekerlabel bij de vorige regel gevoegd.
 - De waarschuwing bij grote invoer telt tekens (300.000), geen tokens, en blokkeert niet. Lange transcripten worden niet opgeknipt; bij zeer grote invoer kan het endpoint traag zijn of het verzoek weigeren.
-- De datum uit het metadataveld gaat als "3 september 2026" naar het model. Bestandsnamen volgen `JJJJ-MM-DD_<titel>_notulen.md/.docx`: de datum uit het veld, anders vandaag; de titel uit het veld, anders uit de eerste kop van de notulen, anders `vergadering`.
-- De Word-export zet koppen, alinea's, opsommingen en tabellen om, met Inter als lettertype en SD Worx-blauw voor koppen. Verdere opmaak is bewust weggelaten.
+- De datum uit het datumveld gaat als "1 september 2026" naar het model. Bestandsnamen volgen `JJJJ-MM-DD_<titel>_notulen.md/.docx`: de datum uit het veld, anders uit de kopregel "Datum" van de notulen, anders vandaag; de titel uit het veld (zonder het woord "notulen"), anders uit de eerste kop, anders `mt`.
 - Kopiëren naar het klembord werkt bij dubbelklikken (`file://`) en op HTTPS. Op een `http://`-adres zonder HTTPS valt de tool terug op de oudere kopieerfunctie van de browser.
 - `SKILL.md` in deze repository (de SD Worx-brandbook) hoort niet bij de tool en is ongewijzigd gelaten.

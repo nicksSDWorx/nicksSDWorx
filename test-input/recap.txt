@@ -1,23 +1,25 @@
 Samenvatting van de vergadering (gegenereerd door Copilot)
 
-Projectoverleg implementatie People Hub, 1 september 2026
-Deelnemers: Sanne de Wit, Tom Peeters, Fatima El Amrani, Ruben Jansen, Els Vermeulen
+MT SD Worx Nederland, 1 september 2026
+Deelnemers: Marieke Jansen, Pieter de Boer, Sanne de Wit, Ruben Jansen, Fatima El Amrani, Tom Peeters (tot 11:00), Els Vermeulen
 
 Belangrijkste punten
-- De datamigratie is voor 92% afgerond. Bij veertig dossiers ontbreken nog gegevens (BSN of geboortedatum); Fatima El Amrani zoekt dit uit met de salarisadministratie.
-- De acceptatietest start op 15 september en duurt twee weken. Twaalf testers uit vier afdelingen doen mee.
-- De koppeling met de Outlook-agenda is vertraagd omdat de leverancier het certificaat nog niet heeft geleverd; verwacht rond 20 september.
-- Tom Peeters verzorgt de communicatie naar medewerkers via e-mail en intranet.
-- Het team is akkoord met extra licentiekosten van 4.200 euro voor de testomgeving.
-- De go-live is gepland op 15 oktober.
+- De MBR van 10 september wordt voorbereid; Pieter de Boer consolideert de slides en verwacht de bijdragen van de directors uiterlijk 4 september.
+- De omzet van augustus ligt 2% boven budget; de IT-kosten liggen 40.000 euro boven budget door licenties voor People Hub.
+- KPI's augustus: NPS 44, churn 1,8%, ticketbacklog 320. Operations heeft twee extra medewerkers ingehuurd tot eind oktober.
+- People Hub: migratie 92% gereed, acceptatietest vanaf 15 september, go-live 1 oktober.
+- Het MT is akkoord met 4.200 euro extra licentiekosten voor de testomgeving van People Hub.
+- Het besluit over hybride werken (twee vaste kantoordagen) is uitgesteld tot 15 september; er komt eerst een FAQ voor medewerkers.
+- Bakkerij Van Rooij heeft een klacht ingediend over de loonstroken van juli; Tom Peeters en Fatima El Amrani bezoeken de klant op 9 september.
 
 Actiepunten
-- Fatima El Amrani: ontbrekende gegevens van veertig dossiers aanvullen, voor 8 september.
-- Fatima El Amrani: testscripts afronden, voor 10 september.
-- Tom Peeters: namen van de testers bevestigen, voor 12 september.
-- Ruben Jansen: certificaat bij de leverancier opvolgen.
-- Els Vermeulen: twee inloopsessies plannen, voor 25 september.
-- Sanne de Wit: budget melden aan de stuurgroep, op 5 september.
+- Alle directors: MBR-slide aanleveren bij Pieter de Boer, voor 4 september.
+- Pieter de Boer: MBR-slides consolideren, 5 september.
+- Fatima El Amrani: wekelijkse rapportage van de ticketbacklog, vanaf 8 september.
+- Sanne de Wit: UAT-planning People Hub delen, 12 september.
+- Sanne de Wit: voorstel hybride werken met FAQ uitwerken, 15 september.
+- Fatima El Amrani: oorzaak fouten loonstroken Van Rooij analyseren, 8 september.
+- Tom Peeters: klantbezoek Bakkerij Van Rooij, 9 september.
 
-Open vragen
-- Wie beheert de FAQ na de go-live?
+Afgerond
+- Ruben Jansen: contract nieuwe telefonieleverancier ondertekend.

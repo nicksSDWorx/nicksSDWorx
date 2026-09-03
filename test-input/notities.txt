@@ -1,26 +1,48 @@
-Projectoverleg implementatie People Hub
-1 september 2026, 10:00-11:00, Teams
-Aanwezig: Sanne de Wit (projectleider), Tom Peeters (HR-manager), Fatima El Amrani (functioneel beheer), Ruben Jansen (IT), Els Vermeulen (notulen)
+MT SD Worx Nederland - 1 september 2026, 9:30-11:45, Utrecht zaal 3.02 + Teams
+Aanwezig: Marieke Jansen (MD), Pieter de Boer (Finance), Sanne de Wit (HR), Ruben Jansen (IT), Fatima El Amrani (Operations)
+Tom Peeters (Sales) tot 11:00
+Afwezig: Joost Bakker (Marketing), vakantie
+Notulist: Els Vermeulen
+MT Prep: https://sd.sharepoint.com/sites/NLTigerTeamPeopleSolutions/MT%20Prep/260901_MT%20Prep.pptx
 
-1. Datamigratie
-- 92% van de dossiers is over
-- 40 dossiers: BSN of geboortedatum ontbreekt -> Fatima checkt met salarisadministratie, uiterlijk 8/9
-- rest van de migratie pas na aanvulling
+1. Opening
+- Marieke opent 9:30
+- doelen: MBR-prep afronden, KPI's augustus, besluit budget testomgeving People Hub, escalatie Van Rooij
+- Tom weg om 11:00 -> escalatie eerst
 
-2. UAT
-- start 15/9, twee weken
-- 12 testers uit 4 afdelingen -> Tom bevestigt de namen uiterlijk 12/9
-- testscripts nog niet klaar -> Fatima, uiterlijk 10/9
+2. Prep MBR (10/9)
+- Pieter consolideert slides, deadline 5/9
+- directors leveren eigen slide aan uiterlijk 4/9
+- omzet aug +2% vs budget
+- IT-kosten 40k boven budget (licenties) -> Ruben licht toe in MBR, datum toelichting niet afgesproken
 
-3. Outlook-koppeling
-- leverancier heeft certificaat nog niet geleverd
-- Ruben verwacht ca. 20/9
+3. KPI's augustus
+- NPS 42 (juli 38)
+- churn 1,8% (doel 1,5%)
+- ticketbacklog 320 (doel 250)
+- deepdive Fatima: backlog door vakantie, 2 extra medewerkers ingehuurd t/m eind oktober, eind sept weer op 250
 
-4. Communicatie
-- Tom: mail + intranetbericht (deadline nog niet afgesproken)
-- Els: twee inloopsessies
-- FAQ na go-live: eigenaar nog onbekend
+4. Lunch - niets
 
-5. Go-live en budget
-- go-live blijft 1/10, terugval 15/10 als UAT uitloopt
-- extra licenties testomgeving 4.200 euro -> akkoord, Sanne meldt aan stuurgroep vrijdag 5/9
+5. Strategische initiatieven
+- People Hub: migratie 92%, UAT start 15/9, go-live 1/10 (terugval 15/10)
+- AI-notulentool: Els test in september, terugkoppeling MT 29/9
+- actie Sanne: UAT-planning delen met MT, 12/9
+
+6. MT topics & besluiten
+- budget testomgeving People Hub 4.200 euro -> AKKOORD
+- hybride werken (voorstel Sanne, 2 kantoordagen): MT wil eerst FAQ -> besluit uitgesteld naar MT 15/9
+- actie Sanne: voorstel + FAQ uitwerken, 15/9
+
+Extra: klantescalatie Bakkerij Van Rooij (Tom)
+- klacht loonstroken juli, verkeerde toeslagen bij 14 medewerkers
+- Tom + Fatima op klantbezoek 9/9
+- Fatima analyseert oorzaak vooraf (8/9)
+
+Openstaande acties
+- afgerond: contract telefonieleverancier getekend (Ruben)
+
+Afsluiting
+- geen rondvraag
+- volgende MT 15/9 9:30 Utrecht
+- einde 11:45
