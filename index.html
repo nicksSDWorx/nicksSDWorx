@@ -137,7 +137,7 @@ input[type="checkbox"] { accent-color: var(--sdw-blue); width: 16px; height: 16p
 </header>
 
 <main>
-  <div id="uitleg" class="melding"><strong>Zo werkt het:</strong> 1. Voer je notities in, met eventueel het Teams-transcript en de Copilot-recap. 2. Klik op “Maak notulen”: de tool haalt keypoints, besluiten en acties uit de bronnen en zet ze in de vaste structuur van het sjabloon Notulen MT. 3. Controleer de notulen, vul aan wat [NOG AAN TE VULLEN] is en download het Word-bestand.</div>
+  <div id="uitleg" class="melding"><strong>Zo werkt het:</strong> 1. Voer je notities in, met eventueel het Teams-transcript en de Copilot-recap. 2. Klik op “Maak notulen”: de tool haalt de onderwerpen, keypoints, besluiten en acties uit de bronnen en zet ze in de opzet van het sjabloon Notulen MT. 3. Controleer de notulen, vul aan wat [NOG AAN TE VULLEN] is en download het Word-bestand.</div>
 
   <section class="raster" aria-label="Bronnen">
     <div class="kaart bron" data-bron="notities" data-accept="txt,md,docx">
@@ -242,22 +242,18 @@ input[type="checkbox"] { accent-color: var(--sdw-blue); width: 16px; height: 16p
 // === CONFIGURATIE ===
 // Dit blok mag de beheerder aanpassen. De rest van het script hoeft daarvoor niet gewijzigd te worden.
 // De tool gebruikt geen AI: hij herkent kopjes, opsommingen, namen, datums en signaalwoorden in de bronnen
-// en zet die in de vaste structuur van het sjabloon "Notulen MT".
+// en zet die per onderwerp in de opzet van het sjabloon "Notulen MT".
 
-// 1. Kop en agenda van het sjabloon.
+// 1. Kop en vaste onderdelen van het sjabloon.
 const STANDAARD_TITEL = 'SD Worx Nederland - Notulen MT';
-// Vaste agendapunten, in volgorde. 'herken' bepaalt welk kopje uit de notities (of de recap) bij welk agendapunt hoort.
-const AGENDA = [
-  { titel: 'Opening & doelstellingen', herken: /opening|doelstelling|welkom|\bdoelen\b|mededeling/i },
-  { titel: 'Prep MBR', herken: /\bmbr\b|\bprep\b|business review/i },
-  { titel: "KPI's", herken: /\bkpi|cijfers|\bnps\b|churn|deepdive|dashboard|resultaten/i },
-  { titel: 'Lunch', herken: /\blunch\b/i },
-  { titel: 'Strategische initiatieven', herken: /strategi|initiatie|roadmap|programma/i },
-  { titel: 'MT Topics & Besluitvorming', herken: /topic|besluit|beslis|budget|beleid/i },
-];
-const AGENDA_ACTIES = { titel: 'Openstaande acties', herken: /openstaand|actiepunt|actielijst|^\s*acties\b|afgerond/i };
-const AGENDA_AFSLUITING = { titel: 'Afsluiting', herken: /afsluit|rondvraag|sluiting|volgende\s+(mt|overleg|vergadering)|wvttk|w\.v\.t\.t\.k/i };
-const TITEL_OVERIG = 'Overige punten';   // agendapunt voor punten uit transcript of recap die nergens bij passen
+// De onderwerpen komen uit de kopjes van de notities (en eventueel de recap), in de volgorde van de notities.
+// Vast zijn alleen de actielijst aan het eind en, als de bronnen die hebben, de afsluiting.
+const TITEL_ACTIES = 'Openstaande acties';
+const HERKEN_ACTIES = /openstaand|actiepunt|actielijst|^\s*acties\b|afgerond/i;   // kopjes die bij de actielijst horen
+const TITEL_AFSLUITING = 'Afsluiting';
+const HERKEN_AFSLUITING = /afsluit|rondvraag|sluiting|volgende\s+(mt|overleg|vergadering)|wvttk|w\.v\.t\.t\.k/i;   // kopje dat als laatste komt
+const TITEL_OVERIG = 'Overige punten';   // onderwerp voor punten uit transcript of recap die nergens bij passen
+const TITEL_LOS = 'Besproken punten';    // onderwerp als de notities geen kopjes hebben
 
 // 2. Signaalwoorden (reguliere expressies, hoofdletterongevoelig).
 // Een regel is een ACTIE als er een naam (of groep) in staat plus een datum of een actiewoord, of als hij begint met "actie".
@@ -754,16 +750,16 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
 
   /* ---------- Analyse: bronnen in secties en regels ---------- */
   const BULLET_RE = /^\s*(?:[-*•▪◦·–—]|o(?=\s)|\d{1,2}[.)]|[a-z][.)])\s+(.*)$/;
-  const herkenAgenda = (t) => AGENDA.some((a) => a.herken.test(t)) || AGENDA_ACTIES.herken.test(t) || AGENDA_AFSLUITING.herken.test(t);
+  const herkenVast = (t) => HERKEN_ACTIES.test(t) || HERKEN_AFSLUITING.test(t);
   function isKopregel(t, volgende, laatsteNummer) {
     if (/^#{1,6}\s/.test(t)) return true;
     const nummer = /^(\d{1,2})[.)]\s+(\S.*)$/.exec(t);
     const kern = nummer ? nummer[2] : t;
     const nWoorden = kern.split(/\s+/).length;
     const bulletVolgt = !!volgende && BULLET_RE.test(volgende) && !/^\s*\d{1,2}[.)]\s/.test(volgende);
-    if (nummer) return nWoorden <= 8 && (bulletVolgt || +nummer[1] === laatsteNummer + 1 || herkenAgenda(kern));
+    if (nummer) return nWoorden <= 8 && (bulletVolgt || +nummer[1] === laatsteNummer + 1 || herkenVast(kern));
     if (BULLET_RE.test(t)) return false;
-    if (/^(extra|overig|bijlage|agendapunt)\s*:/i.test(t)) return true;
+    if (/^(extra|overig|bijlage|agendapunt|onderwerp|topic)\s*:/i.test(t)) return true;
     if (nWoorden <= 6 && /^[A-Z0-9][A-Z0-9 &'’\-/]{3,}$/.test(t)) return true;
     if (nWoorden <= 6 && /:$/.test(t)) return true;
     if (nWoorden <= 6 && !/[.!?,;]$/.test(t) && bulletVolgt) return true;
@@ -773,10 +769,11 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     if (/^(aanwezig|afwezig|deelnemers|notulist|notulen|locatie|datum|aanwezigen|verontschuldigd)\b/i.test(titel)) return 'kop';
     if (/afgerond|gedaan|klaar/i.test(titel)) return 'afgerond';
     if (/open\s*(vragen|punten)|openstaande\s+vragen|^vragen$|parkeer/i.test(titel)) return 'open';
-    if (/actie|to-?do|actielijst/i.test(titel)) return 'acties';
-    if (AGENDA_AFSLUITING.herken.test(titel)) return 'afsluiting';
+    if (/actie|to-?do|actielijst/i.test(titel) || HERKEN_ACTIES.test(titel)) return 'acties';
+    if (/^besluit(en)?$/i.test(titel.trim())) return 'besluiten';
+    if (HERKEN_AFSLUITING.test(titel)) return 'afsluiting';
     if (/samenvatting|belangrijkste|hoofdpunten|highlights|kernpunten|besproken/i.test(titel)) return 'samenvatting';
-    return 'agenda';
+    return 'onderwerp';
   }
   // Splitst een bron (notities of recap) in kopregels en secties met regels.
   function ontleedBron(tekst, bron) {
@@ -791,10 +788,12 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
       if (isKopregel(t, volgende, laatsteNummer)) {
         const nummer = /^(\d{1,2})[.)]\s+/.exec(t);
         if (nummer) laatsteNummer = +nummer[1];
-        let titel = t.replace(/^#{1,6}\s*/, '').replace(/^\d{1,2}[.)]\s+/, '').replace(/^(extra|overig|agendapunt)\s*:\s*/i, '').replace(/:$/, '').trim();
+        let titel = t.replace(/^#{1,6}\s*/, '').replace(/^\d{1,2}[.)]\s+/, '').replace(/^(extra|overig|agendapunt|onderwerp|topic)\s*:\s*/i, '').replace(/:$/, '').trim();
         let rest = '';
-        const split = /^(.+?)\s+[-–:]\s+(.+)$/.exec(titel);
-        if (split && herkenAgenda(split[1])) { titel = split[1]; rest = split[2]; }
+        const streep = /^(.+?)\s+[-–]\s+(.+)$/.exec(titel);
+        const dubbelePunt = /^([^:]{2,40}):\s+(.+)$/.exec(titel);
+        if (streep && streep[1].split(/\s+/).length <= 4) { titel = streep[1]; rest = streep[2]; }
+        else if (dubbelePunt && dubbelePunt[1].split(/\s+/).length <= 4 && dubbelePunt[2].split(/\s+/).length >= 4) { titel = dubbelePunt[1]; rest = dubbelePunt[2]; }
         huidige = { titel, type: typeSectie(titel), regels: [], bron };
         secties.push(huidige);
         if (rest) huidige.regels.push({ tekst: rest, bullet: false, niveau: 0 });
@@ -809,9 +808,9 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     secties.filter((s) => s.type === 'kop').forEach((s) => s.regels.forEach((r) => kop.push(s.titel.replace(/:$/, '') + ': ' + r.tekst)));
     const inhoud = secties.filter((s) => s.type !== 'kop');
     if (!inhoud.length) {
-      // Geen kopjes gevonden: alle regels (behalve kopgegevens) als losse regels behandelen.
+      // Geen kopjes gevonden: alle regels (behalve kopgegevens) als losse zinnen behandelen.
       const KOPVELD = /^(aanwezig(?:en)?|afwezig|notulist|notulen|deelnemers|verontschuldigd|locatie|datum|link|mt prep)\s*:/i;
-      const los = { titel: '', type: 'los', regels: [], bron };
+      const los = { titel: TITEL_LOS, type: 'los', regels: [], bron };
       kop.slice().forEach((r) => { if (!KOPVELD.test(r) && !(r.length < 60 && vindDatums(r).some((d) => CONCREET[d.soort]))) zinnen(r).forEach((z) => los.regels.push({ tekst: z, bullet: false, niveau: 0 })); });
       if (los.regels.length) inhoud.push(los);
     }
@@ -837,7 +836,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   const BESLUIT_START = /^\s*besluit\s*[:\-–]|^\s*besloten\b/i;
   function classificeer(tekst, sectieType) {
     if (sectieType === 'afgerond' || AFGEROND_WOORDEN.test(tekst)) return 'afgerond';
-    if (!isVraag(tekst) && (BESLUIT_WOORDEN.test(tekst) || BESLUIT_START.test(tekst)) && !/^\s*actie\b/i.test(tekst)) return 'besluit';
+    if (!isVraag(tekst) && (sectieType === 'besluiten' || BESLUIT_WOORDEN.test(tekst) || BESLUIT_START.test(tekst)) && !/^\s*actie\b/i.test(tekst)) return 'besluit';
     if (sectieType === 'acties') return 'actie';
     if (/^\s*actie(punt)?\b/i.test(tekst)) return 'actie';
     const naam = vindNamen(tekst).length > 0, groep = !!vindGroep(tekst), cue = ACTIE_WOORDEN.test(tekst);
@@ -900,7 +899,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   }
 
   /* ---------- Analyse: kopgegevens ---------- */
-  function bepaalKop(meta, kopRegels, secties) {
+  function bepaalKop(meta, kopRegels) {
     const vind = (re) => { for (const r of kopRegels) { const m = re.exec(r); if (m) return m[1].trim(); } return ''; };
     const kop = {};
     kop.titel = meta.titel || STANDAARD_TITEL;
@@ -948,7 +947,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     let m;
     while ((m = re.exec(tekst))) {
       const term = m[1].toLowerCase();
-      if (STOP.has(term) || TERM_STOP.has(term) || /^\d/.test(m[2] + '') === false) continue;
+      if (STOP.has(term) || TERM_STOP.has(term)) continue;
       if (m[2].length < 2 && !/[.,]/.test(m[2])) continue;
       if (!uit[term]) uit[term] = new Set();
       uit[term].add(m[2].replace(',', '.'));
@@ -985,29 +984,33 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     const kopRegels = notities.kop.concat(recap ? recap.kop : []);
     kopRegels.forEach((r) => { const m = /^(?:aanwezig(?:en)?|afwezig|notulist|notulen|deelnemers|verontschuldigd|present)\s*:\s*(.+)$/i.exec(r); if (m) registreerNamenUitLijst(m[1]); else if (/\b(tot|vanaf)\s+\d{1,2}[:.]\d{2}/i.test(r)) registreerNaam(r); });
     if (transcript) transcript.forEach((u) => { if (u.spreker) registreerNaam(u.spreker); });
-    const kop = bepaalKop(meta, kopRegels, notities.secties);
+    const kop = bepaalKop(meta, kopRegels);
 
-    // Agenda-items.
-    const items = AGENDA.map((a) => ({ titel: a.titel, herken: a.herken, keypoints: [], besluiten: [], acties: [], vast: true }));
-    const extra = [];
-    const afsluiting = { titel: AGENDA_AFSLUITING.titel, keypoints: [], besluiten: [], acties: [] };
-    let overig = null;
+    // Onderwerpen: komen uit de kopjes van de bronnen, in de volgorde van de notities.
+    const items = [];
+    let overig = null, afsluiting = null;
     const acties = [], afgerond = [];
-    const vindItem = (titel) => items.find((it) => it.herken.test(titel)) || null;
+    const nieuwItem = (titel, bron) => { const it = { titel: hoofdletter(vervangDatums(titel).trim()), keypoints: [], besluiten: [], acties: [], bron }; items.push(it); return it; };
+    const alleItems = () => items.concat(overig ? [overig] : [], afsluiting ? [afsluiting] : []);
     const corpus = (it) => [it.titel].concat(it.keypoints.map((k) => k.tekst), it.besluiten, it.acties.map((a) => a.actie)).join(' ');
+    const zoekItem = (titel) => {
+      const tw = uniek(woorden(titel));
+      return items.find((it) => it.titel.toLowerCase() === titel.trim().toLowerCase() || (tw.length && overlapWoorden(tw, uniek(woorden(it.titel))) >= Math.min(2, tw.length))) || null;
+    };
     const besteItem = (tekst) => {
       let beste = null, score = 0;
-      items.concat(extra).forEach((it) => { const s = overlapWoorden(uniek(woorden(tekst)), uniek(woorden(corpus(it)))) + (it.herken && it.herken.test(tekst) ? 2 : 0) + Math.min(0.5, (it.besluiten.length + it.acties.length) * 0.1); if (s > score) { score = s; beste = it; } });
+      items.forEach((it) => { const s = overlapWoorden(uniek(woorden(tekst)), uniek(woorden(corpus(it)))) + Math.min(0.5, (it.besluiten.length + it.acties.length) * 0.1); if (s > score) { score = s; beste = it; } });
       return score >= 1 ? beste : null;
     };
-    const zetOverig = () => { if (!overig) { overig = { titel: TITEL_OVERIG, keypoints: [], besluiten: [], acties: [] }; extra.push(overig); } return overig; };
+    const zetOverig = () => { if (!overig) overig = { titel: TITEL_OVERIG, keypoints: [], besluiten: [], acties: [] }; return overig; };
+    const zetAfsluiting = () => { if (!afsluiting) afsluiting = { titel: TITEL_AFSLUITING, keypoints: [], besluiten: [], acties: [] }; return afsluiting; };
     const voegKeypoint = (it, tekst, niveau) => {
       const t = zinEinde(vervangDatums(tekst.replace(/\s*(->|→|=>)\s*/g, ' – ')));
       if (!it.keypoints.some((k) => dubbel(k.tekst, t))) it.keypoints.push({ tekst: t, niveau: niveau || 0 });
     };
     const voegBesluit = (it, tekst) => {
       const t = zinEinde(vervangDatums(tekst.replace(/^\s*besluit\s*[:\-–]\s*/i, '')));
-      if (![].concat(...items.concat(extra).map((x) => x.besluiten)).some((b) => dubbel(b, t))) it.besluiten.push(t);
+      if (![].concat(...alleItems().map((x) => x.besluiten)).some((b) => dubbel(b, t))) it.besluiten.push(t);
     };
     const voegAfgerond = (tekst) => {
       const t = zinEinde(vervangDatums(tekst.replace(/^\s*(afgerond|gedaan|klaar|afgehandeld)\s*[:\-–]?\s*/i, '').replace(/^\s*nog een afgerond punt\s*:\s*/i, '')));
@@ -1020,34 +1023,28 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
       if (pijl && pijl[1].trim()) {
         const soortNa = classificeer(pijl[2], sectieType);
         if (soortNa === 'actie') { if (it) voegKeypoint(it, pijl[1], regel.niveau); const a = voegActieToe(acties, maakActie(pijl[2], bron)); if (!a.item && it) { a.item = it; it.acties.push(a); } return; }
-        if (soortNa === 'besluit') { const na = pijl[2].trim(); const naTekst = na === na.toUpperCase() && na.length > 3 ? na.toLowerCase() : na; if (it) voegBesluit(it, pijl[1].trim() + (/:/.test(pijl[1]) ? ' – ' : ': ') + naTekst); return; }
+        if (soortNa === 'besluit') { const na = pijl[2].trim(); const naTekst = na === na.toUpperCase() && na.length > 3 ? na.toLowerCase() : na; voegBesluit(it || besteItem(tekst) || zetOverig(), pijl[1].trim() + (/:/.test(pijl[1]) ? ' – ' : ': ') + naTekst); return; }
       }
       const soort = classificeer(tekst, sectieType);
       if (soort === 'afgerond') { voegAfgerond(tekst); return; }
-      if (soort === 'besluit') { voegBesluit(it || besteItem(tekst) || items[5] || zetOverig(), tekst); return; }
+      if (soort === 'besluit') { voegBesluit(it || besteItem(tekst) || zetOverig(), tekst); return; }
       if (soort === 'actie') {
         const a = voegActieToe(acties, maakActie(tekst, bron));
         if (!a.item) { const doel = it || besteItem(a.actie); if (doel) { a.item = doel; doel.acties.push(a); } }
         return;
       }
       if (soort === 'open') tekst = 'Open vraag: ' + tekst;
-      const doel = it || besteItem(tekst) || zetOverig();
-      voegKeypoint(doel, tekst, regel.niveau);
+      voegKeypoint(it || besteItem(tekst) || zetOverig(), tekst, regel.niveau);
     };
 
-    // 1. Notities zijn leidend: secties koppelen aan agendapunten.
+    // 1. Notities zijn leidend: elk kopje wordt een onderwerp.
     notities.secties.forEach((sectie) => {
       let it = null;
-      if (sectie.type === 'afsluiting') it = afsluiting;
+      if (sectie.type === 'afsluiting') it = zetAfsluiting();
       else if (sectie.type === 'acties' || sectie.type === 'afgerond') it = null;
       else {
-        it = vindItem(sectie.titel);
-        if (!it && (sectie.type === 'agenda' || sectie.type === 'samenvatting' || sectie.type === 'open')) {
-          let titel = sectie.titel.replace(/\s*\(([^)]*)\)\s*$/, (m0, binnen) => (vindNamen(binnen).length ? '' : m0)).trim();
-          it = { titel: hoofdletter(titel), keypoints: [], besluiten: [], acties: [] };
-          extra.push(it);
-        }
-        if (it && it.vast && /\d/.test(sectie.titel)) voegKeypoint(it, sectie.titel, 0);
+        const titel = sectie.titel.replace(/\s*\(([^)]*)\)\s*$/, (m0, binnen) => (vindNamen(binnen).length ? '' : m0)).trim();
+        it = zoekItem(titel) || nieuwItem(titel, 'notities');
       }
       sectie.regels.forEach((regel) => {
         if (/^(niets|geen|n\.?v\.?t\.?|nvt|niet besproken|-)$/i.test(regel.tekst.trim())) return;
@@ -1055,12 +1052,12 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
       });
     });
 
-    // 2. Recap vult aan: alleen wat nog niet in de notities staat.
+    // 2. Recap vult aan: alleen wat nog niet in de notities staat; eigen kopjes worden onderwerpen.
     if (recap) {
       recap.secties.forEach((sectie) => {
         let it = null;
-        if (sectie.type === 'afsluiting') it = afsluiting;
-        else if (sectie.type === 'agenda') it = vindItem(sectie.titel);
+        if (sectie.type === 'afsluiting') it = zetAfsluiting();
+        else if (sectie.type === 'onderwerp' || sectie.type === 'besluiten') it = zoekItem(sectie.titel) || nieuwItem(sectie.titel, 'recap');
         sectie.regels.forEach((regel) => verwerkRegel(regel, sectie.type, it, 'recap'));
       });
     }
@@ -1073,11 +1070,11 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
         zinnen(u.tekst).forEach((zin) => {
           const vraag = isVraag(zin);
           const nWoorden = zin.split(/\s+/).length;
-          if (AFSLUIT_WOORDEN.test(zin) && !vraag) { voegKeypoint(afsluiting, derdePersoon(zin.replace(/^(dan|nou|goed|oké|ok)[,\s]+/i, '').replace(/^is\s+(het\s+\w+\s+\w+)\s+/i, (m0, s) => hoofdletter(s) + ' is '), spreker && spreker.voornaam), 0); return; }
+          if (AFSLUIT_WOORDEN.test(zin) && !vraag) { voegKeypoint(zetAfsluiting(), derdePersoon(zin.replace(/^(dan|nou|goed|oké|ok)[,\s]+/i, '').replace(/^is\s+(het\s+\w+\s+\w+)\s+/i, (m0, s) => hoofdletter(s) + ' is '), spreker && spreker.voornaam), 0); return; }
           if (AFGEROND_WOORDEN.test(zin) && !vraag) { voegAfgerond(derdePersoon(zin, spreker && spreker.voornaam)); return; }
           if (!vraag && nWoorden >= 4 && (BESLUIT_WOORDEN.test(zin) || BESLUIT_START.test(zin))) {
             const t = derdePersoon(zin.replace(/^\s*laten we\s+/i, ''), spreker && spreker.voornaam);
-            voegBesluit(besteItem(t) || items[5] || zetOverig(), t);
+            voegBesluit(besteItem(t) || zetOverig(), t);
             return;
           }
           let actieTekst = '', eigenaar = '';
@@ -1106,15 +1103,16 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
 
     // 4. Getallen die tussen de bronnen verschillen.
     vindTegenstrijdigheden({ notities: invoer.notities, transcript: invoer.transcript, recap: invoer.recap }).forEach((c) => {
-      const doel = items.concat(extra).find((it) => corpus(it).toLowerCase().includes(c.term)) || items[0];
-      doel.keypoints.push({ tekst: 'Let op: de bronnen verschillen over ' + c.term.toUpperCase().replace(/^([A-Z])([A-Z]+)$/, (m0, a, b) => (c.term.length <= 4 ? m0 : a + b.toLowerCase())) + ' (' + c.detail + ').', niveau: 0 });
+      const doel = alleItems().find((it) => corpus(it).toLowerCase().includes(c.term)) || items[0] || zetOverig();
+      doel.keypoints.push({ tekst: 'Let op: de bronnen verschillen over ' + (c.term.length <= 4 ? c.term.toUpperCase() : c.term) + ' (' + c.detail + ').', niveau: 0 });
     });
 
-    // 5. Markdown opbouwen.
+    // 5. Markdown opbouwen: onderwerpen, overige punten, actielijst, afsluiting.
     const uit = [];
     uit.push('# ' + kop.titel, '');
     uit.push('**Locatie:** ' + kop.locatie, '**Datum:** ' + kop.datum, '**Aanwezig:** ' + kop.aanwezig, '**Gedeeltelijk aanwezig:** ' + kop.gedeeltelijk, '**Afwezig:** ' + kop.afwezig, '**Notulist:** ' + kop.notulist, '**Link:** ' + kop.link, '');
     let nr = 0;
+    const heeftInhoud = (it) => it.keypoints.length || it.besluiten.length || it.acties.length;
     const schrijfItem = (it) => {
       nr++;
       uit.push('## ' + nr + '. ' + it.titel);
@@ -1126,9 +1124,9 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
       uit.push(...regels, '');
     };
     items.forEach(schrijfItem);
-    extra.filter((it) => it !== overig || it.keypoints.length || it.besluiten.length || it.acties.length).forEach(schrijfItem);
+    if (overig && heeftInhoud(overig)) schrijfItem(overig);
     nr++;
-    uit.push('## ' + nr + '. ' + AGENDA_ACTIES.titel, '**Lopende actiepunten:**', '');
+    uit.push('## ' + nr + '. ' + TITEL_ACTIES, '**Lopende actiepunten:**', '');
     const cel = (s) => String(s).replace(/\|/g, '\\|');
     if (acties.length) {
       uit.push('| Actie | Eigenaar | Deadline | Bron |', '|---|---|---|---|');
@@ -1137,7 +1135,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
     uit.push('', '**Afgeronde actiepunten:**');
     if (afgerond.length) afgerond.forEach((a) => uit.push('- ' + a)); else uit.push('- Geen.');
     uit.push('');
-    schrijfItem(afsluiting);
+    if (afsluiting && heeftInhoud(afsluiting)) schrijfItem(afsluiting);
     return uit.join('\n').trim() + '\n';
   }
 
@@ -1678,7 +1676,7 @@ const SJABLOON_DOCX_BASE64 = 'UEsDBBQAAAAIAMdFI11IFX31yAEAAO4KAAATAAAAW0NvbnRlbn
   if (new URLSearchParams(location.search).get('voorbeeld') === '1') laadVoorbeeld();
 
   // Voor handmatige tests in de browserconsole.
-  window.notulentool = { maakNotulen, parseVtt, naarPlatteTekst, slug, leesKopblok, markdownNaarWordXml, naarDDMMJJJJ, naarISO, htmlNaarMarkdown, opschonen, vindDatums, ontleedBron };
+  window.notulentool = { maakNotulen, parseVtt, naarPlatteTekst, slug, leesKopblok, markdownNaarWordXml, naarDDMMJJJJ, naarISO, htmlNaarMarkdown, opschonen, vindDatums, ontleedBron, isKopregel };
 })();
 </script>
 </body>
